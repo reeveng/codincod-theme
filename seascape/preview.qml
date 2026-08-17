@@ -36,20 +36,49 @@ Window {
     }
   }
 
+  /**
+   * `qml6 preview.qml -- seed=42 settle=14 out=boat.png`
+   *
+   * `seed` picks which water to look at, which matters now that most of what is
+   * down there is placed by a roll of the dice: the only way to see the chest is
+   * to ask for a sea that has one. `settle` is how far the scene is wound on
+   * before the grab, and it is the only way to catch a passer, since a boat
+   * takes half a minute to cross and the default wind runs past the whole
+   * crossing in one go.
+   *
+   * Parsed as `key=value` rather than by position because a missing positional
+   * argument comes through as a string that reads as NaN, and a NaN interval on
+   * the timer below means the harness hangs instead of failing.
+   */
+  function arg(key, fallback) {
+    var all = Qt.application.arguments
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].indexOf(key + "=") === 0) return all[i].substring(key.length + 1)
+    }
+    return fallback
+  }
+
+  readonly property int seed: Number(win.arg("seed", "1956"))
+  readonly property real settle: Number(win.arg("settle", "40"))
+  readonly property string out: win.arg("out", "preview.png")
+
   Seascape {
     id: sea
     anchors.fill: parent
     ink: win.ink
+    rushed: true
+    seed: win.seed
+    settle: win.settle
     surface: win.surface
   }
 
   // Long enough that a vent has fired and the snow has spread, short enough to
   // stay a quick command.
   Timer {
-    interval: 4000
+    interval: 3000
     running: true
     onTriggered: win.contentItem.grabToImage(function (result) {
-      result.saveToFile(Qt.resolvedUrl("preview.png").toString().replace("file://", ""))
+      result.saveToFile(Qt.resolvedUrl(win.out).toString().replace("file://", ""))
       Qt.exit(0)
     })
   }

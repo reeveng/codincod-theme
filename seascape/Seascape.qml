@@ -30,6 +30,15 @@ Item {
   /** Salt. The same seed gives the same water twice. */
   property int seed: 1956
 
+  /**
+   * Skip the wait before the first boat and the first ping.
+   *
+   * For the preview harness and nothing else. On a desktop these are minutes
+   * apart on purpose, and a boat you get for turning the screen on is a boat on
+   * a schedule.
+   */
+  property bool rushed: false
+
   // ------------------------------------------------------------------- weights
   //
   // How dark each layer may be, as a share of full ink. The order is the order
@@ -49,9 +58,9 @@ Item {
   // Counted against the box rather than set outright, so the same component
   // fills a laptop panel and a wall without being retuned for either.
 
-  property real pxPerFish: 260000
-  property int minFish: 5
-  property int maxFish: 12
+  property real pxPerFish: 105000
+  property int minFish: 6
+  property int maxFish: 22
 
   property real pxPerMote: 19000
   property int minMotes: 30
@@ -60,6 +69,73 @@ Item {
   /** Places on the floor that bubble, and shafts coming through the surface. */
   property int vents: 3
   property int shafts: 5
+
+  /**
+   * How the shoal is made up, by kind.
+   *
+   * Mostly cruisers still, because they are the animal the water is about, with
+   * a good share of darters for the bursts, a pair or two of escorts, and one
+   * drifter to cross the murk at the back every so often. The counts here are
+   * shares rather than numbers; see `ShoalOptions.species`.
+   */
+  property var species: ({ cruiser: 5, darter: 4, drifter: 1, escort: 2, swordfish: 1 })
+
+  /** Cephalopods. Few: they are the thing you notice, so there is little of it. */
+  property int squids: 2
+  property int octopuses: 2
+
+  /**
+   * How dark an octopus may be.
+   *
+   * Its own, and heavier than the open water's, because it is the one animal in
+   * the scene drawn against the sand rather than against the water. A creature
+   * at the open water's weight sitting on ground drawn at `sandInk` is a
+   * creature nobody can see: the number that matters is not how dark it is, it
+   * is how much darker than what is behind it.
+   */
+  property real crawlerInk: 0.42
+
+  // ------------------------------------------------------------------ the bed
+  //
+  // What the water sits on, and what grows out of it. Counts rather than
+  // densities: a bed is a place rather than a texture, and one kelp too many
+  // turns a seabed into a lawn.
+
+  property int kelps: 9
+  property int grasses: 22
+  property int corals: 5
+  property int stones: 14
+  property int cliffs: 3
+
+  /** How dark the ground and the things rooted in it may be. */
+  property real sandInk: 0.13
+  property real stoneInk: 0.17
+  property real floraInk: 0.26
+  property real cliffInk: 0.09
+
+  /**
+   * How dark what is lying on the bottom may be, and what is coming off it.
+   *
+   * A relic is faint, because it is scenery and because the murk is what sells
+   * it: a wreck at the weight of a fish would be the subject of the picture, and
+   * this picture is about the water.
+   */
+  property real relicInk: 0.24
+  property real plumeInk: 0.11
+
+  /**
+   * The one exception in the whole scene.
+   *
+   * The laptop screen on the chest is drawn at full ink, brighter than anything
+   * alive. That is the joke: down in the dark, under a hundred faint animals,
+   * there is a lit rectangle the size of a fingernail. Nothing else is allowed
+   * to be that bright, which is the only reason it can be found at all.
+   */
+  property real screenInk: 1
+
+  /** How dark a boat and a ping may be. Both are far off, so barely at all. */
+  property real hullInk: 0.16
+  property real pingInk: 0.22
 
   /**
    * How many wedges one shaft is drawn from.
@@ -103,10 +179,31 @@ Item {
   property var shoal: null
   property var drift: null
   property var light: null
+  property var seabed: null
+  property var flora: null
+  property var inklings: null
+  property var wreckage: null
+  property var passers: null
 
   property int herd: 0
   property int flurry: 0
   property int beams: 0
+
+  /** The box the scene was last built or refitted at; see `refit`. */
+  property size fitted: Qt.size(0, 0)
+
+  /**
+   * How many delegates the rare layers keep standing.
+   *
+   * A Repeater handed a changing count rebuilds every delegate it owns, and the
+   * relics and the passers are exactly the layers whose count changes: a boat
+   * arrives, a ping goes out, a plume grows and retires. So these are ceilings
+   * rather than counts, the slots past the live ones sit empty, and nothing is
+   * ever built or destroyed while somebody is looking at it.
+   */
+  property int relicSlots: 4
+  property int plumeSlots: 40
+  property int passerSlots: 4
 
   /**
    * Flat copies of the simulations' records, republished once a tick.
@@ -120,6 +217,20 @@ Item {
   property var motes: []
   property var bubbles: []
   property var rays: []
+
+  /** The ground, published once when it is cut rather than every tick. */
+  property var sand: []
+  property var scarp: []
+  property var rocks: []
+  /** The plants, republished every tick, because they lean. */
+  property var growth: []
+
+  /** The cephalopods, and what is on the bottom or going over the top of it. */
+  property var jetters: []
+  property var crawlers: []
+  property var sunken: []
+  property var plume: []
+  property var crossing: []
 
   function fishCount() {
     return Math.max(minFish, Math.min(maxFish, Math.round(width * height / pxPerFish)))
@@ -136,6 +247,24 @@ Item {
     flurry = moteCount()
     beams = shafts
 
+    seabed = Ornament.createSeabed({
+      cliffs: cliffs,
+      height: height,
+      seed: seed,
+      stones: stones,
+      width: width,
+    })
+
+    flora = Ornament.createFlora({
+      corals: corals,
+      floor: seabed.floorAt,
+      grasses: grasses,
+      height: height,
+      kelps: kelps,
+      seed: seed,
+      width: width,
+    })
+
     shoal = Ornament.createShoal({
       count: herd,
       cruise: cruise,
@@ -143,10 +272,35 @@ Item {
       longest: longest,
       seed: seed,
       shortest: shortest,
+      species: species,
+      width: width,
+    })
+
+    inklings = Ornament.createCephalopods({
+      floor: seabed.floorAt,
+      height: height,
+      octopuses: octopuses,
+      seed: seed,
+      squids: squids,
+      width: width,
+    })
+
+    wreckage = Ornament.createRelics({
+      floor: seabed.floorAt,
+      height: height,
+      seed: seed,
+      width: width,
+    })
+
+    passers = Ornament.createPassers({
+      eager: rushed ? 1 : 0,
+      height: height,
+      seed: seed,
       width: width,
     })
 
     drift = Ornament.createDrift({
+      floor: seabed.floorAt,
       height: height,
       motes: flurry,
       seed: seed,
@@ -161,24 +315,120 @@ Item {
     // or on snow that has not yet had time to spread through the water.
     var steps = Math.round(settle / settleStep)
     for (var i = 0; i < steps; i++) advance(settleStep)
+    cutGround()
     publish()
+    fitted = Qt.size(width, height)
+    report()
   }
 
+  /**
+   * What this water turned out to hold, for the preview harness.
+   *
+   * Worth having a line for, because nearly everything added last is placed by
+   * a roll of the dice: a preview showing no wreck is either a sea without one
+   * or a wreck that will not draw, and there is no way to tell those apart by
+   * looking. It runs after the scene is wound on rather than before, which is
+   * the difference between reporting what is in the water and reporting what
+   * had not happened yet.
+   */
+  function report() {
+    // Only under `rushed`, which is the preview harness. A desktop background
+    // that wrote a line to the shell's log every time a monitor woke up would
+    // be a background nobody could leave running.
+    if (!rushed) return
+
+    var found = []
+    for (var r = 0; r < wreckage.relics.length; r++) {
+      found.push(wreckage.relics[r].kind + "@" + Math.round(wreckage.relics[r].x))
+    }
+
+    var over = []
+    for (var c = 0; c < passers.passing.length; c++) {
+      over.push(passers.passing[c].kind + "@" + Math.round(passers.passing[c].x) +
+                " along " + passers.passing[c].along.toFixed(2))
+    }
+
+    console.log("seascape " + Math.round(width) + "x" + Math.round(height) +
+                ", relics: " + (found.join(", ") || "none") +
+                ", passing: " + (over.join(", ") || "none"))
+  }
+
+  /**
+   * Re-fit to a box that has actually changed.
+   *
+   * The guard is not an optimisation. A Seascape anchored to fill its parent
+   * gets its width and its height in two separate steps, so a build is followed
+   * by up to two refits at the size it was already built at, and a refit is not
+   * free of consequence: it re-seats the bed, thins or grows the shoal, and
+   * throws away whatever was crossing the surface. A boat that launched during
+   * the first frame was being dropped before anybody could see it.
+   */
   function refit() {
     if (!shoal) return build()
+    if (fitted.width === width && fitted.height === height) return
 
+    fitted = Qt.size(width, height)
     herd = fishCount()
     flurry = moteCount()
+    seabed.resize(width, height)
+    flora.resize(width, height, seabed.floorAt)
     shoal.resize(width, height, herd)
     drift.resize(width, height, flurry)
     light.resize(width, height, beams)
+    inklings.resize(width, height, seabed.floorAt)
+    wreckage.resize(width, height, seabed.floorAt)
+    passers.resize(width, height)
+    cutGround()
     publish()
+    report()
   }
 
   function advance(dt) {
     shoal.step(dt, null)
     drift.step(dt)
     light.step(dt)
+    flora.step(dt)
+    inklings.step(dt)
+    wreckage.step(dt)
+    passers.step(dt)
+  }
+
+  /** Points as QML wants them, with the box's floor closed off underneath. */
+  function polygon(points, closed) {
+    var out = []
+    for (var i = 0; i < points.length; i++) out.push(Qt.point(points[i].x, points[i].y))
+    if (closed && points.length) {
+      out.push(Qt.point(points[points.length - 1].x, height + 2))
+      out.push(Qt.point(points[0].x, height + 2))
+    }
+    return out
+  }
+
+  /**
+   * The ground, cut once.
+   *
+   * Sand, stones and cliffs are pure functions of the seed and the box, so they
+   * are published when they change rather than every tick. A seabed republished
+   * at thirty frames a second is thirty rebuilds of a shape that did not move.
+   */
+  function cutGround() {
+    if (!seabed) return
+
+    sand = polygon(seabed.ridge, true)
+
+    var walls = []
+    for (var c = 0; c < seabed.cliffs.length; c++) {
+      var cliff = seabed.cliffs[c]
+      walls.push({ depth: cliff.depth, points: polygon(cliff.ridge, true) })
+    }
+    scarp = walls
+
+    var lying = []
+    for (var t = 0; t < seabed.stones.length; t++) {
+      var stone = seabed.stones[t]
+      lying.push({ lean: stone.lean, rise: stone.rise, span: stone.span, x: stone.x, y: stone.y })
+    }
+    rocks = lying
   }
 
   function publish() {
@@ -188,6 +438,7 @@ Item {
     for (var i = 0; i < shoal.fish.length; i++) {
       var one = shoal.fish[i]
       swimming.push({
+        bill: Ornament.SPECIES[one.kind].bill,
         depth: one.depth,
         facing: one.facing,
         heading: one.heading,
@@ -213,12 +464,106 @@ Item {
     }
     bubbles = rising
 
+    var growing = []
+    for (var g = 0; g < flora.plants.length; g++) {
+      var one = flora.plants[g]
+      var blades = []
+      for (var bl = 0; bl < one.blades.length; bl++) blades.push(polygon(one.blades[bl], false))
+      growing.push({
+        blades: blades,
+        depth: one.depth,
+        girth: one.girth,
+        kind: one.kind,
+        points: polygon(one.points, false),
+        scale: one.scale,
+        x: one.x,
+        y: one.y,
+      })
+    }
+    growth = growing
+
     var shining = []
     for (var r = 0; r < light.rays.length; r++) {
       var ray = light.rays[r]
       shining.push({ glow: ray.glow, reach: ray.reach, span: ray.span, tilt: ray.tilt, x: ray.x })
     }
     rays = shining
+
+    // A squid's body and arms are rebuilt from its squeeze here rather than in
+    // a binding, because the squeeze is the one number both are read off and
+    // splitting them would have the drawing and the arms a frame apart.
+    var jetting = []
+    for (var s = 0; s < inklings.squids.length; s++) {
+      var squid = inklings.squids[s]
+      var limbs = []
+      var drawn = Ornament.squidArms(squid.squeeze)
+      for (var a = 0; a < drawn.length; a++) limbs.push(polygon(drawn[a], false))
+      jetting.push({
+        arms: limbs,
+        body: Ornament.squidBody(squid.squeeze),
+        depth: squid.depth,
+        facing: squid.facing,
+        heading: squid.heading,
+        size: squid.size,
+        x: squid.x,
+        y: squid.y,
+      })
+    }
+    jetters = jetting
+
+    var crawling = []
+    for (var o = 0; o < inklings.octopuses.length; o++) {
+      var octopus = inklings.octopuses[o]
+      var arms = []
+      var reaching = Ornament.octopusArms(octopus.crawl, octopus.facing)
+      for (var q = 0; q < reaching.length; q++) arms.push(polygon(reaching[q], false))
+      crawling.push({
+        arms: arms,
+        depth: octopus.depth,
+        facing: octopus.facing,
+        jetting: octopus.jetting,
+        size: octopus.size,
+        x: octopus.x,
+        y: octopus.y,
+      })
+    }
+    crawlers = crawling
+
+    var lying = []
+    for (var w = 0; w < wreckage.relics.length && w < relicSlots; w++) {
+      var relic = wreckage.relics[w]
+      lying.push({
+        depth: relic.depth,
+        kind: relic.kind,
+        lean: relic.lean,
+        scale: relic.scale,
+        x: relic.x,
+        y: relic.y,
+      })
+    }
+    sunken = lying
+
+    var pouring = []
+    for (var p = 0; p < wreckage.plume.length && p < plumeSlots; p++) {
+      var puff = wreckage.plume[p]
+      pouring.push({ age: puff.age, r: puff.r, x: puff.x, y: puff.y })
+    }
+    plume = pouring
+
+    var going = []
+    for (var v = 0; v < passers.passing.length && v < passerSlots; v++) {
+      var passer = passers.passing[v]
+      going.push({
+        along: passer.along,
+        facing: passer.facing,
+        kind: passer.kind,
+        scale: passer.scale,
+        weight: passer.weight,
+        x: passer.x,
+        y: passer.y,
+      })
+    }
+    crossing = going
   }
 
   onWidthChanged: refit()
@@ -232,6 +577,164 @@ Item {
     onTriggered: {
       root.advance(root.tick / 1000)
       root.publish()
+    }
+  }
+
+  // Cliffs, standing further out than anything else in the water. Nothing roots
+  // to them and nothing collides with them: a silhouette at the back is the
+  // cheapest statement that the sea carries on past the edge of the picture,
+  // and without one the scene is a tank.
+  Repeater {
+    model: root.scarp.length
+
+    delegate: Shape {
+      id: wall
+      required property int index
+
+      readonly property var cliff: root.scarp[index] || null
+
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      visible: cliff !== null
+      z: -3
+
+      ShapePath {
+        fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
+                           root.cliffInk * (wall.cliff ? wall.cliff.depth : 0))
+        strokeColor: "transparent"
+
+        PathPolyline { path: wall.cliff ? wall.cliff.points : [] }
+      }
+    }
+  }
+
+  // The sand.
+  Shape {
+    anchors.fill: parent
+    preferredRendererType: Shape.CurveRenderer
+    visible: root.sand.length > 0
+    z: -2
+
+    ShapePath {
+      fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, root.sandInk)
+      strokeColor: "transparent"
+
+      PathPolyline { path: root.sand }
+    }
+  }
+
+  // Stones, lying where they fell. Rounded rather than drawn: at this weight a
+  // stone is a mass with a lean on it, and an outline would make it a pebble
+  // somebody had illustrated.
+  Repeater {
+    model: root.rocks.length
+
+    delegate: Rectangle {
+      required property int index
+
+      readonly property var stone: root.rocks[index] || null
+
+      antialiasing: true
+      color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, root.stoneInk)
+      height: stone ? stone.rise : 0
+      radius: height / 2
+      rotation: stone ? stone.lean * 180 / Math.PI : 0
+      visible: stone !== null
+      width: stone ? stone.span : 0
+      x: stone ? stone.x - width / 2 : 0
+      y: stone ? stone.y - height * 0.62 : 0
+      z: -1.8
+    }
+  }
+
+  // Kelp, grass and coral. Sorted into the water by depth like everything else,
+  // so a fish passes behind a near plant and in front of a far one.
+  Repeater {
+    model: root.growth.length
+
+    delegate: Item {
+      id: sprout
+      required property int index
+
+      readonly property var one: root.growth[index] || null
+      readonly property real weight: one ? root.floraInk * one.depth : 0
+
+      anchors.fill: parent
+      visible: one !== null
+      z: one ? one.depth : 0
+
+      // A strand is stroked rather than filled: it is a line with a thickness,
+      // and giving it an outline to fill would double every plant.
+      Shape {
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
+        visible: sprout.one !== null && sprout.one.kind !== "coral"
+
+        ShapePath {
+          capStyle: ShapePath.RoundCap
+          fillColor: "transparent"
+          strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, sprout.weight)
+          strokeWidth: sprout.one ? sprout.one.girth : 0
+
+          PathPolyline { path: sprout.one && sprout.one.kind !== "coral" ? sprout.one.points : [] }
+        }
+      }
+
+      Repeater {
+        model: sprout.one && sprout.one.kind === "kelp" ? sprout.one.blades.length : 0
+
+        delegate: Shape {
+          id: leaf
+          required property int index
+
+          anchors.fill: parent
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            capStyle: ShapePath.RoundCap
+            fillColor: "transparent"
+            strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, sprout.weight)
+            strokeWidth: sprout.one ? sprout.one.girth * 0.7 : 0
+
+            PathPolyline { path: sprout.one ? sprout.one.blades[leaf.index] : [] }
+          }
+        }
+      }
+
+      // Coral is the site's own drawing, and it does not sway: it is a
+      // skeleton, and with everything else moving it is what the movement is
+      // measured against.
+      Item {
+        visible: sprout.one !== null && sprout.one.kind === "coral"
+        x: sprout.one ? sprout.one.x : 0
+        y: sprout.one ? sprout.one.y : 0
+
+        Repeater {
+          model: sprout.one && sprout.one.kind === "coral" ? Ornament.CORAL.length : 0
+
+          delegate: Shape {
+            id: branch
+            required property int index
+
+            readonly property var twig: Ornament.CORAL[index]
+
+            preferredRendererType: Shape.CurveRenderer
+            transform: Scale {
+              xScale: sprout.one ? sprout.one.scale : 1
+              yScale: sprout.one ? sprout.one.scale : 1
+            }
+
+            ShapePath {
+              capStyle: ShapePath.RoundCap
+              fillColor: "transparent"
+              strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, sprout.weight)
+              strokeWidth: branch.twig.width
+
+              PathSvg { path: branch.twig.d }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -377,6 +880,23 @@ Item {
 
           PathSvg { path: swimmer.frame ? swimmer.frame.d : "" }
         }
+
+        // The bill, for the one kind that has one. Apart from the body's path
+        // rather than joined to it, because the frames are cached and shared by
+        // every fish in the water: a bill baked into `d` would be a bill on all
+        // of them. Same ink and same winding, so the two read as one animal.
+        ShapePath {
+          fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
+                             swimmer.fish && swimmer.fish.bill > 0 ? swimmer.weight : 0)
+          fillRule: ShapePath.WindingFill
+          strokeColor: "transparent"
+
+          PathSvg {
+            path: swimmer.frame && swimmer.fish && swimmer.fish.bill > 0
+              ? swimmer.frame.bill
+              : ""
+          }
+        }
       }
 
       // The eye is punched out in the surface behind it rather than drawn in an
@@ -390,6 +910,403 @@ Item {
         width: height
         x: swimmer.frame ? swimmer.frame.eye.x - swimmer.frame.eye.r : 0
         y: swimmer.frame ? swimmer.frame.eye.y - swimmer.frame.eye.r : 0
+      }
+    }
+  }
+
+  // What is lying on the bottom, and what is coming out of it. Most seas hold
+  // one or two of these and some hold none, which is the point of them: a wreck
+  // in every sea is set dressing, and a wreck in one sea out of three is
+  // something you found.
+  Repeater {
+    model: root.relicSlots
+
+    delegate: Item {
+      id: relic
+      required property int index
+
+      readonly property var one: root.sunken[index] || null
+      readonly property real weight: one ? root.relicInk * one.depth : 0
+
+      rotation: one ? one.lean * 180 / Math.PI : 0
+      visible: one !== null
+      x: one ? one.x : 0
+      y: one ? one.y : 0
+      z: one ? one.depth : 0
+
+      transform: Scale {
+        xScale: relic.one ? relic.one.scale : 1
+        yScale: relic.one ? relic.one.scale : 1
+      }
+
+      Shape {
+        preferredRendererType: Shape.CurveRenderer
+
+        // Every relic is one filled silhouette in the same ink, so the layer
+        // needs one path and a lookup rather than a Shape per kind. What is
+        // drawn on top of that silhouette is each kind's own business, below.
+        ShapePath {
+          fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, relic.weight)
+          fillRule: ShapePath.WindingFill
+          strokeColor: "transparent"
+
+          PathSvg {
+            path: !relic.one ? ""
+              : relic.one.kind === "wreck" ? Ornament.WRECK
+              : relic.one.kind === "smoker" ? Ornament.SMOKER
+              : relic.one.kind === "chest" ? Ornament.CHEST_BODY
+              : Ornament.BLOCK_CARD
+          }
+        }
+
+        // The wreck's spar, which is what stops a pair of leaning verticals
+        // reading as two dead trees.
+        ShapePath {
+          capStyle: ShapePath.RoundCap
+          fillColor: "transparent"
+          strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
+                               relic.one && relic.one.kind === "wreck" ? relic.weight : 0)
+          strokeWidth: 0.03
+
+          PathPolyline {
+            path: relic.one && relic.one.kind === "wreck"
+              ? [Qt.point(Ornament.WRECK_SPAR[0].x, Ornament.WRECK_SPAR[0].y),
+                 Qt.point(Ornament.WRECK_SPAR[1].x, Ornament.WRECK_SPAR[1].y)]
+              : []
+          }
+        }
+      }
+
+      // The code block's three lines, cut out of the card in the surface rather
+      // than drawn in ink, the way a fish's eye is. A snippet is a card with
+      // light coming through it, not a card with marks on it.
+      Repeater {
+        model: relic.one && relic.one.kind === "block" ? Ornament.BLOCK_LINES.length : 0
+
+        delegate: Shape {
+          id: line
+          required property int index
+
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            fillColor: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, relic.weight)
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.BLOCK_LINES[line.index] }
+          }
+        }
+      }
+
+      // The chest, and the laptop still open on its lid. The straps and the
+      // lock are cut out in the surface; the screen is the one thing in the
+      // whole sea drawn at full ink.
+      Item {
+        visible: relic.one !== null && relic.one.kind === "chest"
+
+        Repeater {
+          model: relic.one && relic.one.kind === "chest" ? Ornament.CHEST_BANDS.length : 0
+
+          delegate: Shape {
+            id: band
+            required property int index
+
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+              fillColor: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, relic.weight)
+              strokeColor: "transparent"
+
+              PathSvg { path: Ornament.CHEST_BANDS[band.index] }
+            }
+          }
+        }
+
+        Shape {
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            fillColor: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, relic.weight)
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.CHEST_LOCK }
+          }
+
+          ShapePath {
+            fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, relic.weight)
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.LAPTOP_BASE }
+          }
+
+          ShapePath {
+            fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, root.screenInk)
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.LAPTOP_SCREEN }
+          }
+        }
+
+        // The three lines still on it, cut out of the lit screen.
+        Repeater {
+          model: relic.one && relic.one.kind === "chest" ? Ornament.LAPTOP_LINES.length : 0
+
+          delegate: Shape {
+            id: row
+            required property int index
+
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+              fillColor: root.surface
+              strokeColor: "transparent"
+
+              PathSvg { path: Ornament.LAPTOP_LINES[row.index] }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // What the smoker is pouring. The only thing on the bottom that moves under
+  // its own steam rather than the water's, which is what makes a vent read as
+  // hot: everything else down there leans when the current leans, and this goes
+  // straight up regardless and then gets bent.
+  Repeater {
+    model: root.plumeSlots
+
+    delegate: Rectangle {
+      required property int index
+
+      readonly property var puff: root.plume[index] || null
+
+      antialiasing: true
+      // The square root, not the age itself. A puff spreads as it climbs, so
+      // fading it in step with its age takes the ink out faster than the water
+      // is taking it: what is left is a few dots at the chimney and clear water
+      // above them, which is not a plume.
+      color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
+                     root.plumeInk * (puff ? Math.sqrt(1 - puff.age) : 0))
+      height: puff ? puff.r * 2 : 0
+      radius: height / 2
+      visible: puff !== null
+      width: height
+      x: puff ? puff.x - puff.r : 0
+      y: puff ? puff.y - puff.r : 0
+      z: -1.6
+    }
+  }
+
+  // Squid: jet and drift, which is the opposite rhythm to a tail. Mirrored by
+  // its facing and pitched by its heading exactly as a fish is, for the same
+  // reason: nothing here ever turns round.
+  Repeater {
+    model: root.squids
+
+    delegate: Item {
+      id: cuttle
+      required property int index
+
+      readonly property var one: root.jetters[index] || null
+      readonly property real weight: one
+        ? root.openWater * (1 - root.depthInk + root.depthInk * one.depth)
+        : 0
+      readonly property real pitch: one
+        ? Math.atan2(Math.sin(one.heading), one.facing * Math.cos(one.heading)) * 180 / Math.PI
+        : 0
+
+      visible: one !== null && weight > 0.002
+      x: one ? one.x : 0
+      y: one ? one.y : 0
+      z: one ? one.depth : 0
+
+      transform: [
+        Scale { xScale: (cuttle.one ? cuttle.one.size * cuttle.one.facing : 1); yScale: cuttle.one ? cuttle.one.size : 1 },
+        Rotation { angle: cuttle.pitch },
+      ]
+
+      Shape {
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+          fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, cuttle.weight)
+          fillRule: ShapePath.WindingFill
+          strokeColor: "transparent"
+
+          PathSvg { path: cuttle.one ? cuttle.one.body : "" }
+        }
+      }
+
+      Repeater {
+        model: cuttle.one ? cuttle.one.arms.length : 0
+
+        delegate: Shape {
+          id: tentacle
+          required property int index
+
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            capStyle: ShapePath.RoundCap
+            fillColor: "transparent"
+            strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, cuttle.weight)
+            strokeWidth: 0.035
+
+            PathPolyline { path: cuttle.one ? cuttle.one.arms[tentacle.index] : [] }
+          }
+        }
+      }
+    }
+  }
+
+  // Octopuses, working the stones. On the bottom rather than in the water,
+  // except for the once in a long while when one lets go.
+  Repeater {
+    model: root.octopuses
+
+    delegate: Item {
+      id: pus
+      required property int index
+
+      readonly property var one: root.crawlers[index] || null
+      readonly property real weight: one
+        ? root.crawlerInk * (1 - root.depthInk + root.depthInk * one.depth)
+        : 0
+
+      visible: one !== null && weight > 0.002
+      x: one ? one.x : 0
+      y: one ? one.y : 0
+      z: one ? one.depth : 0
+
+      transform: Scale {
+        xScale: pus.one ? pus.one.size : 1
+        yScale: pus.one ? pus.one.size : 1
+      }
+
+      // The head, which is a dome rather than a drawing: at this weight what
+      // says octopus is eight arms leaving one blob, and the blob's own outline
+      // is the least of it.
+      Shape {
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+          fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, pus.weight)
+          strokeColor: "transparent"
+
+          PathSvg { path: Ornament.OCTOPUS_HEAD }
+        }
+      }
+
+      Repeater {
+        model: pus.one ? pus.one.arms.length : 0
+
+        delegate: Shape {
+          id: limb
+          required property int index
+
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            capStyle: ShapePath.RoundCap
+            fillColor: "transparent"
+            strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, pus.weight)
+            strokeWidth: 0.075
+
+            PathPolyline { path: pus.one ? pus.one.arms[limb.index] : [] }
+          }
+        }
+      }
+    }
+  }
+
+  // What goes past overhead, and what is looking for you. Minutes apart rather
+  // than seconds, and most sittings will hold neither: a scene you can watch
+  // the whole vocabulary of in a minute is wallpaper.
+  Repeater {
+    model: root.passerSlots
+
+    delegate: Item {
+      id: passer
+      required property int index
+
+      readonly property var one: root.crossing[index] || null
+
+      visible: one !== null
+      z: 1.2
+
+      // A boat: a hull seen from underneath, which is the only view this water
+      // has, with a wake opening astern of it.
+      Item {
+        visible: passer.one !== null && passer.one.kind === "boat"
+        x: passer.one ? passer.one.x : 0
+        y: passer.one ? passer.one.y : 0
+
+        transform: Scale {
+          xScale: passer.one ? passer.one.scale * passer.one.facing : 1
+          yScale: passer.one ? passer.one.scale : 1
+        }
+
+        Shape {
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
+                               root.hullInk * (passer.one ? passer.one.weight : 0))
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.HULL }
+          }
+
+          ShapePath {
+            capStyle: ShapePath.RoundCap
+            fillColor: "transparent"
+            strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
+                                 root.hullInk * 0.5 * (passer.one ? passer.one.weight : 0))
+            strokeWidth: 0.012
+
+            PathMove { x: Ornament.WAKE[0].from[0]; y: Ornament.WAKE[0].from[1] }
+            PathLine { x: Ornament.WAKE[0].to[0]; y: Ornament.WAKE[0].to[1] }
+            PathMove { x: Ornament.WAKE[1].from[0]; y: Ornament.WAKE[1].from[1] }
+            PathLine { x: Ornament.WAKE[1].to[0]; y: Ornament.WAKE[1].to[1] }
+          }
+
+          ShapePath {
+            fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
+                               root.hullInk * (passer.one ? passer.one.weight : 0))
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.SCREWS }
+          }
+        }
+      }
+
+      // Sonar: three rings, staggered, going out and losing themselves in the
+      // water. One ring would be a bubble.
+      Repeater {
+        model: passer.one && passer.one.kind === "sonar" ? Ornament.PING_RINGS.length : 0
+
+        delegate: Rectangle {
+          required property int index
+
+          readonly property var ring: passer.one
+            ? Ornament.ringAt(passer.one.along, Ornament.PING_RINGS[index])
+            : null
+          readonly property real reach: ring && passer.one ? ring.reach * passer.one.scale : 0
+
+          antialiasing: true
+          border.color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
+                                root.pingInk * (ring ? ring.weight : 0) *
+                                (passer.one ? passer.one.weight : 0))
+          border.width: 1
+          color: "transparent"
+          height: reach * 2
+          radius: reach
+          visible: ring !== null
+          width: height
+          x: (passer.one ? passer.one.x : 0) - reach
+          y: (passer.one ? passer.one.y : 0) - reach
+        }
       }
     }
   }

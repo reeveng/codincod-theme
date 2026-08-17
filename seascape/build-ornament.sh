@@ -25,12 +25,37 @@ OUT="$(cd "$(dirname "$0")" && pwd)/Ornament.js"
 entry=$(mktemp -d)
 trap 'rm -rf "$entry"' EXIT
 
-cat >"$entry/entry.ts" <<ENTRY
-export { createDrift } from "$ORNAMENT/drift.ts"
-export { frameAt, SPAN, STEPS } from "$ORNAMENT/fish_shape.ts"
-export { createRays, SPREAD } from "$ORNAMENT/rays.ts"
-export { createShoal, freshSeed } from "$ORNAMENT/shoal.ts"
-ENTRY
+# What the desktop takes from each module, as `module export export ...`. The
+# entry file and the footer that flattens the bundle are both generated from
+# this, because keeping two hand-written lists in step is a job nobody does
+# until something is quietly missing from the scene.
+WANTED=(
+  "cephalopods OCTOPUS_HEAD createCephalopods octopusArms squidArms squidBody"
+  "drift createDrift"
+  "fish_shape frameAt SPAN STEPS"
+  "flora CORAL createFlora"
+  "passers HULL PING_RINGS ringAt SCREWS WAKE createPassers"
+  "rays SPREAD createRays"
+  "relics BLOCK_CARD BLOCK_LINES CHEST_BANDS CHEST_BODY CHEST_LOCK LAPTOP_BASE LAPTOP_LINES LAPTOP_SCREEN SMOKER WRECK WRECK_SPAR createRelics"
+  "seabed createSeabed"
+  "shoal SPECIES createShoal freshSeed"
+)
+
+: >"$entry/entry.ts"
+footer=""
+
+for line in "${WANTED[@]}"; do
+  read -ra parts <<<"$line"
+  module=${parts[0]}
+  names=("${parts[@]:1}")
+
+  printf 'export { %s } from "%s/%s.ts"\n' \
+    "$(IFS=,; echo "${names[*]}")" "$ORNAMENT" "$module" >>"$entry/entry.ts"
+
+  for name in "${names[@]}"; do
+    footer+="var $name = __ornament.$name"$'\n'
+  done
+done
 
 # Qt's engine wants one script with no module syntax in it. `.pragma library`
 # makes the bundle shared rather than re-instantiated per screen, which matters
@@ -58,14 +83,7 @@ if (!Array.prototype.at) {
     return i < 0 || i >= this.length ? undefined : this[i]
   }
 }' \
-  --footer:js='var createDrift = __ornament.createDrift
-var createRays = __ornament.createRays
-var createShoal = __ornament.createShoal
-var frameAt = __ornament.frameAt
-var freshSeed = __ornament.freshSeed
-var SPAN = __ornament.SPAN
-var SPREAD = __ornament.SPREAD
-var STEPS = __ornament.STEPS' \
+  --footer:js="$footer" \
   --outfile="$OUT"
 
-echo "wrote $OUT"
+echo "wrote $OUT ($(grep -c . <<<"$footer") exports)"
