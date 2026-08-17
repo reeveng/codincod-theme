@@ -17,8 +17,8 @@ import QtQuick
 
 Window {
   id: win
-  width: 1600
-  height: 1000
+  width: Number(win.arg("width", "1600"))
+  height: Number(win.arg("height", "1000"))
   visible: true
 
   readonly property color ink: "#35c26d"
@@ -26,7 +26,9 @@ Window {
 
   // The wallpaper is a gradient rather than a flat fill, so the preview shows
   // what the weights actually look like against the darkest part of the floor
-  // as well as the lit water at the top.
+  // as well as the lit water at the top. Pass `wall=` a real image to see the
+  // sea over the picture it will actually be over, which is the only way to
+  // answer whether it is visible on somebody's own desktop.
   Rectangle {
     anchors.fill: parent
 
@@ -34,6 +36,13 @@ Window {
       GradientStop { position: 0; color: "#101c15" }
       GradientStop { position: 1; color: "#030705" }
     }
+  }
+
+  Image {
+    anchors.fill: parent
+    fillMode: Image.PreserveAspectCrop
+    source: win.arg("wall", "") ? "file://" + win.arg("wall", "") : ""
+    visible: source != ""
   }
 
   /**

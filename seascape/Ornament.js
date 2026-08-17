@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.zNWu336nTJ/entry.ts
+  // ../../../../../../tmp/tmp.XmO0FlMErJ/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -169,12 +169,15 @@ var __ornament = (() => {
   var MARGIN = 1.1;
   var OCTOPUS_SMALLEST = 26;
   var OCTOPUS_LARGEST = 44;
-  var CRAWL_SLOWEST = 0.1;
-  var CRAWL_FASTEST = 0.26;
+  var CRAWL_REACH = 0.62;
+  var CRAWL_RISE = 0.06;
   var GAIT = 0.55;
   var JET_ODDS = 8e-3;
   var JET_SPAN = 1.9;
-  var JET_RUSH = 3.6;
+  var JET_RUSH = 5.4;
+  var JET_HEIGHT = 2.2;
+  var TRAIL_HELD = 0.22;
+  var TRAIL_DRIVEN = 1.15;
   var DEPTH_FAR = 0.15;
   var DEPTH_NEAR = 0.85;
   var DEPTH_SIZE = 0.6;
@@ -217,7 +220,9 @@ var __ornament = (() => {
         crawl: random() * Math.PI * 2,
         depth,
         facing: random() < 0.5 ? -1 : 1,
+        haul: 0,
         jetting: 0,
+        lift: 0,
         size: head * (1 - DEPTH_SIZE + DEPTH_SIZE * depth),
         x,
         y: floor(x)
@@ -284,18 +289,22 @@ var __ornament = (() => {
         for (const one of octopuses) {
           if (one.jetting > 0) {
             one.jetting = Math.max(0, one.jetting - dt);
-            one.x += one.facing * JET_RUSH * one.size * dt;
+            const through = 1 - one.jetting / JET_SPAN;
+            one.haul = Math.sin(through * Math.PI) ** 0.6;
+            one.lift = Math.sin(through * Math.PI) * JET_HEIGHT;
+            one.x += one.facing * JET_RUSH * one.size * one.haul * dt;
           } else {
             one.crawl += GAIT * dt * Math.PI * 2;
-            const stride = (Math.sin(one.crawl) + 1) / 2;
-            const pace = CRAWL_SLOWEST + stride * (CRAWL_FASTEST - CRAWL_SLOWEST);
-            one.x += one.facing * pace * one.size * dt;
+            const pull = Math.max(0, Math.sin(one.crawl));
+            one.haul = pull ** 1.4;
+            one.lift = one.haul * CRAWL_RISE;
+            one.x += one.facing * CRAWL_REACH * one.haul * one.size * dt;
             if (random() < JET_ODDS) one.jetting = JET_SPAN;
           }
           const edge2 = one.size * MARGIN;
           if (one.x > width + edge2) one.x = -edge2;
           if (one.x < -edge2) one.x = width + edge2;
-          one.y = floor(one.x);
+          one.y = floor(one.x) - one.lift * one.size;
         }
       }
     };
@@ -344,20 +353,24 @@ var __ornament = (() => {
     return arms;
   }
   var OCTOPUS_HEAD = "M-0.3 0.14 Q-0.5 -0.06 -0.44 -0.4 Q-0.36 -0.78 0 -0.8 Q0.36 -0.78 0.44 -0.4 Q0.5 -0.06 0.3 0.14 Z";
-  function octopusArms(crawl, facing, count = 8) {
+  function octopusArms(crawl, facing, haul = 0, count = 8) {
     const arms = [];
+    const drive = Math.min(Math.max(haul, 0), 1);
     for (let made = 0; made < count; made++) {
       const side = made / (count - 1) - 0.5;
-      const phase = crawl + made * 0.78;
-      const reach2 = (0.9 + Math.abs(side) * 0.5) * (0.82 + Math.sin(phase) * 0.18);
+      const phase = crawl + (side > 0 ? 0 : Math.PI) + made * 0.12;
+      const work = Math.sin(phase);
+      const reach2 = (0.9 + Math.abs(side) * 0.5) * (0.88 + work * 0.12);
+      const stream = -facing * (TRAIL_HELD + drive * TRAIL_DRIVEN);
+      const fan = 2.5 * (1 - drive * 0.62);
       const points = [];
       for (let step = 0; step <= 6; step++) {
         const t = step / 6;
-        const along2 = side * 2.5 * reach2 * t;
-        const lift = Math.sin(phase + t * 2.2) * 0.14 * t * (1 - t) * 4;
+        const along2 = side * fan * reach2 * t;
+        const wave2 = Math.sin(phase + t * 2.2) * 0.14 * t * (1 - t) * 4;
         points.push({
-          x: along2 + facing * t * reach2 * 0.18,
-          y: t * t * 0.34 + t * 0.1 - lift * 0.22
+          x: along2 + stream * t * reach2,
+          y: (t * t * 0.34 + t * 0.1) * (1 - drive * 0.7) - wave2 * 0.22
         });
       }
       arms.push(points);
@@ -986,13 +999,16 @@ var __ornament = (() => {
   var DEPTH_FAR4 = 0.35;
   var DEPTH_NEAR4 = 0.85;
   var DEPTH_SIZE3 = 0.45;
-  var PUFF_GAP = 0.2;
-  var PUFF_LIFE = 5.5;
-  var PUFF_RISE = 26;
-  var PUFF_DRAG = 0.55;
+  var PUFF_GAP = 0.13;
+  var PUFF_SLOWEST = 0.72;
+  var PUFF_FASTEST = 1.28;
+  var PUFF_LIFE = 8;
+  var PUFF_RISE = 52;
+  var PUFF_DRAG = 0.62;
   var PUFF_SWELL = 4.5;
-  var PUFF_SHEAR = 11;
+  var PUFF_SWAY = 16;
   var FIELD_CELLS3 = 2.4;
+  var FIELD_ROWS = 5.5;
   var MIN_SPAN6 = 1;
   var WARMUP = 12;
   function createRelics(options) {
@@ -1046,8 +1062,9 @@ var __ornament = (() => {
             since = 0;
             plume.push({
               age: 0,
-              r: vent.scale * 0.09,
-              x: vent.x + (random() - 0.5) * vent.scale * 0.16,
+              r: vent.scale * (0.07 + random() * 0.06),
+              rise: PUFF_SLOWEST + random() * (PUFF_FASTEST - PUFF_SLOWEST),
+              x: vent.x + (random() - 0.5) * vent.scale * 0.3,
               y: vent.y - vent.scale * SMOKER_LIP
             });
           }
@@ -1060,10 +1077,10 @@ var __ornament = (() => {
             plume.splice(at, 1);
             continue;
           }
-          const climb = PUFF_RISE * (1 - PUFF_DRAG * puff.age);
+          const climb = PUFF_RISE * puff.rise * (1 - PUFF_DRAG * puff.age);
           puff.y -= climb * dt;
-          puff.r += PUFF_SWELL * dt;
-          puff.x += shear(puff.x / width * FIELD_CELLS3 + drift, puff.y / height + drift) * PUFF_SHEAR * puff.age * dt * 6;
+          puff.r += PUFF_SWELL * (0.55 + puff.age) * dt;
+          puff.x += shear(puff.x / width * FIELD_CELLS3 + drift, puff.y / height * FIELD_ROWS + drift) * PUFF_SWAY * dt;
         }
       }
     };

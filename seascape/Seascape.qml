@@ -169,19 +169,53 @@ Item {
 
   // ------------------------------------------------------------------ the bed
   //
-  // What the water sits on, and what grows out of it. Counts rather than
-  // densities: a bed is a place rather than a texture, and one kelp too many
-  // turns a seabed into a lawn.
+  // What the water sits on, and what grows out of it.
+  //
+  // Per thousand px of width rather than outright. A floor is a line and not an
+  // area, so its width is what decides how much of it there is to fill, and a
+  // flat count is a count tuned for one screen: nine kelp across a laptop is a
+  // bed, and the same nine across a wall is a bed with most of it missing. The
+  // numbers are what looked right at 1600 wide, over 1.6.
+  //
+  // The ceilings are what keep a place from becoming a texture. One kelp too
+  // many turns a seabed into a lawn, and that is still true on a big screen.
 
-  property int kelps: 9
-  property int grasses: 22
-  property int corals: 5
-  property int stones: 14
-  property int cliffs: 3
+  property real kelpsPerK: 7.4
+  property real grassesPerK: 26
+  property real coralsPerK: 5.4
+  property real stonesPerK: 15
+  property real cliffsPerK: 1.9
+
+  property int leastOfEach: 2
+  property int mostKelps: 26
+  property int mostGrasses: 64
+  property int mostCorals: 14
+  property int mostStones: 40
+  property int mostCliffs: 7
+
+  /**
+   * How much of the wallpaper the water hides.
+   *
+   * The one alpha in the scene that is not light. Everything else is painted
+   * opaque, and this is what that costs: for a near fish to hide a far one,
+   * there has to be something for them both to be in front of.
+   *
+   * Not the whole way, because the wallpaper underneath is somebody's picture
+   * and this is water over it rather than a replacement for it. What is left of
+   * it reads as the murk having texture, which is more than the flat fill it
+   * would otherwise be.
+   */
+  property real waterInk: 0.88
+
+  /** How much darker a cut-out is than the shape it is cut from. */
+  property real cutShade: 0.34
+
+  /** How far off the water's own colour the lit top of the column is. */
+  property real waterLid: 0.05
 
   /** How dark the ground and the things rooted in it may be. */
   property real sandInk: 0.13
-  property real stoneInk: 0.17
+  property real stoneInk: 0.23
   property real floraInk: 0.26
   property real cliffInk: 0.09
 
@@ -193,7 +227,7 @@ Item {
    * this picture is about the water.
    */
   property real relicInk: 0.24
-  property real plumeInk: 0.11
+  property real plumeInk: 0.2
 
   /**
    * The one exception in the whole scene.
@@ -274,7 +308,16 @@ Item {
    * ever built or destroyed while somebody is looking at it.
    */
   property int relicSlots: 4
-  property int plumeSlots: 40
+
+  /**
+   * Enough for every puff a vent has in the water at once.
+   *
+   * `PUFF_LIFE / PUFF_GAP` in `relics.ts`, and a margin. Set under that, the
+   * slots run out at the young end of the list, which is the end nearest the
+   * rock: the plume then floated a hand's width above the chimney with clear
+   * water in between, venting from nothing.
+   */
+  property int plumeSlots: 76
   property int passerSlots: 4
 
   /**
@@ -304,6 +347,49 @@ Item {
   property var plume: []
   property var crossing: []
 
+  /**
+   * A weight as a colour, opaque, rather than as an alpha.
+   *
+   * The scene used to hand every weight straight to an alpha channel, and the
+   * result was an X-ray: two fish crossing showed through each other, a wreck
+   * showed through the sand it was half buried in, and nothing ever occluded
+   * anything. Depth was there in the arithmetic and absent from the picture.
+   *
+   * Distance in water is not transparency, it is colour: a far thing is not a
+   * thing you can see through, it is a thing the water between you has already
+   * turned its own colour. So a weight picks a point between the water and the
+   * ink and the shape is painted solid in it. Near things are bright green,
+   * far things are all but the water, and a near one drawn over a far one hides
+   * it, which is the whole of what was missing.
+   *
+   * Light is the exception and stays an alpha, because a shaft really is
+   * something you see through.
+   */
+  function tint(weight) {
+    var w = Math.max(0, Math.min(1, weight))
+    return Qt.rgba(surface.r + (ink.r - surface.r) * w,
+                   surface.g + (ink.g - surface.g) * w,
+                   surface.b + (ink.b - surface.b) * w,
+                   1)
+  }
+
+  /**
+   * The same, for what is cut out of a shape rather than drawn: an eye, the
+   * bands on a chest, the shadow under a lid.
+   *
+   * A hole is not the background colour. Painted in the water's own colour it
+   * would be a window through the animal onto the water behind, which is the
+   * thing this whole change is getting rid of. It is the same body, darker.
+   */
+  function shade(weight) {
+    return tint(weight * cutShade)
+  }
+
+  /** A per-thousand-px-of-width density as a count this box can hold. */
+  function spread(perThousand, most) {
+    return Math.max(leastOfEach, Math.min(most, Math.round(width * perThousand / 1000)))
+  }
+
   function fishCount() {
     return Math.max(minFish, Math.min(maxFish, Math.round(width * height / pxPerFish)))
   }
@@ -320,19 +406,19 @@ Item {
     beams = shafts
 
     seabed = Ornament.createSeabed({
-      cliffs: cliffs,
+      cliffs: spread(cliffsPerK, mostCliffs),
       height: height,
       seed: seed,
-      stones: stones,
+      stones: spread(stonesPerK, mostStones),
       width: width,
     })
 
     flora = Ornament.createFlora({
-      corals: corals,
+      corals: spread(coralsPerK, mostCorals),
       floor: seabed.floorAt,
-      grasses: grasses,
+      grasses: spread(grassesPerK, mostGrasses),
       height: height,
-      kelps: kelps,
+      kelps: spread(kelpsPerK, mostKelps),
       seed: seed,
       width: width,
     })
@@ -587,13 +673,15 @@ Item {
     for (var o = 0; o < inklings.octopuses.length; o++) {
       var octopus = inklings.octopuses[o]
       var arms = []
-      var reaching = Ornament.octopusArms(octopus.crawl, octopus.facing)
+      var reaching = Ornament.octopusArms(octopus.crawl, octopus.facing, octopus.haul)
       for (var q = 0; q < reaching.length; q++) arms.push(polygon(reaching[q], false))
       crawling.push({
         arms: arms,
         depth: octopus.depth,
         facing: octopus.facing,
+        haul: octopus.haul,
         jetting: octopus.jetting,
+        lift: octopus.lift,
         size: octopus.size,
         x: octopus.x,
         y: octopus.y,
@@ -652,6 +740,28 @@ Item {
     }
   }
 
+  // The water itself, behind everything, and the only thing here you can see
+  // through. Everything drawn over it is opaque, so this is what a far fish
+  // fades into and what a near one hides it against; see `tint`.
+  //
+  // Darker with depth, because light comes from one direction and it is up.
+  Rectangle {
+    anchors.fill: parent
+    z: -4
+
+    gradient: Gradient {
+      GradientStop {
+        position: 0
+        color: Qt.rgba(root.tint(root.waterLid).r, root.tint(root.waterLid).g,
+                       root.tint(root.waterLid).b, root.waterInk)
+      }
+      GradientStop {
+        position: 1
+        color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, root.waterInk)
+      }
+    }
+  }
+
   // Cliffs, standing further out than anything else in the water. Nothing roots
   // to them and nothing collides with them: a silhouette at the back is the
   // cheapest statement that the sea carries on past the edge of the picture,
@@ -671,8 +781,7 @@ Item {
       z: -3
 
       ShapePath {
-        fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
-                           root.cliffInk * (wall.cliff ? wall.cliff.depth : 0))
+        fillColor: root.tint(root.cliffInk * (wall.cliff ? wall.cliff.depth : 0))
         strokeColor: "transparent"
 
         PathPolyline { path: wall.cliff ? wall.cliff.points : [] }
@@ -688,7 +797,7 @@ Item {
     z: -2
 
     ShapePath {
-      fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, root.sandInk)
+      fillColor: root.tint(root.sandInk)
       strokeColor: "transparent"
 
       PathPolyline { path: root.sand }
@@ -707,7 +816,7 @@ Item {
       readonly property var stone: root.rocks[index] || null
 
       antialiasing: true
-      color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, root.stoneInk)
+      color: root.tint(root.stoneInk)
       height: stone ? stone.rise : 0
       radius: height / 2
       rotation: stone ? stone.lean * 180 / Math.PI : 0
@@ -745,7 +854,7 @@ Item {
         ShapePath {
           capStyle: ShapePath.RoundCap
           fillColor: "transparent"
-          strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, sprout.weight)
+          strokeColor: root.tint(sprout.weight)
           strokeWidth: sprout.one ? sprout.one.girth : 0
 
           PathPolyline { path: sprout.one && sprout.one.kind !== "coral" ? sprout.one.points : [] }
@@ -765,7 +874,7 @@ Item {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
-            strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, sprout.weight)
+            strokeColor: root.tint(sprout.weight)
             strokeWidth: sprout.one ? sprout.one.girth * 0.7 : 0
 
             PathPolyline { path: sprout.one ? sprout.one.blades[leaf.index] : [] }
@@ -799,7 +908,7 @@ Item {
             ShapePath {
               capStyle: ShapePath.RoundCap
               fillColor: "transparent"
-              strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, sprout.weight)
+              strokeColor: root.tint(sprout.weight)
               strokeWidth: branch.twig.width
 
               PathSvg { path: branch.twig.d }
@@ -995,7 +1104,7 @@ Item {
       readonly property var mote: root.motes[index] || null
 
       antialiasing: true
-      color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, root.snowInk * (mote ? mote.depth : 0))
+      color: root.tint(root.snowInk * (mote ? mote.depth : 0))
       height: mote ? mote.r * 2 : 0
       radius: height / 2
       visible: mote !== null
@@ -1044,7 +1153,7 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-          fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, swimmer.weight)
+          fillColor: root.tint(swimmer.weight)
           // A fish is three closed subpaths in one string: the body, the tail
           // swung off its joint, and the dorsal rooted inside the back. They
           // are meant to overlap, and a canvas fills them into one silhouette
@@ -1062,8 +1171,7 @@ Item {
         // every fish in the water: a bill baked into `d` would be a bill on all
         // of them. Same ink and same winding, so the two read as one animal.
         ShapePath {
-          fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
-                             swimmer.fish && swimmer.fish.bill > 0 ? swimmer.weight : 0)
+          fillColor: root.tint(swimmer.fish && swimmer.fish.bill > 0 ? swimmer.weight : 0)
           fillRule: ShapePath.WindingFill
           strokeColor: "transparent"
 
@@ -1079,7 +1187,7 @@ Item {
       // ink of its own, which is why a fish reads as a cutout in the water
       // instead of a sticker on it.
       Rectangle {
-        color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, swimmer.weight)
+        color: root.shade(swimmer.weight)
         height: swimmer.frame ? swimmer.frame.eye.r * 2 : 0
         radius: height / 2
         visible: swimmer.frame !== null
@@ -1108,7 +1216,13 @@ Item {
       visible: one !== null
       x: one ? one.x : 0
       y: one ? one.y : 0
-      z: one ? one.depth : 0
+      // Behind the sand, not in front of it. A wreck lies half buried, and
+      // the sand is what buries it: drawn over the floor the whole hull shows
+      // and the thing reads as a boat sitting on top of the sea bed with its
+      // keel visible through it. Everything relics have to be seen above is
+      // above the floor line anyway, so the sand hides exactly the part that
+      // should be under it and nothing else.
+      z: one ? -2.5 + one.depth * 0.4 : 0
 
       transform: Scale {
         xScale: relic.one ? relic.one.scale : 1
@@ -1122,7 +1236,7 @@ Item {
         // needs one path and a lookup rather than a Shape per kind. What is
         // drawn on top of that silhouette is each kind's own business, below.
         ShapePath {
-          fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, relic.weight)
+          fillColor: root.tint(relic.weight)
           fillRule: ShapePath.WindingFill
           strokeColor: "transparent"
 
@@ -1140,8 +1254,7 @@ Item {
         ShapePath {
           capStyle: ShapePath.RoundCap
           fillColor: "transparent"
-          strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
-                               relic.one && relic.one.kind === "wreck" ? relic.weight : 0)
+          strokeColor: root.tint(relic.one && relic.one.kind === "wreck" ? relic.weight : 0)
           strokeWidth: 0.03
 
           PathPolyline {
@@ -1166,7 +1279,7 @@ Item {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
-            fillColor: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, relic.weight)
+            fillColor: root.shade(relic.weight)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.BLOCK_LINES[line.index] }
@@ -1190,7 +1303,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
-              fillColor: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, relic.weight)
+              fillColor: root.shade(relic.weight)
               strokeColor: "transparent"
 
               PathSvg { path: Ornament.CHEST_BANDS[band.index] }
@@ -1202,21 +1315,21 @@ Item {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
-            fillColor: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, relic.weight)
+            fillColor: root.shade(relic.weight)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.CHEST_LOCK }
           }
 
           ShapePath {
-            fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, relic.weight)
+            fillColor: root.tint(relic.weight)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.LAPTOP_BASE }
           }
 
           ShapePath {
-            fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, root.screenInk)
+            fillColor: root.tint(root.screenInk)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.LAPTOP_SCREEN }
@@ -1258,12 +1371,18 @@ Item {
       readonly property var puff: root.plume[index] || null
 
       antialiasing: true
+      // Opaque, like everything else that is a thing rather than light.
+      //
+      // Drawn as translucent circles the plume read as smoke: where puffs
+      // overlapped their alphas piled up, so it was faintest at the vent and
+      // brightest where they bunched at the top, which is the wrong way round
+      // and is exactly what a chimney looks like on a windy day. Solid, they
+      // merge into one column that is densest where it leaves the rock.
+      //
       // The square root, not the age itself. A puff spreads as it climbs, so
       // fading it in step with its age takes the ink out faster than the water
-      // is taking it: what is left is a few dots at the chimney and clear water
-      // above them, which is not a plume.
-      color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
-                     root.plumeInk * (puff ? Math.sqrt(1 - puff.age) : 0))
+      // is taking it.
+      color: root.tint(root.plumeInk * (puff ? Math.sqrt(1 - puff.age) : 0))
       height: puff ? puff.r * 2 : 0
       radius: height / 2
       visible: puff !== null
@@ -1306,7 +1425,7 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-          fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, cuttle.weight)
+          fillColor: root.tint(cuttle.weight)
           fillRule: ShapePath.WindingFill
           strokeColor: "transparent"
 
@@ -1326,7 +1445,7 @@ Item {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
-            strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, cuttle.weight)
+            strokeColor: root.tint(cuttle.weight)
             strokeWidth: 0.035
 
             PathPolyline { path: cuttle.one ? cuttle.one.arms[tentacle.index] : [] }
@@ -1367,7 +1486,7 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-          fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, pus.weight)
+          fillColor: root.tint(pus.weight)
           strokeColor: "transparent"
 
           PathSvg { path: Ornament.OCTOPUS_HEAD }
@@ -1386,7 +1505,7 @@ Item {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
-            strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, pus.weight)
+            strokeColor: root.tint(pus.weight)
             strokeWidth: 0.075
 
             PathPolyline { path: pus.one ? pus.one.arms[limb.index] : [] }
@@ -1427,8 +1546,7 @@ Item {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
-            fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
-                               root.hullInk * (passer.one ? passer.one.weight : 0))
+            fillColor: root.tint(root.hullInk * (passer.one ? passer.one.weight : 0))
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.HULL }
@@ -1448,8 +1566,7 @@ Item {
           }
 
           ShapePath {
-            fillColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
-                               root.hullInk * (passer.one ? passer.one.weight : 0))
+            fillColor: root.tint(root.hullInk * (passer.one ? passer.one.weight : 0))
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SCREWS }
