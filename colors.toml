@@ -1,0 +1,43 @@
+mode = "dark"
+
+# CodinCod's forest theme, off the site itself.
+#
+# The surfaces are the ones the editor actually paints: `background` is the
+# colour a puzzle is written on (assets/js/editor/themes/forest.ts), and
+# `darker_background` is the daisyUI `base-100` underneath the whole site
+# (assets/css/app.css). The hues below are the site's semantic tokens, kept at
+# their own hue and chroma and put on a lightness ladder a terminal can use.
+#
+# Everything here was converted out of oklch, which is what the site is written
+# in, so a green here is the same green there rather than one picked to look
+# like it.
+
+accent = "#35c26d"
+selection = "#1f3428"
+muted = "#5c6e61"
+
+background = "#0e1712"
+dark_background = "#0a1210"
+darker_background = "#061009"
+lighter_background = "#1f3428"
+
+foreground = "#eff4f0"
+dark_foreground = "#5c6e61"
+light_foreground = "#a7c0b1"
+bright_foreground = "#fafdfa"
+
+red = "#d88380"
+yellow = "#b09f47"
+orange = "#cf8e52"
+green = "#6db07f"
+cyan = "#50b0b0"
+blue = "#57acc5"
+magenta = "#ce84a7"
+brown = "#6a4f38"
+
+bright_red = "#feaaa7"
+bright_yellow = "#d6c573"
+bright_green = "#95d6a6"
+bright_cyan = "#7dd6d5"
+bright_blue = "#82d2eb"
+bright_magenta = "#f4abcd"

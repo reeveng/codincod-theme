@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "codincod.background",
+  "name": "Seascape",
+  "version": "1.0.0",
+  "author": "CodinCod",
+  "description": "The desktop background as a body of water, running CodinCod's own shoal",
+  "kinds": [
+    "service"
+  ],
+  "entryPoints": {
+    "service": "Background.qml"
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.background"
+  }
+}
