@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.XmO0FlMErJ/entry.ts
+  // ../../../../../../tmp/tmp.4ZA8EseWKO/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -153,6 +153,403 @@ var __ornament = (() => {
     return a + t * (b - a);
   }
 
+  // ../../codincodv2/assets/js/ornament/shoal.ts
+  var SPECIES = {
+    /** The one that was here first. Everything else is described against it. */
+    cruiser: { bill: 0, deep: 0.52, girth: 1, hold: 1, pace: 1, pitch: 1, stride: 1, verve: 0 },
+    /** Small, quick, and never going anywhere for long. */
+    darter: { bill: 0, deep: 0.58, girth: 0.42, hold: 0.3, pace: 1.5, pitch: 1.4, stride: 0.58, verve: 1 },
+    /** Long, slow and far back, crossing the murk on one heading. */
+    drifter: { bill: 0, deep: 0.2, girth: 2.1, hold: 4.5, pace: 0.6, pitch: 0.45, stride: 1.7, verve: 0 },
+    /** Comes in twos and holds station with the other. See `Fish.mate`. */
+    escort: { bill: 0, deep: 0.62, girth: 0.72, hold: 1.4, pace: 1.1, pitch: 0.9, stride: 0.85, verve: 0 },
+    /**
+     * Big, quick, near the front of the water, and holding one line for a long
+     * time. The bill is most of it, but the rest has to agree with the bill: an
+     * animal built like that and pottering about would read as a drawing error.
+     *
+     * A long stride with real bursts in it, which is what a thunniform swimmer
+     * does. It hardly bends: everything happens at the tail, so the pitch is held
+     * shallow and the body reads as a rigid thing being driven.
+     */
+    swordfish: { bill: 1, deep: 0.72, girth: 1.85, hold: 3.2, pace: 1.55, pitch: 0.55, stride: 1.5, verve: 0.45 }
+  };
+  var WILD = {
+    cruiser: 5,
+    darter: 4,
+    drifter: 1,
+    escort: 2,
+    swordfish: 1
+  };
+  var MIN_SHOAL = 1;
+  var FIELD_CELLS = 3.6;
+  var DRIFT = 0.06;
+  var CRUISE = 1.05;
+  var STRIDE = 0.7;
+  var DART = 3.4;
+  var TURN = 0.85;
+  var TURN_STARTLED = 3.4;
+  var HASTE = 2.2;
+  var MAX_PITCH = 0.6;
+  var EDGE_REACH = 0.18;
+  var EDGE_PUSH = 0.9;
+  var SWEEP = 1.1;
+  var HOMING = 0.34;
+  var HOLD_LEAST = 1.6;
+  var HOLD_SPAN = 6.5;
+  var BEND = 0.85;
+  var WOBBLE = 0.18;
+  var MARGIN = 0.8;
+  var NEIGHBOUR_REACH = 70;
+  var NEIGHBOUR_PUSH = 0.8;
+  var FLEE_REACH = 340;
+  var FLEE_PUSH = 3.6;
+  var PANIC = 0.62;
+  var LOOK_DELAY = 1.1;
+  var LOOK_REACH = 320;
+  var LOOK_PUSH = 2.2;
+  var LEAN_PUSH = 0.5;
+  var LOOK_SPAN = 13;
+  var LOOK_REST = 5;
+  var STANDOFF = 70;
+  var HOVER = 0.45;
+  var LOSE_INTEREST = 1.8;
+  var DEPTH_SWING = 0.46;
+  var DEPTH_DRIFT = 0.035;
+  var DEPTH_NEAR = 1;
+  var DEPTH_FAR = 0.06;
+  var DEPTH_EASE = 0.5;
+  var DEPTH_DIVE = 1.4;
+  var DIVE = 0.35;
+  var RISE = 0.94;
+  var DEPTH_SIZE = 0.6;
+  var SURGE = 0.26;
+  var SPURT_SLOWEST = 0.9;
+  var SPURT_FASTEST = 1.9;
+  var SPURT_SHARE = 0.32;
+  var SPURT_PUSH = 2.4;
+  var SPURT_COAST = 0.22;
+  var STATION_BACK = 1.3;
+  var STATION_SIDE = 0.55;
+  var STATION_PUSH = 1.6;
+  var STATION_CATCH = 0.55;
+  var STATION_SLOWEST = 0.35;
+  var STATION_BRISKEST = 2.1;
+  var SLOWEST = 0.45;
+  var FASTEST = 1.9;
+  var LEISURE = 2;
+  var SHORTEST = 34;
+  var LONGEST = 58;
+  function freshSeed(from = 0) {
+    let seed = (Date.now() ^ from) >>> 0;
+    seed = Math.imul(seed ^ seed >>> 16, 73244475) >>> 0;
+    return (seed ^ seed >>> 16) >>> 0;
+  }
+  function createShoal(options) {
+    var _a, _b, _c;
+    const noise = makeNoise2(options.seed);
+    const depths = makeNoise2(options.seed ^ 40503);
+    const random = makeRandom(options.seed ^ 24381);
+    let width = Math.max(1, options.width);
+    let height = Math.max(1, options.height);
+    let drift = 0;
+    let sank = 0;
+    let still = 0;
+    let attentive = null;
+    let visit = 0;
+    let rest = 0;
+    let last = null;
+    const cruise = (_a = options.cruise) != null ? _a : CRUISE;
+    const shortest = (_b = options.shortest) != null ? _b : SHORTEST;
+    const longest = (_c = options.longest) != null ? _c : LONGEST;
+    const mix = weigh(options.species);
+    const born = () => spawn(random, draw(mix, random), { cruise, height, longest, shortest, width });
+    const fish = Array.from({ length: Math.max(MIN_SHOAL, options.count) }, born);
+    pair(fish);
+    return {
+      get attentive() {
+        return attentive;
+      },
+      fish,
+      resize(nextWidth, nextHeight, count) {
+        const scaleX = Math.max(1, nextWidth) / width;
+        const scaleY = Math.max(1, nextHeight) / height;
+        width = Math.max(1, nextWidth);
+        height = Math.max(1, nextHeight);
+        for (const one of fish) {
+          one.x *= scaleX;
+          one.y *= scaleY;
+        }
+        if (count == null) return;
+        while (fish.length > count && fish.length > MIN_SHOAL) {
+          const going = fish.at(-1);
+          if (going === attentive) attentive = null;
+          for (const one of fish) if (one.mate === going) one.mate = null;
+          fish.pop();
+        }
+        while (fish.length < count) fish.push(born());
+        pair(fish);
+      },
+      step(seconds, pointer) {
+        const dt = Math.min(Math.max(seconds, 0), 0.1);
+        drift += DRIFT * dt;
+        sank += DEPTH_DRIFT * dt;
+        still = pointer && !pointer.moving ? still + dt : 0;
+        const looking = still > LOOK_DELAY;
+        const fleeing = (pointer == null ? void 0 : pointer.moving) === true;
+        if (!looking || !pointer) {
+          attentive = null;
+          last = null;
+          rest = 0;
+          visit = 0;
+        } else if (attentive) {
+          visit += dt;
+          const strayed = away(attentive, pointer) > LOOK_REACH * LOSE_INTEREST || away(attentive, pointer) > STANDOFF && !ahead(attentive, pointer);
+          if (visit > LOOK_SPAN || strayed) {
+            last = attentive;
+            attentive = null;
+            visit = 0;
+            rest = LOOK_REST;
+          }
+        } else if (rest > 0) {
+          rest -= dt;
+        } else {
+          attentive = nearest(fish, pointer, LOOK_REACH, last);
+        }
+        for (const one of fish) {
+          const sort = SPECIES[one.kind];
+          one.hold -= dt;
+          if (one.hold <= 0) decide(one, random, height, sort);
+          one.lean = ease(one.lean, one.aim, BEND * dt);
+          const startled = fleeing && pointer != null && away(one, pointer) < FLEE_REACH * PANIC;
+          const [wantX, wantY] = want(
+            one,
+            fish,
+            noise,
+            drift,
+            looking ? pointer : null,
+            fleeing ? pointer : null,
+            one === attentive,
+            width,
+            height
+          );
+          one.heading = toward(
+            one.heading,
+            steady(one.facing, Math.atan2(wantY, wantX), MAX_PITCH * sort.pitch),
+            startled ? AGILITY_BOLT : AGILITY,
+            startled ? TURN_STARTLED : TURN,
+            dt
+          );
+          one.tilt = drawnTilt(one.heading, one.facing);
+          const ambient = one.mate ? one.mate.depth : clamp(sort.deep + DEPTH_SWING * depths(one.lane, sank), DEPTH_FAR, DEPTH_NEAR);
+          const wanted = startled ? ambient * DIVE : one === attentive ? RISE : ambient;
+          one.depth = ease(one.depth, wanted, (startled ? DEPTH_DIVE : DEPTH_EASE) * dt);
+          one.size = one.length * (1 - DEPTH_SIZE + DEPTH_SIZE * one.depth);
+          const hovering = one === attentive && pointer && away(one, pointer) < STANDOFF;
+          const gear = burst(one, sort, dt);
+          const own = cruise * one.pace * one.size * gear;
+          const wants = station(one, own) * (startled ? DART : hovering ? HOVER : 1);
+          one.speed = ease(one.speed, wants, HASTE * dt);
+          one.tail += 2 * Math.PI * one.speed / (STRIDE * sort.stride * one.size) * dt;
+          const stroke = one.speed * (1 + SURGE * Math.cos(2 * one.tail));
+          one.x = around(one.x + Math.cos(one.heading) * stroke * dt, width, one.size);
+          one.y = clamp(one.y + Math.sin(one.heading) * stroke * dt, -EDGE_HOLD, height + EDGE_HOLD);
+          if (one.mate && Math.abs(one.x - one.mate.x) > width / 2) one.x = one.mate.x;
+        }
+      }
+    };
+  }
+  function want(one, shoal, noise, drift, looking, fleeing, attentive, width, height) {
+    const scale = FIELD_CELLS / width;
+    const nx = one.x * scale + drift * 0.3;
+    const ny = one.y * scale + drift;
+    const pitched = one.lean + noise(nx + one.lane, ny + one.lane) * WOBBLE;
+    let x = one.facing * Math.cos(pitched);
+    let y = Math.sin(pitched);
+    const reach2 = height * EDGE_REACH;
+    y += edge(one.y, reach2) - edge(height - one.y, reach2);
+    if (one.mate) {
+      const spot = {
+        moving: false,
+        x: one.mate.x - one.mate.facing * one.mate.size * STATION_BACK,
+        y: one.mate.y + one.mate.size * STATION_SIDE
+      };
+      const [awayX, awayY, distance] = separation(one, spot);
+      x -= awayX / Math.max(distance, 0.5) * STATION_PUSH;
+      y -= awayY / Math.max(distance, 0.5) * STATION_PUSH;
+    }
+    for (const other of shoal) {
+      if (other === one || other === one.mate || other.mate === one) continue;
+      const [awayX, awayY, distance] = separation(one, other);
+      if (distance >= NEIGHBOUR_REACH) continue;
+      const t = 1 - distance / NEIGHBOUR_REACH;
+      const push = t * t * (3 - 2 * t) * NEIGHBOUR_PUSH / Math.max(distance, 0.5);
+      x += awayX * push;
+      y += awayY * push;
+    }
+    if (fleeing) {
+      const [awayX, awayY, distance] = separation(one, fleeing);
+      if (distance < FLEE_REACH) {
+        const push = (FLEE_REACH - distance) / FLEE_REACH * FLEE_PUSH / Math.max(distance, 0.5);
+        x += awayX * push;
+        y += awayY * push;
+      }
+    }
+    if (looking) {
+      const [awayX, awayY, distance] = separation(one, looking);
+      const push = attentive ? LOOK_PUSH : distance < LOOK_REACH ? LEAN_PUSH : 0;
+      if (push > 0) {
+        x -= awayX / Math.max(distance, 0.5) * push;
+        y -= awayY / Math.max(distance, 0.5) * push;
+      }
+    }
+    return [x, y];
+  }
+  function weigh(shares) {
+    var _a;
+    const wanted = shares != null ? shares : { cruiser: 1 };
+    const run = [];
+    let total = 0;
+    for (const kind of ["cruiser", "darter", "drifter", "escort", "swordfish"]) {
+      const share = Math.max(0, (_a = wanted[kind]) != null ? _a : 0);
+      if (share <= 0) continue;
+      total += share;
+      run.push([kind, total]);
+    }
+    if (run.length === 0) return [["cruiser", 1]];
+    return run.map(([kind, upto]) => [kind, upto / total]);
+  }
+  function draw(mix, random) {
+    var _a, _b, _c, _d;
+    if (mix.length <= 1) return (_b = (_a = mix[0]) == null ? void 0 : _a[0]) != null ? _b : "cruiser";
+    const roll = random();
+    return (_d = (_c = mix.find(([, upto]) => roll < upto)) == null ? void 0 : _c[0]) != null ? _d : mix[mix.length - 1][0];
+  }
+  function pair(shoal) {
+    const spare = shoal.filter((one) => one.kind === "escort" && !one.mate);
+    for (const one of spare) {
+      if (one.mate) continue;
+      const led = shoal.some((other) => other.mate === one);
+      if (led) continue;
+      const leader = spare.find(
+        (other) => other !== one && !other.mate && other.facing === one.facing
+      );
+      if (!leader) continue;
+      if (shoal.some((other) => other.mate === leader)) continue;
+      one.mate = leader;
+      one.x = leader.x - leader.facing * leader.size * STATION_BACK;
+      one.y = leader.y + leader.size * STATION_SIDE;
+    }
+  }
+  function burst(one, sort, dt) {
+    if (sort.verve <= 0) return 1;
+    const rate = SPURT_SLOWEST + one.lane % 1 * (SPURT_FASTEST - SPURT_SLOWEST);
+    one.spurt += dt * rate;
+    if (one.spurt >= 1) one.spurt -= 1;
+    const gear = one.spurt < SPURT_SHARE ? SPURT_PUSH : SPURT_COAST;
+    return 1 + (gear - 1) * sort.verve;
+  }
+  function station(one, own) {
+    if (!one.mate) return own;
+    const behind = (one.mate.x - one.x) * one.facing;
+    const slip = (behind - one.mate.size * STATION_BACK) / Math.max(one.mate.size, 1);
+    return one.mate.speed * clamp(1 + slip * STATION_CATCH, STATION_SLOWEST, STATION_BRISKEST);
+  }
+  function spawn(random, kind, box) {
+    const sort = SPECIES[kind];
+    const facing = random() < 0.5 ? -1 : 1;
+    const aim = (random() - 0.5) * SWEEP * sort.pitch;
+    const depth = DEPTH_FAR + random() * (DEPTH_NEAR - DEPTH_FAR);
+    const length = (box.shortest + random() * (box.longest - box.shortest)) * sort.girth;
+    const pace = (SLOWEST + random() ** LEISURE * (FASTEST - SLOWEST)) * sort.pace;
+    const size = length * (1 - DEPTH_SIZE + DEPTH_SIZE * depth);
+    return {
+      aim,
+      depth,
+      facing,
+      heading: steady(facing, aim, MAX_PITCH * sort.pitch),
+      tilt: drawnTilt(steady(facing, aim, MAX_PITCH * sort.pitch), facing),
+      hold: random() * (HOLD_LEAST + HOLD_SPAN) * sort.hold,
+      kind,
+      lane: random() * 200,
+      lean: aim,
+      length,
+      mate: null,
+      pace,
+      size,
+      speed: box.cruise * pace * size,
+      // Only a kind that bursts spends a draw on where in the burst it starts,
+      // for the reason `draw` gives: a shoal that asked for none of this has to
+      // come out of the seeded stream exactly as it did before there was any.
+      spurt: sort.verve > 0 ? random() : 0,
+      tail: random() * Math.PI * 2,
+      x: random() * box.width,
+      y: random() * box.height
+    };
+  }
+  function nearest(shoal, to, reach2, over) {
+    let closest = null;
+    let best = reach2;
+    let spare = null;
+    for (const one of shoal) {
+      const distance = away(one, to);
+      if (distance >= best || !ahead(one, to)) continue;
+      if (one === over) {
+        spare = one;
+        continue;
+      }
+      best = distance;
+      closest = one;
+    }
+    return closest != null ? closest : spare;
+  }
+  function ahead(one, to) {
+    return (to.x - one.x) * Math.cos(one.heading) + (to.y - one.y) * Math.sin(one.heading) > 0;
+  }
+  var away = (one, to) => Math.hypot(one.x - to.x, one.y - to.y);
+  function separation(one, to) {
+    const x = one.x - to.x;
+    const y = one.y - to.y;
+    return [x, y, Math.hypot(x, y)];
+  }
+  function decide(one, random, height, sort) {
+    const roll = random() * 2 - 1;
+    const homing = -((one.y / Math.max(height, 1) - 0.5) * 2) * HOMING;
+    const most = MAX_PITCH * sort.pitch;
+    one.aim = clamp(homing + roll * Math.abs(roll) * SWEEP * sort.pitch, -most, most);
+    one.hold = (HOLD_LEAST + random() * HOLD_SPAN) * sort.hold;
+  }
+  function toward(from, to, gain, most, dt) {
+    let by = (to - from) % (Math.PI * 2);
+    if (by > Math.PI) by -= Math.PI * 2;
+    if (by < -Math.PI) by += Math.PI * 2;
+    const rate = Math.max(-most, Math.min(most, by * gain));
+    return from + rate * dt;
+  }
+  var AGILITY = 1.5;
+  var AGILITY_BOLT = 4.2;
+  function drawnTilt(heading, facing) {
+    return Math.asin(clamp(Math.sin(heading), -1, 1)) * facing;
+  }
+  function steady(facing, want2, pitch) {
+    const asked = Math.atan2(Math.sin(want2), facing * Math.cos(want2));
+    const rel = pitch * Math.tanh(asked / pitch);
+    return facing > 0 ? rel : Math.PI - rel;
+  }
+  var ease = (from, to, rate) => from + (to - from) * Math.min(1, Math.max(0, rate));
+  function edge(distance, reach2) {
+    if (reach2 <= 0 || distance >= reach2) return 0;
+    return (reach2 - distance) / reach2 * EDGE_PUSH;
+  }
+  var clamp = (value, low, high) => Math.min(Math.max(value, low), high);
+  function around(value, span, body) {
+    const margin = body * MARGIN;
+    if (value > span + margin) return -margin;
+    if (value < -margin) return span + margin;
+    return value;
+  }
+  var EDGE_HOLD = 8;
+
   // ../../codincodv2/assets/js/ornament/cephalopods.ts
   var CYCLE_SLOWEST = 3.4;
   var CYCLE_FASTEST = 6.8;
@@ -166,7 +563,10 @@ var __ornament = (() => {
   var WANDER = 0.5;
   var RETHINK_LEAST = 2.5;
   var RETHINK_SPAN = 5;
-  var MARGIN = 1.1;
+  var ROOF = 0.72;
+  var MARGIN2 = 1.1;
+  var SHY_BAND = 2.4;
+  var SHY_PULL = 1.4;
   var OCTOPUS_SMALLEST = 26;
   var OCTOPUS_LARGEST = 44;
   var CRAWL_REACH = 0.62;
@@ -178,9 +578,9 @@ var __ornament = (() => {
   var JET_HEIGHT = 2.2;
   var TRAIL_HELD = 0.22;
   var TRAIL_DRIVEN = 1.15;
-  var DEPTH_FAR = 0.15;
-  var DEPTH_NEAR = 0.85;
-  var DEPTH_SIZE = 0.6;
+  var DEPTH_FAR2 = 0.15;
+  var DEPTH_NEAR2 = 0.85;
+  var DEPTH_SIZE2 = 0.6;
   var MIN_SPAN = 1;
   function createCephalopods(options) {
     const random = makeRandom(options.seed ^ 3184);
@@ -191,10 +591,14 @@ var __ornament = (() => {
     const octopuses = [];
     const beats = [];
     function bornSquid() {
-      const depth = DEPTH_FAR + random() * (DEPTH_NEAR - DEPTH_FAR);
+      const depth = DEPTH_FAR2 + random() * (DEPTH_NEAR2 - DEPTH_FAR2);
       const facing = random() < 0.5 ? -1 : 1;
       const length = SQUID_SHORTEST + random() * (SQUID_LONGEST - SQUID_SHORTEST);
       const aim = (random() - 0.5) * WANDER;
+      const x = random() * width;
+      const size = length * (1 - DEPTH_SIZE2 + DEPTH_SIZE2 * depth);
+      const top = size * MARGIN2;
+      const bed = Math.max(top, Math.min(floor(x) - size * 0.4, height * ROOF));
       beats.push({
         aim,
         at: random() * CYCLE_SLOWEST,
@@ -205,15 +609,16 @@ var __ornament = (() => {
         depth,
         facing,
         heading: point(facing, aim),
-        size: length * (1 - DEPTH_SIZE + DEPTH_SIZE * depth),
+        tilt: drawnTilt(point(facing, aim), facing),
+        size,
         speed: 0,
         squeeze: 0,
-        x: random() * width,
-        y: random() * height * 0.72
+        x,
+        y: top + random() * (bed - top)
       };
     }
     function bornOctopus() {
-      const depth = DEPTH_FAR + random() * (DEPTH_NEAR - DEPTH_FAR);
+      const depth = DEPTH_FAR2 + random() * (DEPTH_NEAR2 - DEPTH_FAR2);
       const head = OCTOPUS_SMALLEST + random() * (OCTOPUS_LARGEST - OCTOPUS_SMALLEST);
       const x = random() * width;
       return {
@@ -223,7 +628,7 @@ var __ornament = (() => {
         haul: 0,
         jetting: 0,
         lift: 0,
-        size: head * (1 - DEPTH_SIZE + DEPTH_SIZE * depth),
+        size: head * (1 - DEPTH_SIZE2 + DEPTH_SIZE2 * depth),
         x,
         y: floor(x)
       };
@@ -278,13 +683,19 @@ var __ornament = (() => {
             beat.aim = (random() - 0.5) * WANDER;
             beat.hold = RETHINK_LEAST + random() * RETHINK_SPAN;
           }
-          one.heading = point(one.facing, beat.aim);
+          const edge2 = one.size * MARGIN2;
+          const bed = floor(one.x) - one.size * 0.4;
+          one.heading = ease2(
+            one.heading,
+            point(one.facing, beat.aim + shy(one.y, edge2, bed, one.size)),
+            TURN2 * dt
+          );
+          one.tilt = drawnTilt(one.heading, one.facing);
           one.x += Math.cos(one.heading) * one.speed * dt;
           one.y += Math.sin(one.heading) * one.speed * dt;
-          const edge2 = one.size * MARGIN;
           if (one.x > width + edge2) one.x = -edge2;
           if (one.x < -edge2) one.x = width + edge2;
-          one.y = Math.min(Math.max(one.y, edge2), floor(one.x) - one.size * 0.4);
+          one.y = Math.min(Math.max(one.y, edge2), bed);
         }
         for (const one of octopuses) {
           if (one.jetting > 0) {
@@ -301,13 +712,24 @@ var __ornament = (() => {
             one.x += one.facing * CRAWL_REACH * one.haul * one.size * dt;
             if (random() < JET_ODDS) one.jetting = JET_SPAN;
           }
-          const edge2 = one.size * MARGIN;
+          const edge2 = one.size * MARGIN2;
           if (one.x > width + edge2) one.x = -edge2;
           if (one.x < -edge2) one.x = width + edge2;
           one.y = floor(one.x) - one.lift * one.size;
         }
       }
     };
+  }
+  function shy(y, top, bed, size) {
+    const band = Math.max(1, Math.min(size * SHY_BAND, (bed - top) * 0.4));
+    const under = Math.max(0, top + band - y);
+    const over = Math.max(0, y - (bed - band));
+    return (under - over) / band * SHY_PULL;
+  }
+  var TURN2 = 0.9;
+  function ease2(from, to, step) {
+    const gap = to - from;
+    return Math.abs(gap) <= step ? to : from + Math.sign(gap) * step;
   }
   function point(facing, want2) {
     const asked = Math.atan2(Math.sin(want2), facing * Math.cos(want2));
@@ -379,23 +801,23 @@ var __ornament = (() => {
   }
 
   // ../../codincodv2/assets/js/ornament/drift.ts
-  var FIELD_CELLS = 2.2;
-  var DRIFT = 0.04;
+  var FIELD_CELLS2 = 2.2;
+  var DRIFT2 = 0.04;
   var SWAY = 13;
   var FALL_SLOWEST = 4;
   var FALL_FASTEST = 13;
   var MOTE_SMALLEST = 0.4;
   var MOTE_LARGEST = 1.9;
   var MOTE_BIAS = 2.6;
-  var DEPTH_SIZE2 = 0.75;
-  var DEPTH_NEAR2 = 1;
-  var DEPTH_FAR2 = 0.08;
+  var DEPTH_SIZE3 = 0.75;
+  var DEPTH_NEAR3 = 1;
+  var DEPTH_FAR3 = 0.08;
   var RISE_SLOWEST = 38;
   var RISE_FASTEST = 66;
   var BUBBLE_SMALLEST = 1.1;
   var BUBBLE_LARGEST = 2.9;
   var SWELL = 0.6;
-  var WOBBLE = 9;
+  var WOBBLE2 = 9;
   var WOBBLE_RATE = 1.9;
   var VENT_RUN_LEAST = 0.7;
   var VENT_RUN_SPAN = 1.6;
@@ -413,8 +835,8 @@ var __ornament = (() => {
     let slide = 0;
     const floor = (_a = options.floor) != null ? _a : (() => height);
     const mote = () => {
-      const depth = DEPTH_FAR2 + random() * (DEPTH_NEAR2 - DEPTH_FAR2);
-      const shrink = 1 - DEPTH_SIZE2 + DEPTH_SIZE2 * depth;
+      const depth = DEPTH_FAR3 + random() * (DEPTH_NEAR3 - DEPTH_FAR3);
+      const shrink = 1 - DEPTH_SIZE3 + DEPTH_SIZE3 * depth;
       return {
         depth,
         lane: random() * 200,
@@ -438,13 +860,13 @@ var __ornament = (() => {
     const vents = Array.from({ length: Math.max(0, (_b = options.vents) != null ? _b : 0) }, vent);
     const bubbles = [];
     function release(from) {
-      const depth = DEPTH_FAR2 + random() * (DEPTH_NEAR2 - DEPTH_FAR2);
+      const depth = DEPTH_FAR3 + random() * (DEPTH_NEAR3 - DEPTH_FAR3);
       bubbles.push({
         depth,
         lane: random() * 200,
         r: (BUBBLE_SMALLEST + random() * (BUBBLE_LARGEST - BUBBLE_SMALLEST)) * depth,
         rose: 0,
-        x: from.x + (random() - 0.5) * WOBBLE,
+        x: from.x + (random() - 0.5) * WOBBLE2,
         y: from.y
       });
     }
@@ -470,8 +892,8 @@ var __ornament = (() => {
       },
       step(seconds) {
         const dt = Math.min(Math.max(seconds, 0), 0.1);
-        slide += DRIFT * dt;
-        const scale = FIELD_CELLS / width;
+        slide += DRIFT2 * dt;
+        const scale = FIELD_CELLS2 / width;
         for (const one of motes) {
           const push = noise(one.x * scale + one.lane, one.y * scale + one.lane + slide);
           one.x += push * SWAY * one.depth * dt;
@@ -480,7 +902,7 @@ var __ornament = (() => {
             one.y = -one.r;
             one.x = random() * width;
           }
-          one.x = around(one.x, width, one.r);
+          one.x = around2(one.x, width, one.r);
         }
         for (const from of vents) {
           from.until -= dt;
@@ -502,13 +924,13 @@ var __ornament = (() => {
           one.rose += dt;
           one.y -= climb * dt;
           one.r += one.r * SWELL * (climb / Math.max(height, MIN_SPAN2)) * dt;
-          one.x += Math.cos(one.rose * WOBBLE_RATE + one.lane) * WOBBLE * dt;
+          one.x += Math.cos(one.rose * WOBBLE_RATE + one.lane) * WOBBLE2 * dt;
           if (one.y + one.r < 0) bubbles.splice(at, 1);
         }
       }
     };
   }
-  function around(value, span, margin) {
+  function around2(value, span, margin) {
     if (value > span + margin) return -margin;
     if (value < -margin) return span + margin;
     return value;
@@ -521,7 +943,7 @@ var __ornament = (() => {
   var half = (t) => 24 * t * (1 - t) + WRIST * (1 - t);
   var WRIST = 1.4;
   var STATIONS = 20;
-  var SWEEP = 0.2;
+  var SWEEP2 = 0.2;
   var WAVES = 0.85;
   var TWIST = 2 * Math.PI * WAVES;
   var envelope = (u) => 0.2 - 0.8 * u + 1.6 * u * u;
@@ -545,15 +967,15 @@ var __ornament = (() => {
     return high - low;
   }
   function fitted() {
-    let amp = SWEEP * SPAN;
-    for (let pass = 0; pass < 8; pass++) amp *= SWEEP * SPAN / reach(amp);
+    let amp = SWEEP2 * SPAN;
+    for (let pass = 0; pass < 8; pass++) amp *= SWEEP2 * SPAN / reach(amp);
     return amp;
   }
   var AMP = fitted();
   function spine(x, phase) {
     return AMP * wave(1 - x / NOSE, phase);
   }
-  function station(x, phase) {
+  function station2(x, phase) {
     const back = spine(x - SLOPE, phase);
     const front = spine(x + SLOPE, phase);
     return { angle: Math.atan2(front - back, 2 * SLOPE), x, y: spine(x, phase) };
@@ -562,7 +984,7 @@ var __ornament = (() => {
     on.x + Math.sin(on.angle) * lift,
     on.y - Math.cos(on.angle) * lift
   ];
-  var above = (x, lift, phase) => clear(station(x, phase), lift);
+  var above = (x, lift, phase) => clear(station2(x, phase), lift);
   var fixed = (value) => value.toFixed(2);
   function rounded(points) {
     const mid = (a, b) => `${fixed((a[0] + b[0]) / 2)} ${fixed((a[1] + b[1]) / 2)}`;
@@ -579,7 +1001,7 @@ var __ornament = (() => {
   function dorsal(phase) {
     const foot = (t, over) => {
       const x = along(t);
-      return clear(station(x, phase), half(t) + over);
+      return clear(station2(x, phase), half(t) + over);
     };
     return fin([foot(0.38, -SET), foot(0.52, TIP), foot(0.66, -SET)]);
   }
@@ -591,7 +1013,7 @@ var __ornament = (() => {
     for (let at = 0; at <= STATIONS; at++) {
       const t = at / STATIONS;
       const x = along(t);
-      const on = station(x, phase);
+      const on = station2(x, phase);
       const lift = half(t);
       top.push(clear(on, lift));
       bottom.push(clear(on, -lift));
@@ -600,7 +1022,7 @@ var __ornament = (() => {
   }
   var ROOT = 2.5;
   function tail(phase) {
-    const joint = station(0, phase);
+    const joint = station2(0, phase);
     const cos = Math.cos(joint.angle);
     const sin = Math.sin(joint.angle);
     const carry = ([x, y]) => [
@@ -630,7 +1052,7 @@ var __ornament = (() => {
     };
   }
   function bill(phase) {
-    const nose = station(NOSE, phase);
+    const nose = station2(NOSE, phase);
     const cos = Math.cos(nose.angle);
     const sin = Math.sin(nose.angle);
     const carry = ([x, y]) => [
@@ -663,14 +1085,41 @@ var __ornament = (() => {
     { d: "M-8 -14 C-12 -20 -16 -22 -22 -24", width: 3 },
     { d: "M8 -12 C12 -18 18 -20 24 -20", width: 3 }
   ];
-  var FIELD_CELLS2 = 3.6;
-  var DRIFT2 = 0.06;
+  var BUSH = [
+    { d: "M0 0 C-4 -8 -14 -10 -24 -12", width: 4 },
+    { d: "M0 0 C-2 -10 -6 -15 -10 -22", width: 4.5 },
+    { d: "M0 0 C1 -9 3 -14 4 -20", width: 5 },
+    { d: "M0 0 C4 -8 12 -11 22 -14", width: 4 },
+    { d: "M-12 -9 C-16 -14 -18 -16 -20 -22", width: 2.5 },
+    { d: "M10 -10 C14 -14 18 -15 22 -20", width: 2.5 }
+  ];
+  var STAGHORN = [
+    { d: "M0 0 C0 -12 -2 -22 -6 -34", width: 5.5 },
+    { d: "M0 0 C3 -10 6 -18 8 -30", width: 4.5 },
+    { d: "M-3 -20 C-8 -26 -12 -28 -16 -36", width: 3 },
+    { d: "M6 -20 C10 -26 14 -27 18 -32", width: 3 },
+    { d: "M0 -6 C-6 -10 -10 -12 -14 -14", width: 2.5 }
+  ];
+  var BOULDER = [
+    { d: "M0 0 C-9 -4 -13 -9 -12 -15", width: 7 },
+    { d: "M0 0 C-4 -6 -5 -12 -4 -18", width: 7 },
+    { d: "M0 0 C3 -6 5 -12 5 -17", width: 7 },
+    { d: "M0 0 C9 -4 13 -9 11 -15", width: 7 }
+  ];
+  var REEF = [BOULDER, BOULDER, BUSH, BUSH, CORAL, STAGHORN];
+  var FIELD_CELLS3 = 3.6;
+  var DRIFT3 = 0.06;
   var KELP_LEAST = 0.22;
   var KELP_SPAN = 0.3;
-  var GRASS_LEAST = 0.03;
-  var GRASS_SPAN = 0.05;
-  var KELP_GIRTH = 4.2;
-  var GRASS_GIRTH = 1.5;
+  var GRASS_LEAST = 0.05;
+  var GRASS_SPAN = 0.085;
+  var TUFT_LEAST = 3;
+  var TUFT_MOST = 7;
+  var TUFT_SPLAY = 0.34;
+  var TUFT_ROOT = 0.16;
+  var GRASS_RUNT = 0.5;
+  var KELP_GIRTH = 5.2;
+  var GRASS_GIRTH = 2;
   var KELP_STEPS = 12;
   var GRASS_STEPS = 6;
   var KELP_LEAN = 0.34;
@@ -685,10 +1134,10 @@ var __ornament = (() => {
   var BLADE_TRAIL = 0.95;
   var BLADE_FLARE = 0.3;
   var BLADE_TAPER = 0.45;
-  var CORAL_SMALLEST = 0.35;
-  var CORAL_LARGEST = 0.9;
-  var DEPTH_FAR3 = 0.25;
-  var DEPTH_NEAR3 = 0.8;
+  var CORAL_SMALLEST = 0.9;
+  var CORAL_LARGEST = 2.4;
+  var DEPTH_FAR4 = 0.25;
+  var DEPTH_NEAR4 = 0.8;
   var MIN_SPAN3 = 1;
   function createFlora(options) {
     const noise = makeNoise2(options.seed ^ 20240);
@@ -701,8 +1150,9 @@ var __ornament = (() => {
     const sways = [];
     const heights = /* @__PURE__ */ new Map();
     function plant(kind) {
+      var _a;
       const x = random() * width;
-      const depth = DEPTH_FAR3 + random() * (DEPTH_NEAR3 - DEPTH_FAR3);
+      const depth = DEPTH_FAR4 + random() * (DEPTH_NEAR4 - DEPTH_FAR4);
       if (kind === "coral") {
         plants.push({
           blades: [],
@@ -711,10 +1161,11 @@ var __ornament = (() => {
           kind,
           points: [],
           scale: (CORAL_SMALLEST + random() * (CORAL_LARGEST - CORAL_SMALLEST)) * depth,
+          twigs: (_a = REEF[Math.floor(random() * REEF.length)]) != null ? _a : CORAL,
           x,
           y: floor(x)
         });
-        sways.push({ lean: 0, own: random() * Math.PI * 2, rate: 0, steps: 0 });
+        sways.push({ lean: 0, mates: [], own: random() * Math.PI * 2, rate: 0, steps: 0 });
         return;
       }
       const tall = kind === "kelp";
@@ -726,16 +1177,34 @@ var __ornament = (() => {
         kind,
         points: [],
         scale: 1,
+        twigs: [],
         x,
         y: floor(x)
       });
       sways.push({
         lean: span * (tall ? KELP_LEAN : GRASS_LEAN),
+        mates: tall ? [] : clump(span),
         own: random() * Math.PI * 2,
         rate: SWAY_SLOWEST + random() * (SWAY_FASTEST - SWAY_SLOWEST),
         steps: tall ? KELP_STEPS : GRASS_STEPS
       });
       heights.set(plants.length - 1, span);
+    }
+    function clump(span) {
+      const mates = [];
+      const count = TUFT_LEAST + Math.floor(random() * (TUFT_MOST - TUFT_LEAST + 1));
+      for (let made = 0; made < count; made++) {
+        const side = made % 2 === 0 ? 1 : -1;
+        const out = (Math.floor(made / 2) + 1) / Math.ceil(count / 2);
+        mates.push({
+          beat: 0.82 + random() * 0.4,
+          own: random() * Math.PI * 2,
+          shift: side * out * span * TUFT_ROOT * (0.4 + random() * 0.6),
+          slant: side * out * TUFT_SPLAY * (0.5 + random() * 0.5),
+          span: span * (GRASS_RUNT + random() * (1 - GRASS_RUNT))
+        });
+      }
+      return mates;
     }
     function sow() {
       var _a, _b, _c;
@@ -751,16 +1220,25 @@ var __ornament = (() => {
       const sway = sways[at];
       const span = heights.get(at);
       if (!one || !sway || span == null || one.kind === "coral") return;
-      const current = field(one.x / width * FIELD_CELLS2 + drift, drift);
+      const current = field(one.x / width * FIELD_CELLS3 + drift, drift);
       const own = Math.sin(sway.own);
       const amp = sway.lean * (current * CURRENT_SHARE + own * (1 - CURRENT_SHARE));
-      const points = [];
-      for (let step = 0; step <= sway.steps; step++) {
-        const t = step / sway.steps;
-        points.push({ x: one.x + amp * Math.sin(sway.own + t * 2.4) * t, y: one.y - span * t });
-      }
+      const points = strand(one.x, one.y, span, sway.own, amp, 0, sway.steps);
       one.points = points;
-      if (one.kind !== "kelp") return;
+      if (one.kind === "grass") {
+        one.blades = sway.mates.map(
+          (mate) => strand(
+            one.x + mate.shift,
+            one.y,
+            mate.span,
+            sway.own * mate.beat + mate.own,
+            amp,
+            mate.slant,
+            sway.steps
+          )
+        );
+        return;
+      }
       const blades = [];
       for (let made = 0; made < BLADES; made++) {
         const seat = BLADE_SEAT + made / BLADES * (1 - BLADE_SEAT);
@@ -791,9 +1269,22 @@ var __ornament = (() => {
       }
       one.blades = blades;
     }
+    function strand(x, y, span, phase, amp, slant, steps) {
+      const lean = Math.sin(slant);
+      const rise = Math.cos(slant);
+      const points = [];
+      for (let step = 0; step <= steps; step++) {
+        const t = step / steps;
+        points.push({
+          x: x + span * t * lean + amp * Math.sin(phase + t * 2.4) * t,
+          y: y - span * t * rise
+        });
+      }
+      return points;
+    }
     function advance(seconds) {
       const dt = Math.min(Math.max(seconds, 0), 0.1);
-      drift += DRIFT2 * dt;
+      drift += DRIFT3 * dt;
       for (let at = 0; at < plants.length; at++) {
         const sway = sways[at];
         if (sway && sway.rate > 0) {
@@ -996,9 +1487,9 @@ var __ornament = (() => {
     smoker: 0.05,
     wreck: 0.16
   };
-  var DEPTH_FAR4 = 0.35;
-  var DEPTH_NEAR4 = 0.85;
-  var DEPTH_SIZE3 = 0.45;
+  var DEPTH_FAR5 = 0.35;
+  var DEPTH_NEAR5 = 0.85;
+  var DEPTH_SIZE4 = 0.45;
   var PUFF_GAP = 0.13;
   var PUFF_SLOWEST = 0.72;
   var PUFF_FASTEST = 1.28;
@@ -1007,7 +1498,7 @@ var __ornament = (() => {
   var PUFF_DRAG = 0.62;
   var PUFF_SWELL = 4.5;
   var PUFF_SWAY = 16;
-  var FIELD_CELLS3 = 2.4;
+  var FIELD_CELLS4 = 2.4;
   var FIELD_ROWS = 5.5;
   var MIN_SPAN6 = 1;
   var WARMUP = 12;
@@ -1021,27 +1512,27 @@ var __ornament = (() => {
     let drift = 0;
     const relics = [];
     const plume = [];
-    function place() {
+    function place2() {
       const roll = makeRandom(options.seed ^ 36369);
       for (let spun = 0; spun < WARMUP; spun++) roll();
       relics.length = 0;
       for (const kind of ["wreck", "smoker", "block", "chest"]) {
         if (roll() >= ODDS[kind]) continue;
         const [least, most] = SIZES[kind];
-        const depth = DEPTH_FAR4 + roll() * (DEPTH_NEAR4 - DEPTH_FAR4);
+        const depth = DEPTH_FAR5 + roll() * (DEPTH_NEAR5 - DEPTH_FAR5);
         const x = width * (0.12 + roll() * 0.76);
         relics.push({
           depth,
           kind,
           lean: (roll() - 0.5) * LEAN[kind] * 2,
-          scale: (least + roll() * (most - least)) * (1 - DEPTH_SIZE3 + DEPTH_SIZE3 * depth),
+          scale: (least + roll() * (most - least)) * (1 - DEPTH_SIZE4 + DEPTH_SIZE4 * depth),
           x,
           y: floor(x)
         });
       }
     }
     const smoker = () => relics.find((one) => one.kind === "smoker");
-    place();
+    place2();
     return {
       plume,
       relics,
@@ -1050,7 +1541,7 @@ var __ornament = (() => {
         height = Math.max(MIN_SPAN6, nextHeight);
         floor = nextFloor;
         plume.length = 0;
-        place();
+        place2();
       },
       step(seconds) {
         const dt = Math.min(Math.max(seconds, 0), 0.1);
@@ -1080,7 +1571,7 @@ var __ornament = (() => {
           const climb = PUFF_RISE * puff.rise * (1 - PUFF_DRAG * puff.age);
           puff.y -= climb * dt;
           puff.r += PUFF_SWELL * (0.55 + puff.age) * dt;
-          puff.x += shear(puff.x / width * FIELD_CELLS3 + drift, puff.y / height * FIELD_ROWS + drift) * PUFF_SWAY * dt;
+          puff.x += shear(puff.x / width * FIELD_CELLS4 + drift, puff.y / height * FIELD_ROWS + drift) * PUFF_SWAY * dt;
         }
       }
     };
@@ -1111,14 +1602,14 @@ var __ornament = (() => {
 
   // ../../codincodv2/assets/js/ornament/seabed.ts
   var FLOOR_SEAT = 0.1;
-  var FLOOR_ROLL = 0.06;
+  var FLOOR_ROLL = 0.085;
   var SWELL_CELLS = 1.3;
   var LUMP_CELLS = 5.5;
   var LUMP_SHARE = 0.34;
   var RIDGE_STEPS = 96;
   var OVERHANG = 40;
-  var STONE_SMALLEST = 7;
-  var STONE_LARGEST = 26;
+  var STONE_SMALLEST = 9;
+  var STONE_LARGEST = 38;
   var STONE_SQUAT = 0.62;
   var STONE_LEAN = 0.5;
   var CLIFF_RISE_LEAST = 0.18;
@@ -1169,7 +1660,7 @@ var __ornament = (() => {
     }
     function settle() {
       const x = random() * width;
-      const span = STONE_SMALLEST + random() ** 2 * (STONE_LARGEST - STONE_SMALLEST);
+      const span = STONE_SMALLEST + random() ** 1.5 * (STONE_LARGEST - STONE_SMALLEST);
       return {
         lean: (random() - 0.5) * STONE_LEAN * 2,
         rise: span * STONE_SQUAT * (0.7 + random() * 0.6),
@@ -1209,398 +1700,6 @@ var __ornament = (() => {
       }
     };
   }
-
-  // ../../codincodv2/assets/js/ornament/shoal.ts
-  var SPECIES = {
-    /** The one that was here first. Everything else is described against it. */
-    cruiser: { bill: 0, deep: 0.52, girth: 1, hold: 1, pace: 1, pitch: 1, stride: 1, verve: 0 },
-    /** Small, quick, and never going anywhere for long. */
-    darter: { bill: 0, deep: 0.58, girth: 0.42, hold: 0.3, pace: 1.5, pitch: 1.4, stride: 0.58, verve: 1 },
-    /** Long, slow and far back, crossing the murk on one heading. */
-    drifter: { bill: 0, deep: 0.2, girth: 2.1, hold: 4.5, pace: 0.6, pitch: 0.45, stride: 1.7, verve: 0 },
-    /** Comes in twos and holds station with the other. See `Fish.mate`. */
-    escort: { bill: 0, deep: 0.62, girth: 0.72, hold: 1.4, pace: 1.1, pitch: 0.9, stride: 0.85, verve: 0 },
-    /**
-     * Big, quick, near the front of the water, and holding one line for a long
-     * time. The bill is most of it, but the rest has to agree with the bill: an
-     * animal built like that and pottering about would read as a drawing error.
-     *
-     * A long stride with real bursts in it, which is what a thunniform swimmer
-     * does. It hardly bends: everything happens at the tail, so the pitch is held
-     * shallow and the body reads as a rigid thing being driven.
-     */
-    swordfish: { bill: 1, deep: 0.72, girth: 1.85, hold: 3.2, pace: 1.55, pitch: 0.55, stride: 1.5, verve: 0.45 }
-  };
-  var WILD = {
-    cruiser: 5,
-    darter: 4,
-    drifter: 1,
-    escort: 2,
-    swordfish: 1
-  };
-  var MIN_SHOAL = 1;
-  var FIELD_CELLS4 = 3.6;
-  var DRIFT3 = 0.06;
-  var CRUISE = 1.05;
-  var STRIDE = 0.7;
-  var DART = 3.4;
-  var TURN = 0.85;
-  var TURN_STARTLED = 3.4;
-  var HASTE = 2.2;
-  var MAX_PITCH = 0.6;
-  var EDGE_REACH = 0.18;
-  var EDGE_PUSH = 0.9;
-  var SWEEP2 = 1.1;
-  var HOMING = 0.34;
-  var HOLD_LEAST = 1.6;
-  var HOLD_SPAN = 6.5;
-  var BEND = 0.85;
-  var WOBBLE2 = 0.18;
-  var MARGIN2 = 0.8;
-  var NEIGHBOUR_REACH = 70;
-  var NEIGHBOUR_PUSH = 0.8;
-  var FLEE_REACH = 340;
-  var FLEE_PUSH = 3.6;
-  var PANIC = 0.62;
-  var LOOK_DELAY = 1.1;
-  var LOOK_REACH = 320;
-  var LOOK_PUSH = 2.2;
-  var LEAN_PUSH = 0.5;
-  var LOOK_SPAN = 13;
-  var LOOK_REST = 5;
-  var STANDOFF = 70;
-  var HOVER = 0.45;
-  var LOSE_INTEREST = 1.8;
-  var DEPTH_SWING = 0.46;
-  var DEPTH_DRIFT = 0.035;
-  var DEPTH_NEAR5 = 1;
-  var DEPTH_FAR5 = 0.06;
-  var DEPTH_EASE = 0.5;
-  var DEPTH_DIVE = 1.4;
-  var DIVE = 0.35;
-  var RISE = 0.94;
-  var DEPTH_SIZE4 = 0.6;
-  var SURGE = 0.26;
-  var SPURT_SLOWEST = 0.9;
-  var SPURT_FASTEST = 1.9;
-  var SPURT_SHARE = 0.32;
-  var SPURT_PUSH = 2.4;
-  var SPURT_COAST = 0.22;
-  var STATION_BACK = 1.3;
-  var STATION_SIDE = 0.55;
-  var STATION_PUSH = 1.6;
-  var STATION_CATCH = 0.55;
-  var STATION_SLOWEST = 0.35;
-  var STATION_BRISKEST = 2.1;
-  var SLOWEST = 0.45;
-  var FASTEST = 1.9;
-  var LEISURE = 2;
-  var SHORTEST = 34;
-  var LONGEST = 58;
-  function freshSeed(from = 0) {
-    let seed = (Date.now() ^ from) >>> 0;
-    seed = Math.imul(seed ^ seed >>> 16, 73244475) >>> 0;
-    return (seed ^ seed >>> 16) >>> 0;
-  }
-  function createShoal(options) {
-    var _a, _b, _c;
-    const noise = makeNoise2(options.seed);
-    const depths = makeNoise2(options.seed ^ 40503);
-    const random = makeRandom(options.seed ^ 24381);
-    let width = Math.max(1, options.width);
-    let height = Math.max(1, options.height);
-    let drift = 0;
-    let sank = 0;
-    let still = 0;
-    let attentive = null;
-    let visit = 0;
-    let rest = 0;
-    let last = null;
-    const cruise = (_a = options.cruise) != null ? _a : CRUISE;
-    const shortest = (_b = options.shortest) != null ? _b : SHORTEST;
-    const longest = (_c = options.longest) != null ? _c : LONGEST;
-    const mix = weigh(options.species);
-    const born = () => spawn(random, draw(mix, random), { cruise, height, longest, shortest, width });
-    const fish = Array.from({ length: Math.max(MIN_SHOAL, options.count) }, born);
-    pair(fish);
-    return {
-      get attentive() {
-        return attentive;
-      },
-      fish,
-      resize(nextWidth, nextHeight, count) {
-        const scaleX = Math.max(1, nextWidth) / width;
-        const scaleY = Math.max(1, nextHeight) / height;
-        width = Math.max(1, nextWidth);
-        height = Math.max(1, nextHeight);
-        for (const one of fish) {
-          one.x *= scaleX;
-          one.y *= scaleY;
-        }
-        if (count == null) return;
-        while (fish.length > count && fish.length > MIN_SHOAL) {
-          const going = fish.at(-1);
-          if (going === attentive) attentive = null;
-          for (const one of fish) if (one.mate === going) one.mate = null;
-          fish.pop();
-        }
-        while (fish.length < count) fish.push(born());
-        pair(fish);
-      },
-      step(seconds, pointer) {
-        const dt = Math.min(Math.max(seconds, 0), 0.1);
-        drift += DRIFT3 * dt;
-        sank += DEPTH_DRIFT * dt;
-        still = pointer && !pointer.moving ? still + dt : 0;
-        const looking = still > LOOK_DELAY;
-        const fleeing = (pointer == null ? void 0 : pointer.moving) === true;
-        if (!looking || !pointer) {
-          attentive = null;
-          last = null;
-          rest = 0;
-          visit = 0;
-        } else if (attentive) {
-          visit += dt;
-          const strayed = away(attentive, pointer) > LOOK_REACH * LOSE_INTEREST || away(attentive, pointer) > STANDOFF && !ahead(attentive, pointer);
-          if (visit > LOOK_SPAN || strayed) {
-            last = attentive;
-            attentive = null;
-            visit = 0;
-            rest = LOOK_REST;
-          }
-        } else if (rest > 0) {
-          rest -= dt;
-        } else {
-          attentive = nearest(fish, pointer, LOOK_REACH, last);
-        }
-        for (const one of fish) {
-          const sort = SPECIES[one.kind];
-          one.hold -= dt;
-          if (one.hold <= 0) decide(one, random, height, sort);
-          one.lean = ease(one.lean, one.aim, BEND * dt);
-          const startled = fleeing && pointer != null && away(one, pointer) < FLEE_REACH * PANIC;
-          const [wantX, wantY] = want(
-            one,
-            fish,
-            noise,
-            drift,
-            looking ? pointer : null,
-            fleeing ? pointer : null,
-            one === attentive,
-            width,
-            height
-          );
-          one.heading = toward(
-            one.heading,
-            steady(one.facing, Math.atan2(wantY, wantX), MAX_PITCH * sort.pitch),
-            startled ? AGILITY_BOLT : AGILITY,
-            startled ? TURN_STARTLED : TURN,
-            dt
-          );
-          const ambient = one.mate ? one.mate.depth : clamp(sort.deep + DEPTH_SWING * depths(one.lane, sank), DEPTH_FAR5, DEPTH_NEAR5);
-          const wanted = startled ? ambient * DIVE : one === attentive ? RISE : ambient;
-          one.depth = ease(one.depth, wanted, (startled ? DEPTH_DIVE : DEPTH_EASE) * dt);
-          one.size = one.length * (1 - DEPTH_SIZE4 + DEPTH_SIZE4 * one.depth);
-          const hovering = one === attentive && pointer && away(one, pointer) < STANDOFF;
-          const gear = burst(one, sort, dt);
-          const own = cruise * one.pace * one.size * gear;
-          const wants = station2(one, own) * (startled ? DART : hovering ? HOVER : 1);
-          one.speed = ease(one.speed, wants, HASTE * dt);
-          one.tail += 2 * Math.PI * one.speed / (STRIDE * sort.stride * one.size) * dt;
-          const stroke = one.speed * (1 + SURGE * Math.cos(2 * one.tail));
-          one.x = around2(one.x + Math.cos(one.heading) * stroke * dt, width, one.size);
-          one.y = clamp(one.y + Math.sin(one.heading) * stroke * dt, -EDGE_HOLD, height + EDGE_HOLD);
-          if (one.mate && Math.abs(one.x - one.mate.x) > width / 2) one.x = one.mate.x;
-        }
-      }
-    };
-  }
-  function want(one, shoal, noise, drift, looking, fleeing, attentive, width, height) {
-    const scale = FIELD_CELLS4 / width;
-    const nx = one.x * scale + drift * 0.3;
-    const ny = one.y * scale + drift;
-    const pitched = one.lean + noise(nx + one.lane, ny + one.lane) * WOBBLE2;
-    let x = one.facing * Math.cos(pitched);
-    let y = Math.sin(pitched);
-    const reach2 = height * EDGE_REACH;
-    y += edge(one.y, reach2) - edge(height - one.y, reach2);
-    if (one.mate) {
-      const spot = {
-        moving: false,
-        x: one.mate.x - one.mate.facing * one.mate.size * STATION_BACK,
-        y: one.mate.y + one.mate.size * STATION_SIDE
-      };
-      const [awayX, awayY, distance] = separation(one, spot);
-      x -= awayX / Math.max(distance, 0.5) * STATION_PUSH;
-      y -= awayY / Math.max(distance, 0.5) * STATION_PUSH;
-    }
-    for (const other of shoal) {
-      if (other === one || other === one.mate || other.mate === one) continue;
-      const [awayX, awayY, distance] = separation(one, other);
-      if (distance >= NEIGHBOUR_REACH) continue;
-      const t = 1 - distance / NEIGHBOUR_REACH;
-      const push = t * t * (3 - 2 * t) * NEIGHBOUR_PUSH / Math.max(distance, 0.5);
-      x += awayX * push;
-      y += awayY * push;
-    }
-    if (fleeing) {
-      const [awayX, awayY, distance] = separation(one, fleeing);
-      if (distance < FLEE_REACH) {
-        const push = (FLEE_REACH - distance) / FLEE_REACH * FLEE_PUSH / Math.max(distance, 0.5);
-        x += awayX * push;
-        y += awayY * push;
-      }
-    }
-    if (looking) {
-      const [awayX, awayY, distance] = separation(one, looking);
-      const push = attentive ? LOOK_PUSH : distance < LOOK_REACH ? LEAN_PUSH : 0;
-      if (push > 0) {
-        x -= awayX / Math.max(distance, 0.5) * push;
-        y -= awayY / Math.max(distance, 0.5) * push;
-      }
-    }
-    return [x, y];
-  }
-  function weigh(shares) {
-    var _a;
-    const wanted = shares != null ? shares : { cruiser: 1 };
-    const run = [];
-    let total = 0;
-    for (const kind of ["cruiser", "darter", "drifter", "escort", "swordfish"]) {
-      const share = Math.max(0, (_a = wanted[kind]) != null ? _a : 0);
-      if (share <= 0) continue;
-      total += share;
-      run.push([kind, total]);
-    }
-    if (run.length === 0) return [["cruiser", 1]];
-    return run.map(([kind, upto]) => [kind, upto / total]);
-  }
-  function draw(mix, random) {
-    var _a, _b, _c, _d;
-    if (mix.length <= 1) return (_b = (_a = mix[0]) == null ? void 0 : _a[0]) != null ? _b : "cruiser";
-    const roll = random();
-    return (_d = (_c = mix.find(([, upto]) => roll < upto)) == null ? void 0 : _c[0]) != null ? _d : mix[mix.length - 1][0];
-  }
-  function pair(shoal) {
-    const spare = shoal.filter((one) => one.kind === "escort" && !one.mate);
-    for (const one of spare) {
-      if (one.mate) continue;
-      const led = shoal.some((other) => other.mate === one);
-      if (led) continue;
-      const leader = spare.find(
-        (other) => other !== one && !other.mate && other.facing === one.facing
-      );
-      if (!leader) continue;
-      if (shoal.some((other) => other.mate === leader)) continue;
-      one.mate = leader;
-      one.x = leader.x - leader.facing * leader.size * STATION_BACK;
-      one.y = leader.y + leader.size * STATION_SIDE;
-    }
-  }
-  function burst(one, sort, dt) {
-    if (sort.verve <= 0) return 1;
-    const rate = SPURT_SLOWEST + one.lane % 1 * (SPURT_FASTEST - SPURT_SLOWEST);
-    one.spurt += dt * rate;
-    if (one.spurt >= 1) one.spurt -= 1;
-    const gear = one.spurt < SPURT_SHARE ? SPURT_PUSH : SPURT_COAST;
-    return 1 + (gear - 1) * sort.verve;
-  }
-  function station2(one, own) {
-    if (!one.mate) return own;
-    const behind = (one.mate.x - one.x) * one.facing;
-    const slip = (behind - one.mate.size * STATION_BACK) / Math.max(one.mate.size, 1);
-    return one.mate.speed * clamp(1 + slip * STATION_CATCH, STATION_SLOWEST, STATION_BRISKEST);
-  }
-  function spawn(random, kind, box) {
-    const sort = SPECIES[kind];
-    const facing = random() < 0.5 ? -1 : 1;
-    const aim = (random() - 0.5) * SWEEP2 * sort.pitch;
-    const depth = DEPTH_FAR5 + random() * (DEPTH_NEAR5 - DEPTH_FAR5);
-    const length = (box.shortest + random() * (box.longest - box.shortest)) * sort.girth;
-    const pace = (SLOWEST + random() ** LEISURE * (FASTEST - SLOWEST)) * sort.pace;
-    const size = length * (1 - DEPTH_SIZE4 + DEPTH_SIZE4 * depth);
-    return {
-      aim,
-      depth,
-      facing,
-      heading: steady(facing, aim, MAX_PITCH * sort.pitch),
-      hold: random() * (HOLD_LEAST + HOLD_SPAN) * sort.hold,
-      kind,
-      lane: random() * 200,
-      lean: aim,
-      length,
-      mate: null,
-      pace,
-      size,
-      speed: box.cruise * pace * size,
-      // Only a kind that bursts spends a draw on where in the burst it starts,
-      // for the reason `draw` gives: a shoal that asked for none of this has to
-      // come out of the seeded stream exactly as it did before there was any.
-      spurt: sort.verve > 0 ? random() : 0,
-      tail: random() * Math.PI * 2,
-      x: random() * box.width,
-      y: random() * box.height
-    };
-  }
-  function nearest(shoal, to, reach2, over) {
-    let closest = null;
-    let best = reach2;
-    let spare = null;
-    for (const one of shoal) {
-      const distance = away(one, to);
-      if (distance >= best || !ahead(one, to)) continue;
-      if (one === over) {
-        spare = one;
-        continue;
-      }
-      best = distance;
-      closest = one;
-    }
-    return closest != null ? closest : spare;
-  }
-  function ahead(one, to) {
-    return (to.x - one.x) * Math.cos(one.heading) + (to.y - one.y) * Math.sin(one.heading) > 0;
-  }
-  var away = (one, to) => Math.hypot(one.x - to.x, one.y - to.y);
-  function separation(one, to) {
-    const x = one.x - to.x;
-    const y = one.y - to.y;
-    return [x, y, Math.hypot(x, y)];
-  }
-  function decide(one, random, height, sort) {
-    const roll = random() * 2 - 1;
-    const homing = -((one.y / Math.max(height, 1) - 0.5) * 2) * HOMING;
-    const most = MAX_PITCH * sort.pitch;
-    one.aim = clamp(homing + roll * Math.abs(roll) * SWEEP2 * sort.pitch, -most, most);
-    one.hold = (HOLD_LEAST + random() * HOLD_SPAN) * sort.hold;
-  }
-  function toward(from, to, gain, most, dt) {
-    let by = (to - from) % (Math.PI * 2);
-    if (by > Math.PI) by -= Math.PI * 2;
-    if (by < -Math.PI) by += Math.PI * 2;
-    const rate = Math.max(-most, Math.min(most, by * gain));
-    return from + rate * dt;
-  }
-  var AGILITY = 1.5;
-  var AGILITY_BOLT = 4.2;
-  function steady(facing, want2, pitch) {
-    const asked = Math.atan2(Math.sin(want2), facing * Math.cos(want2));
-    const rel = pitch * Math.tanh(asked / pitch);
-    return facing > 0 ? rel : Math.PI - rel;
-  }
-  var ease = (from, to, rate) => from + (to - from) * Math.min(1, Math.max(0, rate));
-  function edge(distance, reach2) {
-    if (reach2 <= 0 || distance >= reach2) return 0;
-    return (reach2 - distance) / reach2 * EDGE_PUSH;
-  }
-  var clamp = (value, low, high) => Math.min(Math.max(value, low), high);
-  function around2(value, span, body) {
-    const margin = body * MARGIN2;
-    if (value > span + margin) return -margin;
-    if (value < -margin) return span + margin;
-    return value;
-  }
-  var EDGE_HOLD = 8;
 
   // ../../codincodv2/assets/js/ornament/sun.ts
   var RAD = Math.PI / 180;
@@ -1649,7 +1748,7 @@ var __ornament = (() => {
     const region = (_b = zone.split("/")[0]) != null ? _b : "";
     return { latitude: (_c = REGION_LATITUDE[region]) != null ? _c : 45, longitude };
   }
-  function solarAltitude(now, { latitude, longitude }) {
+  function place(now, { latitude, longitude }) {
     const days = now.getTime() / DAY_MS - J2000_OFFSET_DAYS;
     const meanAnomaly = (357.5291 + 0.98560028 * days) * RAD;
     const eclipticLongitude = meanAnomaly + (1.9148 * Math.sin(meanAnomaly) + 0.02 * Math.sin(2 * meanAnomaly) + 3e-4 * Math.sin(3 * meanAnomaly)) * RAD + 102.9372 * RAD + Math.PI;
@@ -1664,7 +1763,12 @@ var __ornament = (() => {
     const altitude = Math.asin(
       Math.sin(phi) * Math.sin(declination) + Math.cos(phi) * Math.cos(declination) * Math.cos(hourAngle)
     );
-    return altitude / RAD;
+    return { altitude: altitude / RAD, hourAngle };
+  }
+  function passage(hourAngle) {
+    const wrapped = Math.atan2(Math.sin(hourAngle), Math.cos(hourAngle));
+    const march = clamp2(0.5 + wrapped / Math.PI, 0, 1);
+    return { arc: Math.sin(march * Math.PI), march };
   }
   function light(altitude) {
     return {
@@ -1674,7 +1778,11 @@ var __ornament = (() => {
   }
   function sunNow() {
     const now = /* @__PURE__ */ new Date();
-    return light(solarAltitude(now, position(now)));
+    const { altitude, hourAngle } = place(now, position(now));
+    return __spreadProps(__spreadValues({}, light(altitude)), {
+      moon: passage(hourAngle + Math.PI),
+      sun: passage(hourAngle)
+    });
   }
   function clamp2(value, low, high) {
     return Math.min(high, Math.max(low, value));

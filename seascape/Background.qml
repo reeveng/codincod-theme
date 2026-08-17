@@ -44,10 +44,22 @@ Item {
   property real daylight: 1
   property real dusk: 0
 
+  /**
+   * Where each of the two bodies has got to across its own sky.
+   *
+   * `{ arc, march }` each, 0 to 1 from one horizon to the other. The sun
+   * crosses through the day and the moon crosses through the night, because
+   * the moon is put opposite the sun; see `sunNow`.
+   */
+  property var sun: ({ arc: 0.8, march: 0.5 })
+  property var moon: ({ arc: 0.8, march: 0.5 })
+
   function readSun() {
-    var sun = Ornament.sunNow()
-    root.daylight = sun.daylight
-    root.dusk = sun.dusk
+    var sky = Ornament.sunNow()
+    root.daylight = sky.daylight
+    root.dusk = sky.dusk
+    root.moon = sky.moon
+    root.sun = sky.sun
   }
 
   // Five minutes, the same tick the site runs. Finer than the eye can follow
@@ -348,6 +360,8 @@ Item {
         daylight: root.daylight
         dusk: root.dusk
         ink: Color.accent
+        moon: root.moon
+        sun: root.sun
         surface: Color.background
 
         /**

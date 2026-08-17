@@ -63,9 +63,21 @@ Item {
   property color moonlight: "#f2ebd9"
   property color sunlight: "#ffeec2"
 
-  /** Where the disc sits, as shares of the box, and how big it is drawn. */
-  property real discX: 0.79
-  property real discY: 0.075
+  /**
+   * Where each body has got to in its own crossing, and how big both are drawn.
+   *
+   * `sun` and `moon` are `Ornament.sunNow`'s, handed in by whoever mounts this
+   * for the same reason `daylight` is: the component knows nothing about
+   * clocks. Each is `{ arc, march }`, 0 to 1 from one horizon to the other.
+   */
+  property var sun: ({ arc: 0.8, march: 0.5 })
+  property var moon: ({ arc: 0.8, march: 0.5 })
+
+  /** The ends of a crossing, and the top and bottom of the arc between them. */
+  property real discEast: 0.12
+  property real discWest: 0.88
+  property real discHigh: 0.055
+  property real discLow: 0.17
   property real discR: 0.028
 
   /**
@@ -79,8 +91,15 @@ Item {
    * come out of the moon's sides. That was a real bug on the site, found by
    * somebody looking at a window rather than at a path.
    */
-  property real discLean: 0.05
-  property real discSpread: 0.15
+  /**
+   * How far the shaft's foot swings either side of the body over a crossing.
+   *
+   * A body low in the east throws its light down and away to the west; one
+   * overhead throws it straight down. Half of this each way, so a shaft stands
+   * upright at the middle of a passage and leans hardest at the horizons.
+   */
+  property real discSwing: 0.34
+  property real discSpread: 0.085
 
   /**
    * How bright the disc's own shaft is at its mouth, and the night wash over
@@ -91,7 +110,39 @@ Item {
    * is a quarter of a desktop, and whatever a viewer's eye lands on first is
    * not a background. Three percent at the mouth, and gone by the middle.
    */
-  property real discInk: 0.03
+  /**
+   * How much of a shaft's light is left, a share of the way down it.
+   *
+   * Light in water does not thin out in a straight line, and the exponent is
+   * the whole difference between a beam and a stage light: at 1 the shaft holds
+   * half its strength halfway down and ends in a hard hem, and past about 3 it
+   * is gone before it has left the body it came from.
+   */
+  function beam(hue, through) {
+    return Qt.rgba(hue.r, hue.g, hue.b, discInk * Math.pow(1 - through, 2.6))
+  }
+
+  /**
+   * How far down a shaft off a disc goes, and how wide the glow around it is.
+   *
+   * The shaft is short because it is faint, and a faint gradient over a long
+   * run is a stack of flat bands: eight bits of alpha over a third of a
+   * screen leaves a handful of distinct values, and each place two of them
+   * meet is a hard line across the beam. The same light over a shorter run
+   * has the same handful of values with the seams too close together to read
+   * as lines.
+   *
+   * Most of the light is the halo instead, which does not have that problem.
+   * Its bands are rings around a disc rather than lines across a cone, and a
+   * ring around a light is what a light in water actually has.
+   */
+  property real discFall: 0.34
+
+  property real haloReach: 4.2
+
+  property real haloInk: 0.07
+
+  property real discInk: 0.012
   property real duskInk: 0.09
   property real nightInk: 0.3
 
@@ -120,6 +171,18 @@ Item {
   property real snowInk: 0.15
   property real bubbleInk: 0.3
   property real rayInk: 0.05
+
+  /**
+   * How much of the light gets through, which is mostly a question of the hour.
+   *
+   * Shafts are a daytime thing: what makes one is a bright small source and a
+   * surface to break it up, and at midnight there is no bright small source.
+   * They do not go out altogether, because a moon over calm water throws the
+   * same beams and weaker ones are the whole of the difference.
+   */
+  readonly property real overcast: root.moonRays + (1 - root.moonRays) * root.daylight
+
+  property real moonRays: 0.28
 
   /** How much of a creature's weight is its depth. One in the murk is a hint. */
   property real depthInk: 0.65
@@ -180,17 +243,20 @@ Item {
   // The ceilings are what keep a place from becoming a texture. One kelp too
   // many turns a seabed into a lawn, and that is still true on a big screen.
 
-  property real kelpsPerK: 7.4
-  property real grassesPerK: 26
-  property real coralsPerK: 5.4
-  property real stonesPerK: 15
+  /** How thick a blade is drawn against the strand it belongs to. */
+  property real bladeGirth: 0.8
+
+  property real kelpsPerK: 9
+  property real grassesPerK: 48
+  property real coralsPerK: 17
+  property real stonesPerK: 25
   property real cliffsPerK: 1.9
 
   property int leastOfEach: 2
-  property int mostKelps: 26
-  property int mostGrasses: 64
-  property int mostCorals: 14
-  property int mostStones: 40
+  property int mostKelps: 30
+  property int mostGrasses: 120
+  property int mostCorals: 40
+  property int mostStones: 64
   property int mostCliffs: 7
 
   /**
@@ -215,7 +281,7 @@ Item {
 
   /** How dark the ground and the things rooted in it may be. */
   property real sandInk: 0.13
-  property real stoneInk: 0.23
+  property real stoneInk: 0.2
   property real floraInk: 0.26
   property real cliffInk: 0.09
 
@@ -599,9 +665,9 @@ Item {
         bill: Ornament.SPECIES[one.kind].bill,
         depth: one.depth,
         facing: one.facing,
-        heading: one.heading,
         size: one.size,
         tail: one.tail,
+        tilt: one.tilt,
         x: one.x,
         y: one.y,
       })
@@ -634,6 +700,7 @@ Item {
         kind: one.kind,
         points: polygon(one.points, false),
         scale: one.scale,
+        twigs: one.twigs,
         x: one.x,
         y: one.y,
       })
@@ -661,8 +728,8 @@ Item {
         body: Ornament.squidBody(squid.squeeze),
         depth: squid.depth,
         facing: squid.facing,
-        heading: squid.heading,
         size: squid.size,
+        tilt: squid.tilt,
         x: squid.x,
         y: squid.y,
       })
@@ -861,8 +928,12 @@ Item {
         }
       }
 
+      // Whatever else the plant is made of: leaves for kelp, the rest of the
+      // clump for grass. Which of those it is drawing is the plant's business
+      // and not this Repeater's; all it knows is that a blade is a line to be
+      // stroked a little finer than the strand it came with.
       Repeater {
-        model: sprout.one && sprout.one.kind === "kelp" ? sprout.one.blades.length : 0
+        model: sprout.one ? sprout.one.blades.length : 0
 
         delegate: Shape {
           id: leaf
@@ -875,7 +946,7 @@ Item {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
             strokeColor: root.tint(sprout.weight)
-            strokeWidth: sprout.one ? sprout.one.girth * 0.7 : 0
+            strokeWidth: sprout.one ? sprout.one.girth * root.bladeGirth : 0
 
             PathPolyline { path: sprout.one ? sprout.one.blades[leaf.index] : [] }
           }
@@ -891,13 +962,13 @@ Item {
         y: sprout.one ? sprout.one.y : 0
 
         Repeater {
-          model: sprout.one && sprout.one.kind === "coral" ? Ornament.CORAL.length : 0
+          model: sprout.one ? sprout.one.twigs.length : 0
 
           delegate: Shape {
             id: branch
             required property int index
 
-            readonly property var twig: Ornament.CORAL[index]
+            readonly property var twig: sprout.one.twigs[index]
 
             preferredRendererType: Shape.CurveRenderer
             transform: Scale {
@@ -921,108 +992,180 @@ Item {
 
   // The disc above the water, and the light coming off it. Behind everything
   // that swims, because it is up there and they are down here.
-  Item {
-    id: sky
+  // The two bodies above the water, and the light off whichever is up.
+  //
+  // Two rather than one that changes its mind. A single disc swapping identity
+  // at dusk would set in the west and reappear a moment later in the east, and
+  // a sky that jumps is worse than a sky with nothing in it. These cross the
+  // picture on their own clocks, one fading as the other rises, which is what
+  // the sky does.
+  Repeater {
+    model: [
+      { hue: root.sunlight, cratered: 0, passage: root.sun, show: root.daylight },
+      { hue: root.moonlight, cratered: 1, passage: root.moon, show: 1 - root.daylight },
+    ]
 
-    // Not `x` and `y`: an Item already has both, as its own position, and they
-    // are final. The same trap the light shafts hit with `top`.
-    readonly property real r: root.height * root.discR
-    readonly property real cx: root.width * root.discX
-    readonly property real cy: root.height * root.discY
+    delegate: Item {
+      id: sky
+      required property var modelData
 
-    /** One disc, cross-fading. Two would be a sun sliding aside for a moon. */
-    readonly property color hue: Qt.rgba(
-      root.moonlight.r + (root.sunlight.r - root.moonlight.r) * root.daylight,
-      root.moonlight.g + (root.sunlight.g - root.moonlight.g) * root.daylight,
-      root.moonlight.b + (root.sunlight.b - root.moonlight.b) * root.daylight,
-      1)
+      // Not `x` and `y`: an Item already has both, as its own position, and
+      // they are final. The same trap the light shafts hit with `top`.
+      readonly property real r: root.height * root.discR
+      readonly property real cx: root.width *
+        (root.discEast + modelData.passage.march * (root.discWest - root.discEast))
+      /** Highest in the middle of its crossing, low at either end. */
+      readonly property real cy: root.height *
+        (root.discLow + modelData.passage.arc * (root.discHigh - root.discLow))
+      readonly property color hue: modelData.hue
 
-    anchors.fill: parent
-    z: -1.2
+      /**
+       * Which way its light leans, and it is away from the body.
+       *
+       * A body over on the left throws its shaft down and to the right, and
+       * one directly overhead throws it straight down. Both fall out of the
+       * same line: the lean is how far off the middle of its crossing it is.
+       */
+      readonly property real lean: (0.5 - modelData.passage.march) * root.discSwing
 
-    // The shaft, its mouth the disc's own diameter at the disc's own centre.
-    Shape {
       anchors.fill: parent
-      preferredRendererType: Shape.CurveRenderer
+      opacity: modelData.show
+      visible: opacity > 0.004
+      z: -1.2
 
-      ShapePath {
-        // Four stops rather than two, because light in water does not thin out
-        // in a straight line. A linear fade holds half its strength at half its
-        // depth, which is what made this read as a spotlight on a stage.
-        fillGradient: LinearGradient {
-          x1: 0
-          y1: sky.cy
-          x2: 0
-          y2: root.height * root.discReach
+      // The glow around it, which is most of the light there is.
+      Shape {
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
 
-          GradientStop {
-            position: 0
-            color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.discInk)
-          }
-          GradientStop {
-            position: 0.35
-            color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.discInk * 0.4)
-          }
-          GradientStop {
-            position: 0.7
-            color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.discInk * 0.1)
-          }
-          GradientStop {
-            position: 1
-            color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, 0)
-          }
-        }
-        strokeColor: "transparent"
+        ShapePath {
+          fillGradient: RadialGradient {
+            centerX: sky.cx
+            centerY: sky.cy
+            centerRadius: sky.r * root.haloReach
+            focalX: sky.cx
+            focalY: sky.cy
 
-        startX: sky.cx - sky.r
-        startY: sky.cy
+            GradientStop {
+              position: 0
+              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk)
+            }
+            GradientStop {
+              position: 0.22
+              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk * 0.72)
+            }
+            GradientStop {
+              position: 0.42
+              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk * 0.42)
+            }
+            GradientStop {
+              position: 0.64
+              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk * 0.18)
+            }
+            GradientStop {
+              position: 0.82
+              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk * 0.06)
+            }
+            GradientStop {
+              position: 1
+              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, 0)
+            }
+          }
+          strokeColor: "transparent"
 
-        PathLine { x: sky.cx + sky.r; y: sky.cy }
-        PathLine {
-          x: sky.cx + root.width * (root.discLean + root.discSpread)
-          y: root.height
-        }
-        PathLine {
-          x: sky.cx + root.width * (root.discLean - root.discSpread)
-          y: root.height
+          PathSvg {
+            path: "M " + (sky.cx - sky.r * root.haloReach) + " " + sky.cy +
+              " a " + sky.r * root.haloReach + " " + sky.r * root.haloReach +
+              " 0 1 0 " + sky.r * root.haloReach * 2 + " 0" +
+              " a " + sky.r * root.haloReach + " " + sky.r * root.haloReach +
+              " 0 1 0 " + -sky.r * root.haloReach * 2 + " 0"
+          }
         }
       }
-    }
 
-    Rectangle {
-      antialiasing: true
-      color: sky.hue
-      height: sky.r * 2
-      radius: sky.r
-      width: height
-      x: sky.cx - sky.r
-      y: sky.cy - sky.r
-    }
+      // The shaft, its mouth the disc's own diameter at the disc's own centre.
+      Shape {
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
 
-    // The craters, and only at night. A sun with three grey spots on it is a
-    // moon somebody forgot to finish, so they come and go with the moonlight.
-    Repeater {
-      // Off-centre and unevenly sized on purpose. Three round spots spaced
-      // evenly on a disc is a face, and the moment anybody sees a face there
-      // they stop seeing a moon.
-      model: [Qt.vector3d(-0.34, -0.22, 0.22),
-              Qt.vector3d(0.19, -0.45, 0.1),
-              Qt.vector3d(0.31, 0.3, 0.15)]
+        ShapePath {
+          // A stop every tenth rather than a handful, because a gradient stop
+          // is a corner: between two of them the alpha runs dead straight, and
+          // where two straight runs meet at different slopes the eye reads a
+          // line across the beam. Three stops on a curve this steep drew three
+          // horizontal bands down the shaft. Ten of them on the same curve is
+          // the same light with nowhere for a corner to show.
+          fillGradient: LinearGradient {
+            x1: 0
+            y1: sky.cy
+            x2: 0
+            y2: root.height * root.discFall
 
-      delegate: Rectangle {
-        required property vector3d modelData
+            GradientStop { position: 0; color: root.beam(sky.hue, 0) }
+            GradientStop { position: 0.1; color: root.beam(sky.hue, 0.1) }
+            GradientStop { position: 0.2; color: root.beam(sky.hue, 0.2) }
+            GradientStop { position: 0.3; color: root.beam(sky.hue, 0.3) }
+            GradientStop { position: 0.4; color: root.beam(sky.hue, 0.4) }
+            GradientStop { position: 0.5; color: root.beam(sky.hue, 0.5) }
+            GradientStop { position: 0.62; color: root.beam(sky.hue, 0.62) }
+            GradientStop { position: 0.75; color: root.beam(sky.hue, 0.75) }
+            GradientStop { position: 0.88; color: root.beam(sky.hue, 0.88) }
+            GradientStop { position: 1; color: root.beam(sky.hue, 1) }
+          }
+          strokeColor: "transparent"
 
+          startX: sky.cx - sky.r
+          startY: sky.cy
+
+          PathLine { x: sky.cx + sky.r; y: sky.cy }
+          PathLine {
+            x: sky.cx + root.width * (sky.lean + root.discSpread)
+            y: root.height
+          }
+          PathLine {
+            x: sky.cx + root.width * (sky.lean - root.discSpread)
+            y: root.height
+          }
+        }
+      }
+
+      Rectangle {
         antialiasing: true
-        color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b,
-                       0.34 * (1 - root.daylight))
-        height: sky.r * modelData.z * 2
-        radius: height / 2
+        color: sky.hue
+        height: sky.r * 2
+        radius: sky.r
         width: height
-        x: sky.cx + sky.r * modelData.x - width / 2
-        y: sky.cy + sky.r * modelData.y - height / 2
+        x: sky.cx - sky.r
+        y: sky.cy - sky.r
+      }
+
+      // The craters, and only on the one that has them. A sun with three grey
+      // spots on it is a moon somebody forgot to finish.
+      Repeater {
+        // Off-centre and unevenly sized on purpose. Three round spots spaced
+        // evenly on a disc is a face, and the moment anybody sees a face
+        // there they stop seeing a moon.
+        model: sky.modelData.cratered
+          ? [Qt.vector3d(-0.34, -0.22, 0.22),
+             Qt.vector3d(0.19, -0.45, 0.1),
+             Qt.vector3d(0.31, 0.3, 0.15)]
+          : []
+
+        delegate: Rectangle {
+          required property vector3d modelData
+
+          antialiasing: true
+          color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, 0.34)
+          height: sky.r * modelData.z * 2
+          radius: height / 2
+          width: height
+          x: sky.cx + sky.r * modelData.x - width / 2
+          y: sky.cy + sky.r * modelData.y - height / 2
+        }
       }
     }
   }
+
   // The light, behind everything and pinned there. A shaft is not an object
   // anything can swim in front of; it is the water being lit.
   Repeater {
@@ -1065,7 +1208,8 @@ Item {
               GradientStop {
                 position: 0
                 color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
-                               (root.rayInk / root.shaftPlies) * (shaft.ray ? shaft.ray.glow : 0))
+                               (root.rayInk / root.shaftPlies) * root.overcast *
+                               (shaft.ray ? shaft.ray.glow : 0))
               }
               GradientStop {
                 position: 1
@@ -1131,13 +1275,15 @@ Item {
         : 0
 
       /**
-       * The heading as a tilt, once the fish's fixed facing is taken out of it.
-       * No fish ever turns round, so this is only ever the shallow pitch either
-       * side of level and nothing here flips, foreshortens or turns over.
+       * The angle to turn the drawing by, in degrees, and the animal's own.
+       *
+       * Never worked out here, and never adjusted here either. It is the whole
+       * turn already, mirror and all; see `drawnTilt`. Every renderer used to
+       * derive it from the heading and every one of them got it backwards for a
+       * leftward animal, and then every one of them multiplied the fixed
+       * version by `facing` a second time and got it backwards again.
        */
-      readonly property real pitch: fish
-        ? Math.atan2(Math.sin(fish.heading), fish.facing * Math.cos(fish.heading)) * 180 / Math.PI
-        : 0
+      readonly property real pitch: fish ? fish.tilt * 180 / Math.PI : 0
 
       visible: fish !== null && weight > 0.002
       x: fish ? fish.x : 0
@@ -1407,9 +1553,9 @@ Item {
       readonly property real weight: one
         ? root.openWater * (1 - root.depthInk + root.depthInk * one.depth)
         : 0
-      readonly property real pitch: one
-        ? Math.atan2(Math.sin(one.heading), one.facing * Math.cos(one.heading)) * 180 / Math.PI
-        : 0
+      /** The animal's own, in degrees; see `Squid.tilt`. Never derived here, and
+       *  never multiplied by `facing`: it is the whole turn already. */
+      readonly property real pitch: one ? one.tilt * 180 / Math.PI : 0
 
       visible: one !== null && weight > 0.002
       x: one ? one.x : 0

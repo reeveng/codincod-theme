@@ -27,8 +27,9 @@ renders them. Both the website and the desktop get all of it.
 - [x] **Cliffs** standing further out in the murk. `seabed.ts`
 - [x] **Kelp**, rooted and leaning on the shared current, blades trailing.
       `flora.ts`
-- [x] **Grass**, short tufts that barely lean. `flora.ts`
-- [x] **Coral**, which does not sway, because it is a skeleton. `flora.ts`
+- [x] **Grass**, in clumps of a handful of blades that barely lean. `flora.ts`
+- [x] **Coral**, four of them: a boulder, a bush, a staghorn and the site's
+      own. None of them sway, because they are skeletons. `flora.ts`
 - [x] **Volcanic vents**: a chimney on the floor with a plume coming off it,
       shearing on the same current everything else reads. `relics.ts`
 

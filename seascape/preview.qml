@@ -69,6 +69,7 @@ Window {
 
   readonly property real daylight: Number(win.arg("daylight", "1"))
   readonly property real dusk: Number(win.arg("dusk", "0"))
+  readonly property real march: Number(win.arg("march", "0.5"))
   readonly property int seed: Number(win.arg("seed", "1956"))
   readonly property real settle: Number(win.arg("settle", "40"))
   readonly property string out: win.arg("out", "preview.png")
@@ -79,6 +80,8 @@ Window {
     daylight: win.daylight
     dusk: win.dusk
     ink: win.ink
+    moon: ({ arc: Math.sin(win.march * Math.PI), march: win.march })
+    sun: ({ arc: Math.sin(win.march * Math.PI), march: win.march })
     rushed: true
     seed: win.seed
     settle: win.settle

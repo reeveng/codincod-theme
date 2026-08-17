@@ -31,11 +31,28 @@ tmp=$(mktemp)
 jq --arg id "$ID" '.id = $id' "$TARGET/manifest.json" >"$tmp"
 mv "$tmp" "$TARGET/manifest.json"
 
+# Restart the shell, and not because it is tidy.
+#
+# Copying the files does nothing on its own. The shell notices the change and
+# says so in its log ("Local plugin changed, reloading"), but a plugin of kind
+# `service` is built once when the shell starts and that message does not
+# rebuild it: the running desktop keeps whatever QML it was started with. So
+# every install between two restarts is invisible, and the water carries on
+# swimming exactly as it did while you sit there wondering why your change did
+# nothing. That cost an evening once.
+restart_shell() {
+  omarchy restart shell >/dev/null 2>&1 || {
+    echo "Installed, but the shell would not restart. Run: omarchy restart shell" >&2
+    return 0
+  }
+}
+
 omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
 
 for _ in $(seq 40); do
   if omarchy plugin list --json 2>/dev/null | jq -e --arg id "$ID" 'any(.[]; .id == $id)' >/dev/null; then
     omarchy plugin enable "$ID" >/dev/null
+    restart_shell
     echo "Installed $ID. The desktop is water now."
     exit 0
   fi
