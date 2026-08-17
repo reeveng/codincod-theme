@@ -7,6 +7,7 @@ import QtQuick.Effects
 import QtQuick.Shapes
 import qs.Commons
 import qs.Ui
+import "Ornament.js" as Ornament
 
 Item {
   id: root
@@ -26,6 +27,38 @@ Item {
   property string pendingColorsRaw: ""
   property string pendingShellRaw: ""
   property real revealProgress: 1
+
+  /**
+   * How light it is outside, and how near the light is to a sunset.
+   *
+   * Worked out by `Ornament.sunNow`, which is `assets/js/ornament/sun.ts` in
+   * the CodinCod repository: the sun's real altitude from the clock and from
+   * the time zone, with no permission asked and nothing leaving the machine.
+   * The site sets the same two numbers on `<html>` from the same function, so
+   * the moon comes up in the porthole and on the desktop at one time.
+   *
+   * They live on `root` rather than on each `Seascape` because there is one sun
+   * and there may be three monitors. `Seascape` itself takes them and asks no
+   * questions, which is what lets the preview render any hour on demand.
+   */
+  property real daylight: 1
+  property real dusk: 0
+
+  function readSun() {
+    var sun = Ornament.sunNow()
+    root.daylight = sun.daylight
+    root.dusk = sun.dusk
+  }
+
+  // Five minutes, the same tick the site runs. Finer than the eye can follow
+  // the light change, and the whole tick is two dozen multiplications.
+  Timer {
+    interval: 5 * 60 * 1000
+    repeat: true
+    running: true
+    triggeredOnStart: true
+    onTriggered: root.readSun()
+  }
 
 
   function imageUrl(path) {
@@ -312,6 +345,8 @@ Item {
       // recolours the whole sea.
       Seascape {
         anchors.fill: parent
+        daylight: root.daylight
+        dusk: root.dusk
         ink: Color.accent
         surface: Color.background
 

@@ -14,6 +14,10 @@ renders them. Both the website and the desktop get all of it.
 - [x] **Light rays** through the surface, each on its own slow breath, drawn as
       stacked wedges so they fade across their width as well as down their
       length. `rays.ts`
+- [x] **The hour**: a sun by day and a moon by night, in the same place with the
+      same shaft of light under it, from the sun's real altitude at the reader's
+      own longitude. Dusk is warm and falls off with depth; night is a wash over
+      everything. `sun.ts`
 
 ## The bottom
 
@@ -25,34 +29,53 @@ renders them. Both the website and the desktop get all of it.
       `flora.ts`
 - [x] **Grass**, short tufts that barely lean. `flora.ts`
 - [x] **Coral**, which does not sway, because it is a skeleton. `flora.ts`
-- [ ] **Volcanic vents**: a chimney on the floor with a plume coming off it.
-      The bubble vents already model a point on the floor that bursts and
-      rests, so a smoker is a chimney and a plume on machinery that exists.
+- [x] **Volcanic vents**: a chimney on the floor with a plume coming off it,
+      shearing on the same current everything else reads. `relics.ts`
 
 ## The animals
 
-- [ ] **More fish species**, each with its own way of moving: the cruiser there
-      now, a small one that darts and stops, a long slow one in the deep murk,
-      and a pair that hold station together.
-- [ ] **Squid**: jet and drift, the opposite rhythm to a fish. A hard pulse,
-      then a long passive glide with the tentacles trailing.
-- [ ] **Octopuses**: on the bottom rather than in the water, arms working over
-      the stones, and very occasionally letting go and jetting.
+- [x] **Five fish species**, each with its own way of moving: the cruiser that
+      was here first, a darter that bursts and stops, a drifter crossing the
+      murk on one heading, escorts that hold station in pairs, and a swordfish
+      with a bill on it. `shoal.ts`
+- [x] **Squid**: jet and drift, the opposite rhythm to a fish. A hard pulse,
+      then a long passive glide with the tentacles trailing. `cephalopods.ts`
+- [x] **Octopuses**: on the bottom rather than in the water, arms working over
+      the stones. `cephalopods.ts`
 
 ## Once in a great while
 
-- [ ] **Shipwrecks**, lying on the floor in the murk.
-- [ ] **A diving boat** crossing the surface, once in a very long time.
-- [ ] **Sonar blips**.
+- [x] **Shipwrecks**, lying on the floor in the murk. `relics.ts`
+- [x] **A diving boat** crossing the surface, once in a very long time, with a
+      wake astern. `passers.ts`
+- [x] **Sonar blips**, three rings staggered, never from the middle of the
+      picture. `passers.ts`
 
 ## Easter eggs
 
-- [ ] **The chest with a laptop open on its lid, screen still lit.** The site's
+- [x] **The chest with a laptop open on its lid, screen still lit.** The site's
       own, from `Marks.chest/1`: "the joke the site is named after, said once
-      and quietly". It is never drawn beside the fish, because a laptop next to
-      a cod is the joke explained.
-- [ ] **A sunken code block**, from `Marks.code_block/1`.
+      and quietly". `relics.ts`
+- [x] **A sunken code block**, from `Marks.code_block/1`. `relics.ts`
 - [ ] More, and rarer.
+
+## What each surface draws
+
+Three renderers, one set of simulations. They do not all draw all of it, and
+that is the point rather than a gap:
+
+| | desktop | porthole | water behind a hero |
+| --- | --- | --- | --- |
+| renderer | `Seascape.qml` | `glass.ts` + HEEx | `water.ts` |
+| the shoal, all five kinds | yes | yes | yes |
+| cephalopods, relics, passers | yes | no | no |
+| floor, flora, rays | yes | hand-composed art | no |
+| the hour | yes | yes | no |
+
+The porthole's floor is authored scenes rather than simulation, and the water
+behind a hero is a band of open water with a page's own words in it. A
+shipwreck under a heading would be a picture asking to be looked at, which is
+the one thing that surface may not be.
 
 ## Rules the whole scene keeps
 
@@ -65,3 +88,24 @@ renders them. Both the website and the desktop get all of it.
 - Nothing advances while the wallpaper is covered.
 - It is ornament, so it is allowed to do nothing. Every branch that cannot get
   what it needs returns quietly.
+
+## Looking at it
+
+Neither renderer can be judged at the weight it ships at, which is the lesson
+that cost the most time here: at four percent opacity in dark green, a wreck
+that is upside down and a wreck that is working look identical.
+
+```bash
+# One still of the whole scene, offscreen, without taking over a desktop.
+QT_ASSUME_STDERR_HAS_CONSOLE=1 QT_QPA_PLATFORM=offscreen \
+  qml6 preview.qml -- seed=28 daylight=0 dusk=0 settle=40 out=sea.png
+
+# Every silhouette, large and alone, on a sheet. This is the one that finds
+# drawing bugs.
+QT_ASSUME_STDERR_HAS_CONSOLE=1 QT_QPA_PLATFORM=offscreen qml6 shapes.qml
+```
+
+`seed` picks which water: most of what lies on the floor is placed by a roll of
+the dice, so the only way to see the chest is to ask for a sea that has one.
+`settle` winds the scene on before the grab, and it is the only way to catch a
+boat.

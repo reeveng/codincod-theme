@@ -27,6 +27,77 @@ Item {
   /** Whether to advance. False parks the scene exactly where it stands. */
   property bool running: true
 
+  /**
+   * How light it is above the water, 0 at night and 1 in the day.
+   *
+   * The site's `--daylight`, and this is the throughline: the porthole on
+   * codincod.com darkens at the reader's own hour and puts a moon in the top
+   * right when it does, so a desktop drawn from the same ornament had better do
+   * the same thing at the same time. Whoever mounts this decides it, because
+   * this component knows nothing about clocks.
+   */
+  property real daylight: 1
+
+  /**
+   * How near the water is to a sunset, 0 most of the day and 1 at the turn.
+   *
+   * A separate number from `daylight` and not derivable from it, because dusk
+   * is not half a day. It rises and falls twice, once at each end, and the
+   * light it puts in the water is warm where the night's is only less.
+   */
+  property real dusk: 0
+
+  /**
+   * The disc above the water, and the light off it.
+   *
+   * The two colours in the entire component that are not the theme's. They have
+   * to be: `ink` is whatever green, blue or grey the theme is in, and a green
+   * moon is not a moon. The site states the same pair once in `app.css` for the
+   * same reason, and these are its values.
+   *
+   * The sun is the warmer and slightly brighter of the two, and that is the
+   * whole difference between them. They are the same size in the same place,
+   * because they are the same light at a different hour.
+   */
+  property color dusklight: "#e8a34d"
+  property color moonlight: "#f2ebd9"
+  property color sunlight: "#ffeec2"
+
+  /** Where the disc sits, as shares of the box, and how big it is drawn. */
+  property real discX: 0.79
+  property real discY: 0.075
+  property real discR: 0.028
+
+  /**
+   * How far the shaft under it has drifted and opened by the bottom of the box,
+   * as shares of the box's width.
+   *
+   * Its mouth is not a knob: it is the disc's own diameter, taken at the disc's
+   * own centre line, so the two edges are tangent to it and the lower half of
+   * the disc sits inside its own light. Started anywhere below that line the
+   * mouth is wider than the disc is at that height, and the light appears to
+   * come out of the moon's sides. That was a real bug on the site, found by
+   * somebody looking at a window rather than at a path.
+   */
+  property real discLean: 0.05
+  property real discSpread: 0.15
+
+  /**
+   * How bright the disc's own shaft is at its mouth, and the night wash over
+   * everything.
+   *
+   * The porthole gets away with a flat fifteen percent because it is two
+   * hundred units across and the shaft crosses a coin. Here the same triangle
+   * is a quarter of a desktop, and whatever a viewer's eye lands on first is
+   * not a background. Three percent at the mouth, and gone by the middle.
+   */
+  property real discInk: 0.03
+  property real duskInk: 0.09
+  property real nightInk: 0.3
+
+  /** How far down the box the shaft has faded out, as a share of the height. */
+  property real discReach: 0.62
+
   /** Salt. The same seed gives the same water twice. */
   property int seed: 1956
 
@@ -73,12 +144,13 @@ Item {
   /**
    * How the shoal is made up, by kind.
    *
-   * Mostly cruisers still, because they are the animal the water is about, with
-   * a good share of darters for the bursts, a pair or two of escorts, and one
-   * drifter to cross the murk at the back every so often. The counts here are
-   * shares rather than numbers; see `ShoalOptions.species`.
+   * `Ornament.WILD`, which is what the porthole and the water behind the site's
+   * hero are both built from. It was written out here as its own table until
+   * the site grew the same two renderers, at which point three copies of one
+   * mix was three places for it to drift. The shares are shares rather than
+   * numbers; see `ShoalOptions.species`.
    */
-  property var species: ({ cruiser: 5, darter: 4, drifter: 1, escort: 2, swordfish: 1 })
+  property var species: Ornament.WILD
 
   /** Cephalopods. Few: they are the thing you notice, so there is little of it. */
   property int squids: 2
@@ -738,6 +810,110 @@ Item {
     }
   }
 
+  // The disc above the water, and the light coming off it. Behind everything
+  // that swims, because it is up there and they are down here.
+  Item {
+    id: sky
+
+    // Not `x` and `y`: an Item already has both, as its own position, and they
+    // are final. The same trap the light shafts hit with `top`.
+    readonly property real r: root.height * root.discR
+    readonly property real cx: root.width * root.discX
+    readonly property real cy: root.height * root.discY
+
+    /** One disc, cross-fading. Two would be a sun sliding aside for a moon. */
+    readonly property color hue: Qt.rgba(
+      root.moonlight.r + (root.sunlight.r - root.moonlight.r) * root.daylight,
+      root.moonlight.g + (root.sunlight.g - root.moonlight.g) * root.daylight,
+      root.moonlight.b + (root.sunlight.b - root.moonlight.b) * root.daylight,
+      1)
+
+    anchors.fill: parent
+    z: -1.2
+
+    // The shaft, its mouth the disc's own diameter at the disc's own centre.
+    Shape {
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+
+      ShapePath {
+        // Four stops rather than two, because light in water does not thin out
+        // in a straight line. A linear fade holds half its strength at half its
+        // depth, which is what made this read as a spotlight on a stage.
+        fillGradient: LinearGradient {
+          x1: 0
+          y1: sky.cy
+          x2: 0
+          y2: root.height * root.discReach
+
+          GradientStop {
+            position: 0
+            color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.discInk)
+          }
+          GradientStop {
+            position: 0.35
+            color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.discInk * 0.4)
+          }
+          GradientStop {
+            position: 0.7
+            color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.discInk * 0.1)
+          }
+          GradientStop {
+            position: 1
+            color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, 0)
+          }
+        }
+        strokeColor: "transparent"
+
+        startX: sky.cx - sky.r
+        startY: sky.cy
+
+        PathLine { x: sky.cx + sky.r; y: sky.cy }
+        PathLine {
+          x: sky.cx + root.width * (root.discLean + root.discSpread)
+          y: root.height
+        }
+        PathLine {
+          x: sky.cx + root.width * (root.discLean - root.discSpread)
+          y: root.height
+        }
+      }
+    }
+
+    Rectangle {
+      antialiasing: true
+      color: sky.hue
+      height: sky.r * 2
+      radius: sky.r
+      width: height
+      x: sky.cx - sky.r
+      y: sky.cy - sky.r
+    }
+
+    // The craters, and only at night. A sun with three grey spots on it is a
+    // moon somebody forgot to finish, so they come and go with the moonlight.
+    Repeater {
+      // Off-centre and unevenly sized on purpose. Three round spots spaced
+      // evenly on a disc is a face, and the moment anybody sees a face there
+      // they stop seeing a moon.
+      model: [Qt.vector3d(-0.34, -0.22, 0.22),
+              Qt.vector3d(0.19, -0.45, 0.1),
+              Qt.vector3d(0.31, 0.3, 0.15)]
+
+      delegate: Rectangle {
+        required property vector3d modelData
+
+        antialiasing: true
+        color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b,
+                       0.34 * (1 - root.daylight))
+        height: sky.r * modelData.z * 2
+        radius: height / 2
+        width: height
+        x: sky.cx + sky.r * modelData.x - width / 2
+        y: sky.cy + sky.r * modelData.y - height / 2
+      }
+    }
+  }
   // The light, behind everything and pinned there. A shaft is not an object
   // anything can swim in front of; it is the water being lit.
   Repeater {
@@ -1335,5 +1511,46 @@ Item {
       y: bubble ? bubble.y - bubble.r : 0
       z: bubble ? bubble.depth : 0
     }
+  }
+
+  // The hour, over the top of everything.
+  //
+  // Over the top because that is what an hour is: the water does not become a
+  // different water at night, it is the same water with less light reaching it,
+  // and a wash under the fish would be a fog they swim through instead. The
+  // porthole on the site lays its two washes over the whole disc for the same
+  // reason. Both are transparent at their own noon and cost nothing then.
+  // Dusk falls off with depth and night does not, which is the difference
+  // between the two. A sunset is a colour arriving through the surface, and it
+  // gets no further down than the light it came in on; laid flat over the whole
+  // box it lifted the floor off black and the water went to one olive haze.
+  Rectangle {
+    anchors.fill: parent
+    visible: root.dusk > 0
+    z: 3
+
+    gradient: Gradient {
+      GradientStop {
+        position: 0
+        color: Qt.rgba(root.dusklight.r, root.dusklight.g, root.dusklight.b,
+                       root.duskInk * root.dusk)
+      }
+      GradientStop {
+        position: root.discReach
+        color: Qt.rgba(root.dusklight.r, root.dusklight.g, root.dusklight.b, 0)
+      }
+      GradientStop {
+        position: 1
+        color: Qt.rgba(root.dusklight.r, root.dusklight.g, root.dusklight.b, 0)
+      }
+    }
+  }
+
+  Rectangle {
+    anchors.fill: parent
+    color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b,
+                   root.nightInk * (1 - root.daylight))
+    visible: root.daylight < 1
+    z: 3.1
   }
 }

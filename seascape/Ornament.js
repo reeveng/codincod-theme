@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.vPsamMJa1v/entry.ts
+  // ../../../../../../tmp/tmp.zNWu336nTJ/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -60,11 +60,13 @@ var __ornament = (() => {
     PING_RINGS: () => PING_RINGS,
     SCREWS: () => SCREWS,
     SMOKER: () => SMOKER,
+    SMOKER_LIP: () => SMOKER_LIP,
     SPAN: () => SPAN,
     SPECIES: () => SPECIES,
     SPREAD: () => SPREAD,
     STEPS: () => STEPS,
     WAKE: () => WAKE,
+    WILD: () => WILD,
     WRECK: () => WRECK,
     WRECK_SPAR: () => WRECK_SPAR,
     createCephalopods: () => createCephalopods,
@@ -80,7 +82,8 @@ var __ornament = (() => {
     octopusArms: () => octopusArms,
     ringAt: () => ringAt,
     squidArms: () => squidArms,
-    squidBody: () => squidBody
+    squidBody: () => squidBody,
+    sunNow: () => sunNow
   });
 
   // ../../codincodv2/assets/js/ornament/perlin.ts
@@ -1211,6 +1214,13 @@ var __ornament = (() => {
      */
     swordfish: { bill: 1, deep: 0.72, girth: 1.85, hold: 3.2, pace: 1.55, pitch: 0.55, stride: 1.5, verve: 0.45 }
   };
+  var WILD = {
+    cruiser: 5,
+    darter: 4,
+    drifter: 1,
+    escort: 2,
+    swordfish: 1
+  };
   var MIN_SHOAL = 1;
   var FIELD_CELLS4 = 3.6;
   var DRIFT3 = 0.06;
@@ -1574,6 +1584,84 @@ var __ornament = (() => {
     return value;
   }
   var EDGE_HOLD = 8;
+
+  // ../../codincodv2/assets/js/ornament/sun.ts
+  var RAD = Math.PI / 180;
+  var J2000_OFFSET_DAYS = 10957.5;
+  var DAY_MS = 864e5;
+  var OBLIQUITY = 23.4397 * RAD;
+  var REGION_LATITUDE = {
+    Africa: 5,
+    America: 38,
+    Antarctica: -70,
+    Arctic: 78,
+    Asia: 30,
+    Atlantic: 35,
+    Australia: -30,
+    Europe: 50,
+    Indian: -15,
+    Pacific: -20
+  };
+  var ZONE_LATITUDE = {
+    "Africa/Cairo": 30,
+    "Africa/Johannesburg": -26,
+    "Africa/Lagos": 6,
+    "Africa/Nairobi": -1,
+    "America/Bogota": 5,
+    "America/Lima": -12,
+    "America/Santiago": -33,
+    "America/Sao_Paulo": -23,
+    "Asia/Jakarta": -6,
+    "Asia/Kolkata": 22,
+    "Asia/Singapore": 1,
+    "Pacific/Auckland": -37,
+    "Pacific/Fiji": -18,
+    "Pacific/Honolulu": 21
+  };
+  function position(now) {
+    var _a, _b, _c;
+    const longitude = clamp2(-now.getTimezoneOffset() / 4, -180, 180);
+    let zone = "";
+    try {
+      zone = (_a = Intl.DateTimeFormat().resolvedOptions().timeZone) != null ? _a : "";
+    } catch (e) {
+      zone = "";
+    }
+    const override = Object.entries(ZONE_LATITUDE).find(([name]) => zone.startsWith(name));
+    if (override) return { latitude: override[1], longitude };
+    const region = (_b = zone.split("/")[0]) != null ? _b : "";
+    return { latitude: (_c = REGION_LATITUDE[region]) != null ? _c : 45, longitude };
+  }
+  function solarAltitude(now, { latitude, longitude }) {
+    const days = now.getTime() / DAY_MS - J2000_OFFSET_DAYS;
+    const meanAnomaly = (357.5291 + 0.98560028 * days) * RAD;
+    const eclipticLongitude = meanAnomaly + (1.9148 * Math.sin(meanAnomaly) + 0.02 * Math.sin(2 * meanAnomaly) + 3e-4 * Math.sin(3 * meanAnomaly)) * RAD + 102.9372 * RAD + Math.PI;
+    const declination = Math.asin(Math.sin(eclipticLongitude) * Math.sin(OBLIQUITY));
+    const rightAscension = Math.atan2(
+      Math.sin(eclipticLongitude) * Math.cos(OBLIQUITY),
+      Math.cos(eclipticLongitude)
+    );
+    const siderealTime = (280.16 + 360.9856235 * days) * RAD + longitude * RAD;
+    const hourAngle = siderealTime - rightAscension;
+    const phi = latitude * RAD;
+    const altitude = Math.asin(
+      Math.sin(phi) * Math.sin(declination) + Math.cos(phi) * Math.cos(declination) * Math.cos(hourAngle)
+    );
+    return altitude / RAD;
+  }
+  function light(altitude) {
+    return {
+      daylight: clamp2((altitude + 6) / 12, 0, 1),
+      dusk: clamp2(1 - Math.abs(altitude) / 8, 0, 1)
+    };
+  }
+  function sunNow() {
+    const now = /* @__PURE__ */ new Date();
+    return light(solarAltitude(now, position(now)));
+  }
+  function clamp2(value, low, high) {
+    return Math.min(high, Math.max(low, value));
+  }
   return __toCommonJS(entry_exports);
 })();
 var OCTOPUS_HEAD = __ornament.OCTOPUS_HEAD
@@ -1604,11 +1692,14 @@ var LAPTOP_BASE = __ornament.LAPTOP_BASE
 var LAPTOP_LINES = __ornament.LAPTOP_LINES
 var LAPTOP_SCREEN = __ornament.LAPTOP_SCREEN
 var SMOKER = __ornament.SMOKER
+var SMOKER_LIP = __ornament.SMOKER_LIP
 var WRECK = __ornament.WRECK
 var WRECK_SPAR = __ornament.WRECK_SPAR
 var createRelics = __ornament.createRelics
 var createSeabed = __ornament.createSeabed
 var SPECIES = __ornament.SPECIES
+var WILD = __ornament.WILD
 var createShoal = __ornament.createShoal
 var freshSeed = __ornament.freshSeed
+var sunNow = __ornament.sunNow
 

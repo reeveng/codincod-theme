@@ -58,6 +58,8 @@ Window {
     return fallback
   }
 
+  readonly property real daylight: Number(win.arg("daylight", "1"))
+  readonly property real dusk: Number(win.arg("dusk", "0"))
   readonly property int seed: Number(win.arg("seed", "1956"))
   readonly property real settle: Number(win.arg("settle", "40"))
   readonly property string out: win.arg("out", "preview.png")
@@ -65,6 +67,8 @@ Window {
   Seascape {
     id: sea
     anchors.fill: parent
+    daylight: win.daylight
+    dusk: win.dusk
     ink: win.ink
     rushed: true
     seed: win.seed

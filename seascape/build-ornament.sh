@@ -36,9 +36,10 @@ WANTED=(
   "flora CORAL createFlora"
   "passers HULL PING_RINGS ringAt SCREWS WAKE createPassers"
   "rays SPREAD createRays"
-  "relics BLOCK_CARD BLOCK_LINES CHEST_BANDS CHEST_BODY CHEST_LOCK LAPTOP_BASE LAPTOP_LINES LAPTOP_SCREEN SMOKER WRECK WRECK_SPAR createRelics"
+  "relics BLOCK_CARD BLOCK_LINES CHEST_BANDS CHEST_BODY CHEST_LOCK LAPTOP_BASE LAPTOP_LINES LAPTOP_SCREEN SMOKER SMOKER_LIP WRECK WRECK_SPAR createRelics"
   "seabed createSeabed"
-  "shoal SPECIES createShoal freshSeed"
+  "shoal SPECIES WILD createShoal freshSeed"
+  "sun sunNow"
 )
 
 : >"$entry/entry.ts"
