@@ -82,11 +82,14 @@ screenshotting it would mean throwing yourself onto an empty workspace and back.
 The same component mounts offscreen instead:
 
 ```bash
-cd seascape && ./look.sh preview.qml     # a still; Omarchy's theme picker shows this one
+cd seascape && ./look.sh preview.qml     # a still, into seascape/preview.png
 cd seascape && ./look.sh shapes.qml      # every silhouette, large and alone
 cd seascape && ./gif.sh                  # eight seconds of it, as a gif
 cd seascape && ./bench.sh                # where a frame goes
 ```
+
+`preview.png` at the top of this repository is the same sheet written a
+directory up, which is where Omarchy's theme picker looks for one.
 
 Through `look.sh` rather than `qml6`, and that is not a convenience:
 `QT_QPA_PLATFORM=offscreen` by itself loads Qt's software scene graph, which
