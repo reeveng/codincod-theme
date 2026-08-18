@@ -479,6 +479,17 @@ Item {
   /** px per unit of a perch's drawing, before its own size is applied. */
   property real perchScale: 1.15
 
+  /**
+   * How near a mass has to stand before it is drawn in front of the surface.
+   *
+   * Rock is the one thing in this water that can be between the picture and the
+   * sky, which is what a cave roof is and what the near wall of a swim-through
+   * is. Those go over the boats. Everything further back than this sorts into
+   * the water with the plants and the fish, at its own distance and nothing
+   * else, because a mass three rocks back is not between anybody and anything.
+   */
+  property real cragNear: 0.8
+
   /** How far off its own rock's weight the things growing on it are drawn. */
   property real perchShade: 0.72
 
@@ -3324,7 +3335,7 @@ Item {
 
       anchors.fill: parent
       visible: one !== null
-      z: one ? one.depth * 1.5 : 0
+      z: one ? (one.depth >= root.cragNear ? one.depth + 0.5 : one.depth) : 0
 
       Shape {
         anchors.fill: parent
@@ -3369,9 +3380,13 @@ Item {
           y: it.y
 
           transform: [
+            // Its own size, and its rock's distance. A perch carries no depth
+            // of its own: it is on the rock, so how big it is drawn is how far
+            // back the rock is, and without that a fan on the mass at the back
+            // came out the size of one at the front.
             Scale {
-              xScale: perch.it.size * root.perchScale
-              yScale: perch.it.size * root.perchScale
+              xScale: perch.it.size * root.perchScale * crag.one.depth
+              yScale: perch.it.size * root.perchScale * crag.one.depth
             },
             // The drawing grows up out of nothing; the perch says which way is
             // out of the rock. A quarter turn is the difference between them.
