@@ -1320,6 +1320,15 @@ var Sea = (() => {
   var LEAST = 2;
   var REEF_HEADS = 34;
   var RANGES = 6;
+  var carved = /* @__PURE__ */ new Map();
+  function twigOf(d) {
+    const held = carved.get(d);
+    if (held) return held;
+    const numbers = d.match(/-?\d+(\.\d+)?/g);
+    const cut = numbers ? numbers.map(Number) : [];
+    carved.set(d, cut);
+    return cut;
+  }
   var KINDS2 = { anemone: 2, coral: 4, fan: 3, grass: 1, kelp: 0 };
   var GROUND = { cliff: 2, hill: 1, mound: 3, sand: 0 };
   var geometry = new Float32Array(1 << 23);
@@ -1389,6 +1398,14 @@ var Sea = (() => {
     putPoints(plant.points);
     put(plant.blades.length);
     for (let b = 0; b < plant.blades.length; b++) putPoints(plant.blades[b]);
+    put(plant.twigs.length);
+    for (let t = 0; t < plant.twigs.length; t++) {
+      const twig = plant.twigs[t];
+      const cut = twigOf(twig.d);
+      put(twig.width);
+      put(cut.length);
+      for (let n = 0; n < cut.length; n++) put(cut[n]);
+    }
   }
   function publish() {
     at = 0;

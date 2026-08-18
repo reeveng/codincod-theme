@@ -124,15 +124,27 @@ impl<'a> Frame<'a> {
             for _ in 0..count {
                 blades.push(cursor.points());
             }
-            standing.push(Plant { blades, depth, girth, kind, strand, y });
+            let grown = cursor.next() as usize;
+            let mut twigs = Vec::with_capacity(grown);
+            for _ in 0..grown {
+                let width = cursor.next();
+                let n = cursor.next() as usize;
+                let mut cut = Vec::with_capacity(n);
+                for _ in 0..n {
+                    cut.push(cursor.next());
+                }
+                twigs.push(Twig { cut, width });
+            }
+            standing.push(Plant { blades, depth, girth, kind, scale: _scale, strand, twigs, x: _x, y });
         }
         standing.sort_by(|a, b| a.depth.partial_cmp(&b.depth).unwrap());
 
         for plant in &standing {
-            if plant.kind == 4 {
-                continue; // Coral is the site's own drawing and is not cut here yet.
-            }
             let weight = haze(FLORA_INK, plant.depth);
+            if plant.kind == 4 {
+                self.stroke_coral(&mut stroke, geo, plant, weight);
+                continue;
+            }
             let parted = plant.girth * (1.0 - BLADE_GIRTH) >= BLADE_SPLIT;
 
             let mut lines: Vec<&Vec<(f32, f32)>> = vec![&plant.strand];
@@ -186,6 +198,52 @@ impl<'a> Frame<'a> {
         .unwrap();
     }
 
+    /// A coral, which is drawn rather than swayed: the site's own strokes,
+    /// scaled to this one's size and stood where it grows.
+    fn stroke_coral(
+        &self,
+        stroke: &mut StrokeTessellator,
+        geo: &mut VertexBuffers<Vertex, u32>,
+        plant: &Plant,
+        weight: f32,
+    ) {
+        for twig in &plant.twigs {
+            if twig.cut.len() < 8 {
+                continue;
+            }
+            let at = |i: usize| {
+                point(
+                    plant.x + twig.cut[i] * plant.scale,
+                    plant.y + twig.cut[i + 1] * plant.scale,
+                )
+            };
+            // A twig is a move and a curve, and several of them can share one
+            // width: the bushier corals are written as one drawing with a
+            // stroke apiece rather than as one branch each.
+            let mut builder = Path::builder();
+            for branch in (0..twig.cut.len() - 7).step_by(8) {
+                builder.begin(at(branch));
+                builder.cubic_bezier_to(at(branch + 2), at(branch + 4), at(branch + 6));
+                builder.end(false);
+            }
+            let path = builder.build();
+
+            stroke
+                .tessellate_path(
+                    &path,
+                    &StrokeOptions::tolerance(0.1)
+                        .with_line_width(twig.width * plant.scale)
+                        .with_line_cap(LineCap::Round),
+                    &mut BuffersBuilder::new(geo, |v: StrokeVertex| Vertex {
+                        pos: v.position().to_array(),
+                        weight,
+                        shade: plant.y,
+                    }),
+                )
+                .unwrap();
+        }
+    }
+
     /// Several lines at one weight in one ink, which is what a plant is.
     fn stroke_lines(
         &self,
@@ -235,8 +293,17 @@ struct Plant {
     depth: f32,
     girth: f32,
     kind: u8,
+    scale: f32,
     strand: Vec<(f32, f32)>,
+    twigs: Vec<Twig>,
+    x: f32,
     y: f32,
+}
+
+/// One stroke of a coral: a move and a curve, at its own width.
+struct Twig {
+    cut: Vec<f32>,
+    width: f32,
 }
 
 /// Where a piece of ground sorts, in the lanes `Seascape.qml` gives them.

@@ -41,6 +41,26 @@ const LEAST = 2
 const REEF_HEADS = 34
 const RANGES = 6
 
+/**
+ * A coral's drawing, as numbers.
+ *
+ * The corals are the one thing in the bed that arrives as SVG, and they are
+ * also the one thing that never moves, so each drawing is read once here and
+ * handed over as coordinates from then on. Every twig in `flora.ts` is a move
+ * and one curve, which is the whole of the grammar this needs.
+ */
+const carved = new Map<string, number[]>()
+
+function twigOf(d: string): number[] {
+  const held = carved.get(d)
+  if (held) return held
+
+  const numbers = d.match(/-?\d+(\.\d+)?/g)
+  const cut = numbers ? numbers.map(Number) : []
+  carved.set(d, cut)
+  return cut
+}
+
 /** What a plant's kind comes to on the wire. */
 const KINDS: Record<string, number> = { anemone: 2, coral: 4, fan: 3, grass: 1, kelp: 0 }
 
@@ -126,6 +146,15 @@ function putPlant(plant: Plant): void {
   putPoints(plant.points)
   put(plant.blades.length)
   for (let b = 0; b < plant.blades.length; b++) putPoints(plant.blades[b])
+
+  put(plant.twigs.length)
+  for (let t = 0; t < plant.twigs.length; t++) {
+    const twig = plant.twigs[t]
+    const cut = twigOf(twig.d)
+    put(twig.width)
+    put(cut.length)
+    for (let n = 0; n < cut.length; n++) put(cut[n])
+  }
 }
 
 /**
