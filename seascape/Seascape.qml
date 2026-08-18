@@ -1511,6 +1511,41 @@ Item {
   }
 
   /**
+   * One open line as a path, in the string a `PathSvg` reads.
+   *
+   * Points rather than a polyline, and a string rather than a list of them, for
+   * one reason: `strokes` below can put several of these in one path and a
+   * `PathPolyline` holds exactly one line. What that is worth is in `strokes`.
+   */
+  function stroke(points) {
+    if (!points.length) return ""
+
+    var out = "M" + points[0].x + " " + points[0].y
+    for (var i = 1; i < points.length; i++) out += "L" + points[i].x + " " + points[i].y
+    return out
+  }
+
+  /**
+   * Several lines in one path, which is what a plant's leaves are.
+   *
+   * The curve renderer charges per path and not per item, measured: three
+   * thousand lines cost the same whether they are three thousand shapes or two
+   * hundred, and the same three thousand as four hundred paths cost less than
+   * half as much. A plant's leaves are all the same weight in the same ink, so
+   * there was never a reason for them to be a path each beyond the fact that
+   * they arrived as a list.
+   *
+   * Only for lines that share a stroke. A coral's twigs each carry their own
+   * width, so they stay a path apiece; a stroke is a property of the path and
+   * not of the line.
+   */
+  function strokes(lines) {
+    var out = ""
+    for (var i = 0; i < lines.length; i++) out += stroke(lines[i])
+    return out
+  }
+
+  /**
    * The ground, cut once.
    *
    * Sand, stones and cliffs are pure functions of the seed and the box, so they
@@ -1633,12 +1668,12 @@ Item {
       for (var g = 0; g < flora.plants.length; g++) {
         var fresh = flora.plants[g]
         standing.push({
-          blades: [],
+          blades: "",
           cut: -1,
           depth: fresh.depth,
           girth: fresh.girth,
           kind: fresh.kind,
-          points: [],
+          points: "",
           scale: fresh.scale,
           twigs: fresh.twigs,
           x: fresh.x,
@@ -1653,10 +1688,8 @@ Item {
       var shown = growth[p]
       if (!shown || shown.cut === one.cut) continue
 
-      var blades = []
-      for (var bl = 0; bl < one.blades.length; bl++) blades.push(polygon(one.blades[bl], false))
-      shown.blades = blades
-      shown.points = polygon(one.points, false)
+      shown.blades = strokes(one.blades)
+      shown.points = stroke(one.points)
       shown.cut = one.cut
     }
 
@@ -2181,10 +2214,10 @@ Item {
           strokeColor: root.afloat(sprout.one ? sprout.one.y : 0, sprout.weight)
           strokeWidth: sprout.one ? sprout.one.girth : 0
 
-          PathPolyline {
+          PathSvg {
             path: {
               sprout.rev
-              return sprout.one && sprout.one.kind !== "coral" ? sprout.one.points : []
+              return sprout.one && sprout.one.kind !== "coral" ? sprout.one.points : ""
             }
           }
         }
@@ -2192,32 +2225,26 @@ Item {
 
       // Whatever else the plant is made of: leaves for kelp, the rest of the
       // clump for grass. Which of those it is drawing is the plant's business
-      // and not this Repeater's; all it knows is that a blade is a line to be
-      // stroked a little finer than the strand it came with.
-      Repeater {
-        model: {
-          sprout.rev
-          return sprout.one ? sprout.one.blades.length : 0
-        }
+      // and not this one's; all it knows is that a leaf is a line to be stroked
+      // a little finer than the strand it came with.
+      //
+      // All of them in one path, because they are all that same weight in that
+      // same ink and the curve renderer charges by the path. See `strokes`.
+      Shape {
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
+        visible: sprout.one !== null && sprout.one.kind !== "coral"
 
-        delegate: Shape {
-          id: leaf
-          required property int index
+        ShapePath {
+          capStyle: ShapePath.RoundCap
+          fillColor: "transparent"
+          strokeColor: root.afloat(sprout.one ? sprout.one.y : 0, sprout.weight)
+          strokeWidth: sprout.one ? sprout.one.girth * root.bladeGirth : 0
 
-          anchors.fill: parent
-          preferredRendererType: Shape.CurveRenderer
-
-          ShapePath {
-            capStyle: ShapePath.RoundCap
-            fillColor: "transparent"
-            strokeColor: root.afloat(sprout.one ? sprout.one.y : 0, sprout.weight)
-            strokeWidth: sprout.one ? sprout.one.girth * root.bladeGirth : 0
-
-            PathPolyline {
-              path: {
-                sprout.rev
-                return sprout.one ? sprout.one.blades[leaf.index] : []
-              }
+          PathSvg {
+            path: {
+              sprout.rev
+              return sprout.one ? sprout.one.blades : ""
             }
           }
         }
