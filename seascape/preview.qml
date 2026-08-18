@@ -72,6 +72,10 @@ Window {
   readonly property real march: Number(win.arg("march", "0.5"))
   readonly property int seed: Number(win.arg("seed", "1956"))
   readonly property real settle: Number(win.arg("settle", "40"))
+
+  /** `tolerance=0` draws the bed the way it stood before a plant could hold a
+   *  drawing, which is how the two are compared. */
+  readonly property real tolerance: Number(win.arg("tolerance", "0.25"))
   readonly property string out: win.arg("out", "preview.png")
 
   /** `visitor=shark` to watch one animal, since a turtle crosses once a while. */
@@ -89,6 +93,7 @@ Window {
     seed: win.seed
     settle: win.settle
     surface: win.surface
+    tolerance: win.tolerance
     visitorKinds: win.visitor ? [win.visitor] : null
   }
 

@@ -616,6 +616,16 @@ Item {
   /** Frames a second. Nobody looks straight at a background. */
   property int tick: 33
 
+  /**
+   * How far a plant may wander from its last drawing before it is recut, in px.
+   *
+   * `FloraOptions.tolerance`, handed on so a harness can turn it off and a
+   * slower machine could one day be given a looser one. Nothing here reads it
+   * back: what it buys is a bed that costs what it is doing rather than what it
+   * is made of, and the number itself belongs to the bed.
+   */
+  property real tolerance: 0.25
+
   // ------------------------------------------------------------------ the sims
 
   property var shoal: null
@@ -718,6 +728,18 @@ Item {
   property var heads: []
   property var clowns: []
   /** The plants, republished every tick, because they lean. */
+  /**
+   * Bumped once a frame, and read by anything that has to notice a change.
+   *
+   * The bed's plants keep their identity now, so a delegate bound straight to
+   * one would never hear that it had moved. This is what it hears instead: a
+   * cheap binding that reads this and hands back the plant's own `cut`, and the
+   * expensive ones hanging off that rather than off the frame. A plant that has
+   * not recut gives back the number it gave last time, QML sees a property that
+   * did not change, and nothing below it is asked to do anything at all.
+   */
+  property int pulse: 0
+
   property var growth: []
 
   /** The cephalopods, and what is on the bottom or going over the top of it. */
@@ -968,6 +990,7 @@ Item {
       height: height,
       kelps: spread(kelpsPerK, mostKelps),
       seed: seed,
+      tolerance: tolerance,
       width: width,
     })
 
@@ -1161,6 +1184,7 @@ Item {
     flock.resize(width, height, speckPool)
     reef.resize(width, height, seabed.floorAt)
     nemos.resettle()
+    growth = []
     cutGround()
     publish()
     report()
@@ -1400,24 +1424,46 @@ Item {
     }
     bubbles = rising
 
-    var growing = []
-    for (var g = 0; g < flora.plants.length; g++) {
-      var one = flora.plants[g]
+    // The bed is the one layer here that is not rebuilt every frame, and the
+    // reason is in `flora.ts`: a plant holds the drawing it last made until it
+    // has moved far enough to be worth another, and says so with `cut`. So
+    // these stand in for the plants rather than being made afresh from them,
+    // and a plant that has not moved is not read, not converted and, because
+    // its object is the object the delegate already holds, not redrawn either.
+    // See docs/decisions/0027 in the CodinCod repository.
+    if (growth.length !== flora.plants.length) {
+      var standing = []
+      for (var g = 0; g < flora.plants.length; g++) {
+        var fresh = flora.plants[g]
+        standing.push({
+          blades: [],
+          cut: -1,
+          depth: fresh.depth,
+          girth: fresh.girth,
+          kind: fresh.kind,
+          points: [],
+          scale: fresh.scale,
+          twigs: fresh.twigs,
+          x: fresh.x,
+          y: fresh.y,
+        })
+      }
+      growth = standing
+    }
+
+    for (var p = 0; p < flora.plants.length; p++) {
+      var one = flora.plants[p]
+      var shown = growth[p]
+      if (!shown || shown.cut === one.cut) continue
+
       var blades = []
       for (var bl = 0; bl < one.blades.length; bl++) blades.push(polygon(one.blades[bl], false))
-      growing.push({
-        blades: blades,
-        depth: one.depth,
-        girth: one.girth,
-        kind: one.kind,
-        points: polygon(one.points, false),
-        scale: one.scale,
-        twigs: one.twigs,
-        x: one.x,
-        y: one.y,
-      })
+      shown.blades = blades
+      shown.points = polygon(one.points, false)
+      shown.cut = one.cut
     }
-    growth = growing
+
+    pulse++
 
     var shining = []
     for (var r = 0; r < light.rays.length; r++) {
@@ -1822,6 +1868,10 @@ Item {
       readonly property var one: root.growth[index] || null
       readonly property real weight: one ? root.farInk(root.floraInk, one.depth) : 0
 
+      // The gate. It runs every frame and costs an integer; everything that
+      // costs more than that hangs off it. See `root.pulse`.
+      readonly property int rev: { root.pulse; return one ? one.cut : -1 }
+
       anchors.fill: parent
       visible: one !== null
       z: one ? one.depth : 0
@@ -1839,7 +1889,12 @@ Item {
           strokeColor: root.afloat(sprout.one ? sprout.one.y : 0, sprout.weight)
           strokeWidth: sprout.one ? sprout.one.girth : 0
 
-          PathPolyline { path: sprout.one && sprout.one.kind !== "coral" ? sprout.one.points : [] }
+          PathPolyline {
+            path: {
+              sprout.rev
+              return sprout.one && sprout.one.kind !== "coral" ? sprout.one.points : []
+            }
+          }
         }
       }
 
@@ -1848,7 +1903,10 @@ Item {
       // and not this Repeater's; all it knows is that a blade is a line to be
       // stroked a little finer than the strand it came with.
       Repeater {
-        model: sprout.one ? sprout.one.blades.length : 0
+        model: {
+          sprout.rev
+          return sprout.one ? sprout.one.blades.length : 0
+        }
 
         delegate: Shape {
           id: leaf
@@ -1863,7 +1921,12 @@ Item {
             strokeColor: root.afloat(sprout.one ? sprout.one.y : 0, sprout.weight)
             strokeWidth: sprout.one ? sprout.one.girth * root.bladeGirth : 0
 
-            PathPolyline { path: sprout.one ? sprout.one.blades[leaf.index] : [] }
+            PathPolyline {
+              path: {
+                sprout.rev
+                return sprout.one ? sprout.one.blades[leaf.index] : []
+              }
+            }
           }
         }
       }
