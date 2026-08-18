@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.H3XyAkGhuR/entry.ts
+  // ../../../../../../tmp/tmp.gNb7x0WcXM/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -291,6 +291,9 @@ var __ornament = (() => {
     escort: 2,
     swordfish: 1
   };
+  function felt(depth, startle) {
+    return startle.depth == null ? 1 : abreast(depth, startle.depth);
+  }
   var MIN_SHOAL = 1;
   var FIELD_CELLS = 3.6;
   var DRIFT = 0.06;
@@ -460,7 +463,7 @@ var __ornament = (() => {
           one.hold -= dt;
           if (one.hold <= 0) decide(one, random, height, sort);
           one.lean = ease(one.lean, one.aim, BEND * dt);
-          const startled = fleeing && pointer != null && away(one, pointer) < FLEE_REACH * PANIC || startle != null && startle.force * felt(one, startle) > 0 && away(one, startle) < startle.reach * PANIC;
+          const startled = fleeing && pointer != null && away(one, pointer) < FLEE_REACH * PANIC || startle != null && startle.force * felt(one.depth, startle) > 0 && away(one, startle) < startle.reach * PANIC;
           const [wantX, wantY] = want(
             one,
             fish,
@@ -540,7 +543,7 @@ var __ornament = (() => {
         y += awayY * push;
       }
     }
-    const force = startle ? startle.force * felt(one, startle) : 0;
+    const force = startle ? startle.force * felt(one.depth, startle) : 0;
     if (startle && force > 0) {
       const [awayX, awayY, distance] = separation(one, startle);
       if (distance < startle.reach) {
@@ -666,7 +669,6 @@ var __ornament = (() => {
     return (to.x - one.x) * Math.cos(one.heading) + (to.y - one.y) * Math.sin(one.heading) > 0;
   }
   var away = (one, to) => Math.hypot(one.x - to.x, one.y - to.y);
-  var felt = (one, startle) => startle.depth == null ? 1 : abreast(one.depth, startle.depth);
   function separation(one, to) {
     const x = one.x - to.x;
     const y = one.y - to.y;
@@ -952,7 +954,8 @@ var __ornament = (() => {
   function pressure(startle, one) {
     if (!startle || startle.force <= 0 || startle.reach <= 0) return 0;
     const gap = Math.hypot(one.x - startle.x, one.y - startle.y);
-    return gap >= startle.reach ? 0 : startle.force * (1 - gap / startle.reach);
+    if (gap >= startle.reach) return 0;
+    return startle.force * (1 - gap / startle.reach) * felt(one.depth, startle);
   }
   function advance(one, through, dt) {
     switch (one.doing) {
@@ -2193,7 +2196,8 @@ var __ornament = (() => {
         if (thing.size < span * CROWN_MINDS) continue;
         const reach2 = thing.size * CROWN_NOTICE;
         const away2 = Math.hypot(one.x - thing.x, one.y - thing.y);
-        if (away2 < reach2) worst = Math.max(worst, 1 - away2 / reach2);
+        if (away2 >= reach2) continue;
+        worst = Math.max(worst, (1 - away2 / reach2) * abreast(one.depth, thing.depth));
       }
       return worst;
     }
@@ -3141,9 +3145,8 @@ var __ornament = (() => {
     smoker: 0.05,
     wreck: 0.16
   };
-  var DEPTH_FAR6 = 0.35;
-  var DEPTH_NEAR6 = 0.85;
-  var DEPTH_SIZE4 = 0.45;
+  var DEPTH_FAR6 = 0.6;
+  var DEPTH_NEAR6 = 0.9;
   var PUFF_GAP = 0.13;
   var PUFF_SLOWEST = 0.72;
   var PUFF_FASTEST = 1.28;
@@ -3179,9 +3182,14 @@ var __ornament = (() => {
           depth,
           kind,
           lean: (roll() - 0.5) * LEAN2[kind] * 2,
-          scale: (least + roll() * (most - least)) * (1 - DEPTH_SIZE4 + DEPTH_SIZE4 * depth),
+          scale: (least + roll() * (most - least)) * depth,
           x,
-          y: floor(x)
+          // Its own distance, which is the whole of the point. The ground is a
+          // different line at every distance and this asked for the one at the
+          // front, so a wreck standing a long way back was planted on the sand
+          // that belongs against the glass: a shape drawn at its own distance and
+          // sitting somewhere else entirely.
+          y: floor(x, depth)
         });
       }
     }
@@ -3535,7 +3543,7 @@ var __ornament = (() => {
   var OPENING = 0.4;
   var DEEP_LEAST = 0.3;
   var DEEP_SPAN = 0.5;
-  var DEPTH_SIZE5 = 0.7;
+  var DEPTH_SIZE4 = 0.7;
   var SHORTEST2 = 3.4;
   var LONGEST2 = 7.5;
   var FIDGET = 0.055;
@@ -3677,7 +3685,7 @@ var __ornament = (() => {
           one.tilt += turn * Math.min(1, TILT_EASE * dt);
         }
         one.depth = Math.max(0.05, Math.min(1, deep + w * thick));
-        one.size = home.long * (1 - DEPTH_SIZE5 + DEPTH_SIZE5 * one.depth);
+        one.size = home.long * (1 - DEPTH_SIZE4 + DEPTH_SIZE4 * one.depth);
         one.x = nextX;
         one.y = nextY;
       }
@@ -3804,7 +3812,7 @@ var __ornament = (() => {
   var WING_SIDE = 0.6;
   var WING_SHRINK = 0.1;
   var WING_PHASE = 0.17;
-  var DEPTH_SIZE6 = 0.55;
+  var DEPTH_SIZE5 = 0.55;
   var FELT_REACH = 1.9;
   var FELT = 0.34;
   var MIN_SPAN11 = 1;
@@ -3863,7 +3871,7 @@ var __ornament = (() => {
           facing,
           kind,
           lift: side * out * WING_SIDE * size,
-          size: size * (1 - made * WING_SHRINK) * (1 - DEPTH_SIZE6 + DEPTH_SIZE6 * depth),
+          size: size * (1 - made * WING_SHRINK) * (1 - DEPTH_SIZE5 + DEPTH_SIZE5 * depth),
           stroke: (random() + made * WING_PHASE) % 1,
           tilt: 0,
           weight: 0,
@@ -4178,7 +4186,7 @@ var __ornament = (() => {
   var CRAB_LARGEST = 17;
   var STARFISH_SMALLEST = 15;
   var STARFISH_LARGEST = 31;
-  var DEPTH_SIZE7 = 0.55;
+  var DEPTH_SIZE6 = 0.55;
   var DEPTH_FAR7 = 0.12;
   var DEPTH_NEAR7 = 1;
   var STAR_BACK = 1.7;
@@ -4193,8 +4201,10 @@ var __ornament = (() => {
   var MINDS2 = 1.6;
   var NOTICE2 = 3.2;
   var FRIGHT_FADE2 = 3.5;
+  var BULK2 = 0.25;
   var FREEZE_AT = 0.05;
   var BOLT_AT = 0.55;
+  var SQUASH_AT = 0.88;
   var BOLT3 = 3.4;
   var CREEP = 8e-3;
   var DAWDLE = 0.6;
@@ -4290,7 +4300,7 @@ var __ornament = (() => {
       const back = crab ? random() : random() ** STAR_BACK;
       const depth = DEPTH_FAR7 + back * (DEPTH_NEAR7 - DEPTH_FAR7);
       const span = crab ? CRAB_SMALLEST + random() * (CRAB_LARGEST - CRAB_SMALLEST) : STARFISH_SMALLEST + random() * (STARFISH_LARGEST - STARFISH_SMALLEST);
-      const size = span * (1 - DEPTH_SIZE7 + DEPTH_SIZE7 * depth);
+      const size = span * (1 - DEPTH_SIZE6 + DEPTH_SIZE6 * depth);
       const x = random() * width;
       const odd = [];
       const arms = [];
@@ -4307,6 +4317,7 @@ var __ornament = (() => {
       doings.push({
         arms,
         at: random() * run,
+        chased: 0,
         fright: 0,
         going,
         odd,
@@ -4330,19 +4341,20 @@ var __ornament = (() => {
       return going ? GO_LEAST + random() * GO_SPAN : STAND_LEAST + random() * STAND_SPAN;
     }
     function minded(one, water) {
-      let alarm = 0;
-      let from = one.x;
+      var _a;
+      const seen = { chased: 0, from: one.x, near: 0 };
       for (const thing of water) {
         if (thing.size < one.size * MINDS2) continue;
         const reach2 = thing.size * NOTICE2;
         const away2 = Math.hypot(one.x - thing.x, one.y - thing.y);
         if (away2 >= reach2) continue;
-        const worry = 1 - away2 / reach2;
-        if (worry <= alarm) continue;
-        alarm = worry;
-        from = thing.x;
+        const near = (1 - away2 / reach2) * abreast(one.depth, thing.depth);
+        if (near <= seen.near) continue;
+        seen.chased = near * (BULK2 + ((_a = thing.menace) != null ? _a : 0) * (1 - BULK2));
+        seen.from = thing.x;
+        seen.near = near;
       }
-      return { alarm, from };
+      return seen;
     }
     function carry(at, seconds, water) {
       var _a, _b;
@@ -4352,8 +4364,9 @@ var __ornament = (() => {
       doing.at += seconds;
       if (one.kind === "crab") {
         const seen = minded(one, water);
-        doing.fright = Math.max(0, Math.max(doing.fright - seconds / FRIGHT_FADE2, seen.alarm));
-        if (doing.fright > BOLT_AT) {
+        doing.fright = Math.max(0, Math.max(doing.fright - seconds / FRIGHT_FADE2, seen.near));
+        doing.chased = Math.max(0, Math.max(doing.chased - seconds / FRIGHT_FADE2, seen.chased));
+        if (doing.chased > BOLT_AT || doing.fright > SQUASH_AT) {
           one.facing = one.x < seen.from ? -1 : 1;
           const gone2 = doing.pace * BOLT3 * seconds * one.facing;
           one.x += gone2;
