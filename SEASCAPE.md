@@ -24,8 +24,11 @@ renders them. Both the website and the desktop get all of it.
 - [x] **Sand**, as a rolling profile rather than a line, and the thing every
       other layer roots to. `seabed.ts`
 - [x] **Stones** lying on it. `seabed.ts`
-- [x] **Cliffs** standing further out in the murk. `seabed.ts`
-- [x] **Kelp**, rooted and leaning on the shared current, blades trailing.
+- [x] **Cliffs** standing further out in the murk, and **hills** behind those:
+      the ground is a function of distance as well as of position, so a far bed
+      sits higher, rolls flatter and is painted in the water's own colour rather
+      than being the near one shifted up. `seabed.ts`
+- [x] **Kelp**, at its own distance and rooted on the ground there, leaning on the shared current, blades trailing.
       `flora.ts`
 - [x] **Grass**, in clumps of a handful of blades that barely lean. `flora.ts`
 - [x] **Coral**, four of them: a boulder, a bush, a staghorn and the site's
@@ -39,6 +42,9 @@ renders them. Both the website and the desktop get all of it.
       was here first, a darter that bursts and stops, a drifter crossing the
       murk on one heading, escorts that hold station in pairs, and a swordfish
       with a bill on it. `shoal.ts`
+- [x] **No animal comes back around.** A fish that leaves the picture is gone
+      and its place is refilled with one drawn fresh, so a shoal of six is not
+      six animals on a belt. `shoal.ts`
 - [x] **Squid**: jet and drift, the opposite rhythm to a fish. A hard pulse,
       then a long passive glide with the tentacles trailing. `cephalopods.ts`
 - [x] **Octopuses**: on the bottom rather than in the water, arms working over
@@ -85,7 +91,11 @@ the one thing that surface may not be.
 - Everything reads the same Perlin field, so the plants, the snow and the fish
   agree about which way the water is moving. That agreement is what makes it a
   sea rather than several animations sharing a rectangle.
-- Everything is seeded. The same seed gives the same water twice.
+- Everything is seeded. The same seed gives the same water twice, which is why
+  the place is the same place at every login and the life in it is not.
+- The scene opens at the hour of the actual clock, wound forward and wrapped, so
+  a machine that has been off comes back to water that carried on rather than to
+  water that has been rewound.
 - Nothing advances while the wallpaper is covered.
 - It is ornament, so it is allowed to do nothing. Every branch that cannot get
   what it needs returns quietly.
@@ -104,6 +114,11 @@ QT_ASSUME_STDERR_HAS_CONSOLE=1 QT_QPA_PLATFORM=offscreen \
 # Every silhouette, large and alone, on a sheet. This is the one that finds
 # drawing bugs.
 QT_ASSUME_STDERR_HAS_CONSOLE=1 QT_QPA_PLATFORM=offscreen qml6 shapes.qml
+
+# A clip. The scene's own timer is off and the water is stepped by hand, so the
+# rate is the one asked for however long each grab takes.
+QT_QPA_PLATFORM=offscreen qml6 record.qml -- \
+  out=/tmp/frames frames=240 fps=20 width=1280 height=800 settle=90
 ```
 
 `seed` picks which water: most of what lies on the floor is placed by a roll of

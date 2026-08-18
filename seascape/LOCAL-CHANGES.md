@@ -15,7 +15,7 @@ repository, and nothing in that directory is edited on the way through:
 | `shoal.ts` | where a fish goes, why, and which of five kinds it is |
 | `fish_shape.ts` | one drawing of the animal, per beat of its tail |
 | `cephalopods.ts` | squid in the water, octopuses on the stones |
-| `seabed.ts`, `flora.ts` | the floor, and what grows out of it |
+| `seabed.ts`, `flora.ts` | the ground at every distance, and what grows out of it |
 | `relics.ts` | what lies on the floor, and the plume off the vent |
 | `passers.ts` | the boat overhead, and the sonar |
 | `drift.ts`, `rays.ts` | the snow, the bubbles, the light |
@@ -51,6 +51,21 @@ background and an offscreen preview.
   `Color.background`, so a theme switch recolours the water for free and a theme
   nobody has written yet already works. The sun and the moon are the two
   exceptions, and they have to be; a green moon is not a moon.
+
+### Why it does not open on the same picture every time
+
+The bed and everything rooted in it is a pure function of the seed, so the place
+is the same place at every login, which is what a place is for. The life in it
+is not: `Seascape.opening` puts the water at the hour of the actual clock,
+wrapped at `cycle`, so a machine that has been off for ten minutes comes back to
+water that carried on rather than to water that has been rewound.
+
+It wraps because the only way to know where a fish is after an hour of swimming
+is to swim it, at a step per tenth of a second of that hour. `cycle` is set
+where the wait at login is the one this scene always had, and a couple of
+minutes is long enough that the water is rearranged past recognition anyway.
+Nothing is written to disk and nothing is read back: a clock is a clock on every
+machine, so two screens open on the same moment of the same water for free.
 
 ### Why it costs nothing while you work
 

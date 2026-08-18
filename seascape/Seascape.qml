@@ -153,11 +153,13 @@ Item {
   property int seed: 1956
 
   /**
-   * Skip the wait before the first boat and the first ping.
+   * Skip the wait before the first boat and the first ping, and open the water
+   * at a stated age rather than at the hour of the clock.
    *
-   * For the preview harness and nothing else. On a desktop these are minutes
-   * apart on purpose, and a boat you get for turning the screen on is a boat on
-   * a schedule.
+   * For the preview harness and nothing else, and both halves are the same
+   * wish: a still that can be taken twice and compared. On a desktop the
+   * passers are minutes apart on purpose, and a boat you get for turning the
+   * screen on is a boat on a schedule; `opening` is the other half.
    */
   property bool rushed: false
 
@@ -250,14 +252,25 @@ Item {
   property real grassesPerK: 48
   property real coralsPerK: 17
   property real stonesPerK: 25
-  property real cliffsPerK: 1.9
+  property real cliffsPerK: 3.4
 
   property int leastOfEach: 2
   property int mostKelps: 30
   property int mostGrasses: 120
   property int mostCorals: 40
   property int mostStones: 64
-  property int mostCliffs: 7
+  property int mostCliffs: 11
+
+  /**
+   * How many bands of ground stand between the sand and the horizon.
+   *
+   * A count rather than a density, because these run the whole width of the box
+   * whatever it is: what a wider screen wants is not more of them, it is the
+   * same ones drawn longer. Four is what it takes for the eye to read a slope
+   * going away rather than a wall with a step in it, and past about six the
+   * bands are too close in weight to tell apart.
+   */
+  property int ranges: 5
 
   /**
    * How much of the wallpaper the water hides.
@@ -279,11 +292,44 @@ Item {
   /** How far off the water's own colour the lit top of the column is. */
   property real waterLid: 0.05
 
-  /** How dark the ground and the things rooted in it may be. */
+  /** How dark the ground and the things rooted in it may be, at the front. */
   property real sandInk: 0.13
   property real stoneInk: 0.2
   property real floraInk: 0.26
-  property real cliffInk: 0.09
+
+  /**
+   * What anything down there weighs at the back of the water.
+   *
+   * The one number that makes the bottom a distance rather than a shelf. A
+   * weight is what it is worth at the front of the picture, and everything
+   * rooted, lying or standing is drawn somewhere between that and this,
+   * according to how far back it is; see `farInk`.
+   *
+   * Low, because there is no such thing as a far thing that is nearly as dark
+   * as a near one. Water is what is between you and it, and there is a lot of
+   * water. It is not zero either: a band that reached the colour of the water
+   * would be a band nobody could find, and then the distance would be gone
+   * again for the opposite reason.
+   */
+  property real hazeInk: 0.03
+
+  /**
+   * The light along the top edge of ground, and how wide that edge is drawn.
+   *
+   * The one line of every band that is not facing away from the surface. Fills
+   * alone gave four bands within a few hundredths of each other, which is what
+   * distance actually does to them and also what makes them one grey mass: the
+   * boundaries were there in the arithmetic and under the eye's own threshold.
+   * A lit crest puts the boundary back without brightening the mass behind it,
+   * and it is what a slope in water looks like from below anyway.
+   *
+   * It goes back with everything else, so the near sand has a bright lip and
+   * the furthest hills have almost none, which is the second time the same
+   * statement is made and the reason it reads at a glance.
+   */
+  property real crestInk: 0.24
+
+  property real crestWidth: 1.5
 
   /**
    * How dark what is lying on the bottom may be, and what is coming off it.
@@ -294,6 +340,15 @@ Item {
    */
   property real relicInk: 0.24
   property real plumeInk: 0.2
+
+  /**
+   * The last of a puff's life, over which it lets go of its own body.
+   *
+   * A quarter. It has to be enough that nobody catches the moment a puff stops
+   * being there, and little enough that the plume is a solid column for the
+   * part of its life anybody is looking at, which is the part near the rock.
+   */
+  property real plumeLetGo: 0.25
 
   /**
    * The one exception in the whole scene.
@@ -342,6 +397,39 @@ Item {
   /** How far the scene is wound on before it is first shown, in seconds. */
   property real settle: 40
   property real settleStep: 1 / 20
+
+  /**
+   * The step a wind is taken in, which is the largest step there is.
+   *
+   * Every sim clamps its own step at a tenth of a second, because a frame that
+   * stalled for a second must not teleport a fish across the picture. That
+   * clamp is also the floor on what winding costs: ask for a bigger step and
+   * the water advances by a tenth anyway, so the scene comes out younger than
+   * it was asked to be. This is that ceiling, stated once, and it is twice
+   * `settleStep` because nothing is being watched while it runs.
+   */
+  property real windStep: 1 / 10
+
+  /**
+   * How long the water's own day is, in seconds, before its clock comes round.
+   *
+   * The scene used to open on the same picture every single time: same seed,
+   * same forty seconds of winding, so a fish was in the same place at every
+   * login and after every reboot. The place is meant to be the same, since it
+   * is a place; the life in it is not.
+   *
+   * So the water is opened at the hour of the actual clock rather than at zero,
+   * and a machine that has been off for ten minutes comes back to water that
+   * has moved on rather than to water that has been rewound. What it cannot do
+   * is follow the clock for ever: the only way to know where a fish is after an
+   * hour of swimming is to swim it, which is a step per fiftieth of a second of
+   * that hour. So the clock wraps, and this is where. Anything past a couple of
+   * minutes is rearranged past recognition anyway, which is why a short day
+   * costs nothing that could be noticed and a long one costs a wait at login.
+   *
+   * See `windOn` for what a second of it costs, and `opening` for the arithmetic.
+   */
+  property int cycle: 150
 
   /** Frames a second. Nobody looks straight at a background. */
   property int tick: 33
@@ -401,6 +489,7 @@ Item {
 
   /** The ground, published once when it is cut rather than every tick. */
   property var sand: []
+  property var hills: []
   property var scarp: []
   property var rocks: []
   /** The plants, republished every tick, because they lean. */
@@ -430,12 +519,53 @@ Item {
    *
    * Light is the exception and stays an alpha, because a shaft really is
    * something you see through.
+   *
+   * The catch is what a weight of nothing comes to. It is the surface colour,
+   * which is the water at the very bottom of the box and nowhere else, so
+   * anything drawn opaque and faded to nothing is a hole rather than an
+   * absence. Everything that fades that far has to fade towards the water it is
+   * actually in; see `waterAt` and what the plume does with it.
    */
   function tint(weight) {
     var w = Math.max(0, Math.min(1, weight))
     return Qt.rgba(surface.r + (ink.r - surface.r) * w,
                    surface.g + (ink.g - surface.g) * w,
                    surface.b + (ink.b - surface.b) * w,
+                   1)
+  }
+
+  /**
+   * The colour of the water itself at a height in the box.
+   *
+   * The water is lit from above and it is a gradient, so there is no single
+   * water colour to fade into: what is water at the top of the box is a hole in
+   * it at the bottom. This is the one statement of that, and the column below
+   * is painted from it as well, so the two can never drift apart.
+   *
+   * It is what anything dissolving rather than swimming away has to become. A
+   * puff of a vent's smoke used to end its life as the surface colour, which is
+   * water only along the very bottom edge: what a reader saw was the plume turn
+   * into a stack of dark discs a few feet above the rock, hold there, and then
+   * blink out one at a time as each reached its age.
+   */
+  function waterAt(y) {
+    var t = height > 0 ? Math.max(0, Math.min(1, y / height)) : 0
+    var lid = tint(waterLid)
+
+    return Qt.rgba(lid.r + (surface.r - lid.r) * t,
+                   lid.g + (surface.g - lid.g) * t,
+                   lid.b + (surface.b - lid.b) * t,
+                   1)
+  }
+
+  /** A weight against the water at a height, rather than against the surface. */
+  function fume(y, weight) {
+    var w = Math.max(0, Math.min(1, weight))
+    var base = waterAt(y)
+
+    return Qt.rgba(base.r + (ink.r - base.r) * w,
+                   base.g + (ink.g - base.g) * w,
+                   base.b + (ink.b - base.b) * w,
                    1)
   }
 
@@ -449,6 +579,25 @@ Item {
    */
   function shade(weight) {
     return tint(weight * cutShade)
+  }
+
+  /**
+   * What a weight is worth at a distance, for anything standing on the bottom.
+   *
+   * The bed used to scale its weights by depth outright, which sounds like the
+   * same thing and is not: a multiply drives a far thing to nothing, so the
+   * hills at the back were painted at a hundredth of full ink and the whole
+   * distance was invisible. The scene had cliffs in it that nobody had ever
+   * seen. This runs between the haze and the thing's own weight instead, so the
+   * furthest ground is faint and still there.
+   *
+   * Not for anything swimming. A fish is in the water rather than on the
+   * bottom, and `depthInk` is that: it keeps a share of its weight whatever the
+   * distance, because an animal that faded into the murk as far as the ground
+   * does would be an animal the eye loses in the middle of a stroke.
+   */
+  function farInk(full, depth) {
+    return hazeInk + (full - hazeInk) * Math.max(0, Math.min(1, depth))
   }
 
   /** A per-thousand-px-of-width density as a count this box can hold. */
@@ -474,6 +623,7 @@ Item {
     seabed = Ornament.createSeabed({
       cliffs: spread(cliffsPerK, mostCliffs),
       height: height,
+      ranges: ranges,
       seed: seed,
       stones: spread(stonesPerK, mostStones),
       width: width,
@@ -536,9 +686,9 @@ Item {
 
     // Wound on before anybody sees it, the way the site winds its own still
     // frame, so nothing opens on a row of fish abreast on their starting line
-    // or on snow that has not yet had time to spread through the water.
-    var steps = Math.round(settle / settleStep)
-    for (var i = 0; i < steps; i++) advance(settleStep)
+    // or on snow that has not yet had time to spread through the water. How far
+    // on is the clock's business rather than this line's; see `opening`.
+    windOn(opening())
     cutGround()
     publish()
     fitted = Qt.size(width, height)
@@ -617,6 +767,53 @@ Item {
     passers.step(dt)
   }
 
+  /**
+   * Where the water is in its own day when this scene opens, in seconds.
+   *
+   * The wall clock, wrapped at `cycle`, on top of the settling every scene owes
+   * itself. Nothing is written down and nothing is read back: a clock is a
+   * clock on every machine and after every reboot, so two screens opening
+   * together open on the same moment of the same water for free, and a screen
+   * that opens an hour later does not open on the same picture.
+   *
+   * The preview harness is the exception. It asks for a stated number of
+   * seconds because its whole job is to hand back the same still twice.
+   */
+  function opening() {
+    if (rushed) return settle
+    return settle + Math.floor(Date.now() / 1000) % Math.max(1, cycle)
+  }
+
+  /**
+   * Carry the whole water forward by a stretch of time, as cheaply as it can be
+   * carried.
+   *
+   * Everything that swims has to be swum: where a fish is after a minute is the
+   * minute it spent getting there, and the sims clamp their own step so that a
+   * stalled frame cannot teleport anything. That fixes the price of a wind at a
+   * step per fiftieth of a second of it.
+   *
+   * The bed is the exception and it used to be three quarters of the bill. A
+   * plant has no memory, so a stretch of time is an addition to its clock and
+   * one recut at the end; see `Flora.wind`. What it cost before was two hundred
+   * plants recut at every intermediate moment, all of them pictures of a past
+   * nobody was ever going to see.
+   */
+  function windOn(seconds) {
+    var steps = Math.round(Math.max(0, seconds) / windStep)
+
+    for (var i = 0; i < steps; i++) {
+      shoal.step(windStep, null)
+      drift.step(windStep)
+      light.step(windStep)
+      inklings.step(windStep)
+      wreckage.step(windStep)
+      passers.step(windStep)
+    }
+
+    flora.wind(steps * windStep)
+  }
+
   /** Points as QML wants them, with the box's floor closed off underneath. */
   function polygon(points, closed) {
     var out = []
@@ -640,6 +837,13 @@ Item {
 
     sand = polygon(seabed.ridge, true)
 
+    var country = []
+    for (var b = 0; b < seabed.ranges.length; b++) {
+      var band = seabed.ranges[b]
+      country.push({ depth: band.depth, points: polygon(band.ridge, true) })
+    }
+    hills = country
+
     var walls = []
     for (var c = 0; c < seabed.cliffs.length; c++) {
       var cliff = seabed.cliffs[c]
@@ -650,7 +854,14 @@ Item {
     var lying = []
     for (var t = 0; t < seabed.stones.length; t++) {
       var stone = seabed.stones[t]
-      lying.push({ lean: stone.lean, rise: stone.rise, span: stone.span, x: stone.x, y: stone.y })
+      lying.push({
+        depth: stone.depth,
+        lean: stone.lean,
+        rise: stone.rise,
+        span: stone.span,
+        x: stone.x,
+        y: stone.y,
+      })
     }
     rocks = lying
   }
@@ -819,12 +1030,12 @@ Item {
     gradient: Gradient {
       GradientStop {
         position: 0
-        color: Qt.rgba(root.tint(root.waterLid).r, root.tint(root.waterLid).g,
-                       root.tint(root.waterLid).b, root.waterInk)
+        color: Qt.rgba(root.waterAt(0).r, root.waterAt(0).g, root.waterAt(0).b, root.waterInk)
       }
       GradientStop {
         position: 1
-        color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, root.waterInk)
+        color: Qt.rgba(root.waterAt(root.height).r, root.waterAt(root.height).g,
+                       root.waterAt(root.height).b, root.waterInk)
       }
     }
   }
@@ -845,13 +1056,48 @@ Item {
       anchors.fill: parent
       preferredRendererType: Shape.CurveRenderer
       visible: cliff !== null
-      z: -3
+      z: cliff ? -3.4 + cliff.depth : -3.4
 
       ShapePath {
-        fillColor: root.tint(root.cliffInk * (wall.cliff ? wall.cliff.depth : 0))
-        strokeColor: "transparent"
+        fillColor: root.tint(root.farInk(root.sandInk, wall.cliff ? wall.cliff.depth : 0))
+        strokeColor: root.tint(root.farInk(root.crestInk, wall.cliff ? wall.cliff.depth : 0))
+        strokeWidth: root.crestWidth
 
         PathPolyline { path: wall.cliff ? wall.cliff.points : [] }
+      }
+    }
+  }
+
+  // The ground between the sand and the horizon, cut at four distances.
+  //
+  // Each band is the whole floor as it stands that far back, closed off under
+  // the box, so what the eye reads is one slope going away rather than four
+  // shapes. Where two of them overlap is a hill in front of a hill, and the dip
+  // between two crests is a valley, both for nothing: they are the same field
+  // read at different distances, so they never agree and never contradict.
+  //
+  // Furthest first, and each a little heavier than the one behind it. That
+  // ordering is the whole illusion; see `farInk`.
+  Repeater {
+    model: root.hills.length
+
+    delegate: Shape {
+      id: bank
+      required property int index
+
+      readonly property var band: root.hills[index] || null
+
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      visible: band !== null
+      z: band ? -3 + band.depth : -3
+
+      ShapePath {
+        fillColor: root.tint(root.farInk(root.sandInk, bank.band ? bank.band.depth : 0))
+        strokeColor: root.tint(root.farInk(root.crestInk, bank.band ? bank.band.depth : 0))
+        strokeWidth: root.crestWidth
+
+        PathPolyline { path: bank.band ? bank.band.points : [] }
       }
     }
   }
@@ -865,7 +1111,8 @@ Item {
 
     ShapePath {
       fillColor: root.tint(root.sandInk)
-      strokeColor: "transparent"
+      strokeColor: root.tint(root.crestInk)
+      strokeWidth: root.crestWidth
 
       PathPolyline { path: root.sand }
     }
@@ -883,7 +1130,7 @@ Item {
       readonly property var stone: root.rocks[index] || null
 
       antialiasing: true
-      color: root.tint(root.stoneInk)
+      color: root.tint(root.farInk(root.stoneInk, stone ? stone.depth : 1))
       height: stone ? stone.rise : 0
       radius: height / 2
       rotation: stone ? stone.lean * 180 / Math.PI : 0
@@ -891,7 +1138,7 @@ Item {
       width: stone ? stone.span : 0
       x: stone ? stone.x - width / 2 : 0
       y: stone ? stone.y - height * 0.62 : 0
-      z: -1.8
+      z: stone ? -2 + stone.depth * 0.3 : -1.8
     }
   }
 
@@ -905,7 +1152,7 @@ Item {
       required property int index
 
       readonly property var one: root.growth[index] || null
-      readonly property real weight: one ? root.floraInk * one.depth : 0
+      readonly property real weight: one ? root.farInk(root.floraInk, one.depth) : 0
 
       anchors.fill: parent
       visible: one !== null
@@ -1309,21 +1556,13 @@ Item {
           fillRule: ShapePath.WindingFill
           strokeColor: "transparent"
 
-          PathSvg { path: swimmer.frame ? swimmer.frame.d : "" }
-        }
-
-        // The bill, for the one kind that has one. Apart from the body's path
-        // rather than joined to it, because the frames are cached and shared by
-        // every fish in the water: a bill baked into `d` would be a bill on all
-        // of them. Same ink and same winding, so the two read as one animal.
-        ShapePath {
-          fillColor: root.tint(swimmer.fish && swimmer.fish.bill > 0 ? swimmer.weight : 0)
-          fillRule: ShapePath.WindingFill
-          strokeColor: "transparent"
-
+          // The billed kinds are a whole drawing of their own rather than this
+          // one with a bill laid over it. Two fills would put a seam across the
+          // swordfish's face wherever the bill's buried root crossed the head,
+          // which is what it used to do on the website; see `Frame.billed`.
           PathSvg {
-            path: swimmer.frame && swimmer.fish && swimmer.fish.bill > 0
-              ? swimmer.frame.bill
+            path: swimmer.frame
+              ? (swimmer.fish && swimmer.fish.bill > 0 ? swimmer.frame.billed : swimmer.frame.d)
               : ""
           }
         }
@@ -1512,12 +1751,20 @@ Item {
     model: root.plumeSlots
 
     delegate: Rectangle {
+      id: smoke
       required property int index
 
       readonly property var puff: root.plume[index] || null
 
+      /** What is left of a puff's own body, over the last of its life. */
+      readonly property real body: puff ? Math.min(1, (1 - puff.age) / root.plumeLetGo) : 0
+
+      readonly property color hue: root.fume(puff ? puff.y : 0,
+                                             root.plumeInk * (puff ? Math.sqrt(1 - puff.age) : 0))
+
       antialiasing: true
-      // Opaque, like everything else that is a thing rather than light.
+      // Opaque for most of its life, like everything else that is a thing
+      // rather than light.
       //
       // Drawn as translucent circles the plume read as smoke: where puffs
       // overlapped their alphas piled up, so it was faintest at the vent and
@@ -1525,10 +1772,22 @@ Item {
       // and is exactly what a chimney looks like on a windy day. Solid, they
       // merge into one column that is densest where it leaves the rock.
       //
+      // Against the water at its own height rather than against the surface,
+      // because a puff really does end as nothing, and a weight of nothing in
+      // `tint` is the colour of the water along the bottom edge of the box. A
+      // plume rises well clear of that, so what it used to turn into was a
+      // stack of dark discs holding a few feet above the rock, each blinking
+      // out on its own as it reached its age. That is the glitch, and it was
+      // never the vent: it was the last frame of every puff it ever made.
+      //
+      // Letting go of the last of the alpha as well, because water-coloured and
+      // opaque still holds out the wallpaper underneath. By then the puff is
+      // the colour of what is behind it, so nothing piles up where two overlap.
+      //
       // The square root, not the age itself. A puff spreads as it climbs, so
       // fading it in step with its age takes the ink out faster than the water
       // is taking it.
-      color: root.tint(root.plumeInk * (puff ? Math.sqrt(1 - puff.age) : 0))
+      color: Qt.rgba(smoke.hue.r, smoke.hue.g, smoke.hue.b, smoke.body)
       height: puff ? puff.r * 2 : 0
       radius: height / 2
       visible: puff !== null

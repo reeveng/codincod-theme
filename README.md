@@ -34,9 +34,17 @@ website and were placed on the same ladder to match.
 
 ## The sea
 
+![The sea, twelve seconds of it](seascape.gif)
+
 `seascape/` is an Omarchy shell plugin that replaces the desktop background
 with water: a shoal working through it, marine snow falling, bubbles coming off
-vents in the floor, and light through the surface.
+vents in the floor, and light through the surface. Hills stand off in the murk,
+plants root on the ground at their own distance rather than along one line, and
+a fish that swims out of the picture is gone: the one that comes in next is a
+new animal, so nothing loops.
+
+That clip is the plugin itself, rendered offscreen a frame at a time. It is
+slower and darker on a real desktop, which is the point of it.
 
 ```bash
 ./install.sh
@@ -52,10 +60,14 @@ repository, and nothing in that directory is edited on the way through:
 
 | There | Here |
 | --- | --- |
-| `shoal.ts` | where a fish goes, and why |
-| `drift.ts` | marine snow, and what comes off a vent |
-| `rays.ts` | light through the surface |
+| `shoal.ts` | where a fish goes, why, and which of five kinds it is |
 | `fish_shape.ts` | one drawing of the animal, per beat of its tail |
+| `cephalopods.ts` | squid in the water, octopuses on the stones |
+| `seabed.ts`, `flora.ts` | the ground at every distance, and what grows out of it |
+| `relics.ts` | what lies on the floor, and the plume off the vent |
+| `passers.ts` | the boat overhead, and the sonar |
+| `drift.ts`, `rays.ts` | the snow, the bubbles, the light |
+| `sun.ts` | which hour it is, from the sun's real altitude |
 | `perlin.ts` | the field they all read |
 | `water.ts` | the browser's renderer, which `Seascape.qml` replaces |
 
@@ -89,7 +101,14 @@ there is a harness that mounts the same component offscreen:
 cd seascape && QT_QPA_PLATFORM=offscreen qml6 preview.qml
 ```
 
-It writes `preview.png` and exits.
+It writes `preview.png` and exits. For a moving one, `record.qml` steps the
+same component by hand and grabs every frame, so a clip comes out at the rate
+it was asked for however long each grab took:
+
+```bash
+cd seascape && QT_QPA_PLATFORM=offscreen qml6 record.qml -- \
+  out=/tmp/frames frames=240 fps=20 width=1280 height=800 settle=90
+```
 
 ## Making windows opaque
 
