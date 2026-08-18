@@ -1426,6 +1426,7 @@ var __ornament = (() => {
   var MOTE_SMALLEST = 0.4;
   var MOTE_LARGEST = 1.9;
   var MOTE_BIAS = 2.6;
+  var TOLERANCE = 0.25;
   var DEPTH_SIZE3 = 0.75;
   var DEPTH_NEAR3 = 1;
   var DEPTH_FAR3 = 0.08;
@@ -1444,17 +1445,19 @@ var __ornament = (() => {
   var VENT_GAP_SPAN = 0.5;
   var MIN_SPAN3 = 1;
   function createDrift(options) {
-    var _a, _b;
+    var _a, _b, _c;
     const noise = makeNoise2(options.seed ^ 7487);
     const random = makeRandom(options.seed ^ 31265);
     let width = Math.max(MIN_SPAN3, options.width);
     let height = Math.max(MIN_SPAN3, options.height);
     let slide = 0;
     const floor = (_a = options.floor) != null ? _a : (() => height);
+    const tolerance = Math.max(0, (_b = options.tolerance) != null ? _b : TOLERANCE);
     const mote = () => {
       const depth = DEPTH_FAR3 + random() * (DEPTH_NEAR3 - DEPTH_FAR3);
       const shrink = 1 - DEPTH_SIZE3 + DEPTH_SIZE3 * depth;
       return {
+        cut: 0,
         depth,
         lane: random() * 200,
         r: (MOTE_SMALLEST + random() ** MOTE_BIAS * (MOTE_LARGEST - MOTE_SMALLEST)) * shrink,
@@ -1463,7 +1466,22 @@ var __ornament = (() => {
         y: random() * height
       };
     };
-    const motes = Array.from({ length: Math.max(0, options.motes) }, mote);
+    const motes = [];
+    const held = [];
+    function sow() {
+      const one = mote();
+      motes.push(one);
+      held.push({ x: one.x, y: one.y });
+    }
+    function draw2(at) {
+      const one = motes[at];
+      const was = held[at];
+      if (!one || !was) return;
+      was.x = one.x;
+      was.y = one.y;
+      one.cut++;
+    }
+    for (let made = 0; made < Math.max(0, options.motes); made++) sow();
     const vent = () => {
       const x = random() * width;
       return {
@@ -1474,7 +1492,7 @@ var __ornament = (() => {
         y: floor(x)
       };
     };
-    const vents = Array.from({ length: Math.max(0, (_b = options.vents) != null ? _b : 0) }, vent);
+    const vents = Array.from({ length: Math.max(0, (_c = options.vents) != null ? _c : 0) }, vent);
     const bubbles = [];
     function release(from) {
       const depth = DEPTH_FAR3 + random() * (DEPTH_NEAR3 - DEPTH_FAR3);
@@ -1495,23 +1513,32 @@ var __ornament = (() => {
         const scaleY = Math.max(MIN_SPAN3, nextHeight) / height;
         width = Math.max(MIN_SPAN3, nextWidth);
         height = Math.max(MIN_SPAN3, nextHeight);
-        for (const one of motes) {
+        for (let at = 0; at < motes.length; at++) {
+          const one = motes[at];
+          if (!one) continue;
           one.x *= scaleX;
           one.y *= scaleY;
+          draw2(at);
         }
         for (const one of bubbles) {
           one.x *= scaleX;
           one.y *= scaleY;
         }
         if (count == null) return;
-        while (motes.length > count) motes.pop();
-        while (motes.length < count) motes.push(mote());
+        while (motes.length > count) {
+          motes.pop();
+          held.pop();
+        }
+        while (motes.length < count) sow();
       },
       step(seconds) {
         const dt = Math.min(Math.max(seconds, 0), 0.1);
         slide += DRIFT2 * dt;
         const scale = FIELD_CELLS2 / width;
-        for (const one of motes) {
+        for (let at = 0; at < motes.length; at++) {
+          const one = motes[at];
+          const was = held[at];
+          if (!one || !was) continue;
           const push = noise(one.x * scale + one.lane, one.y * scale + one.lane + slide);
           one.x += push * SWAY * one.depth * dt;
           one.y += one.rate * dt;
@@ -1520,6 +1547,7 @@ var __ornament = (() => {
             one.x = random() * width;
           }
           one.x = around(one.x, width, one.r);
+          if (Math.hypot(one.x - was.x, one.y - was.y) >= tolerance) draw2(at);
         }
         for (const from of vents) {
           from.until -= dt;
@@ -1851,7 +1879,7 @@ var __ornament = (() => {
     grass: 1,
     kelp: 1
   };
-  var TOLERANCE = 0.25;
+  var TOLERANCE2 = 0.25;
   var SWING = {
     anemone: 2,
     coral: 0,
@@ -1933,7 +1961,7 @@ var __ornament = (() => {
     let drift = 0;
     const plants = [];
     const sways = [];
-    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE);
+    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE2);
     const drawn2 = [];
     const beds = [];
     const heights = /* @__PURE__ */ new Map();
@@ -4261,7 +4289,7 @@ var __ornament = (() => {
   var STRIDE3 = 0.1;
   var LIFT = 0.06;
   var GAIT2 = Math.PI * 4;
-  var TOLERANCE2 = 0.25;
+  var TOLERANCE3 = 0.25;
   var GAIT_REACH = Math.hypot(STRIDE3, LIFT);
   var ARM_TIP = 0.5;
   var ARMS = 5;
@@ -4342,7 +4370,7 @@ var __ornament = (() => {
     let floor = options.floor;
     const walkers = [];
     const doings = [];
-    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE2);
+    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE3);
     const held = [];
     function born(kind) {
       var _a2, _b;
