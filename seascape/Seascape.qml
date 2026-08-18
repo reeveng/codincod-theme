@@ -2363,13 +2363,19 @@ Item {
       visible: one !== null
       x: one ? one.x : 0
       y: one ? one.y : 0
-      // Behind the sand, not in front of it. A wreck lies half buried, and
-      // the sand is what buries it: drawn over the floor the whole hull shows
-      // and the thing reads as a boat sitting on top of the sea bed with its
-      // keel visible through it. Everything relics have to be seen above is
-      // above the floor line anyway, so the sand hides exactly the part that
-      // should be under it and nothing else.
-      z: one ? -2.5 + one.depth * 0.4 : 0
+      // Behind the sand, not in front of it. A wreck lies half buried, and the
+      // sand is what buries it: drawn over the floor the whole hull shows and
+      // the thing reads as a boat sitting on top of the sea bed with its keel
+      // visible through it. Everything relics have to be seen above is above
+      // the floor line anyway, so the sand hides exactly the part that should
+      // be under it and nothing else.
+      //
+      // On the ground's own scale rather than a compressed one of its own, so a
+      // relic sorts against the bands of hills by the distance it actually
+      // stands at. It used to run -2.5 to -2.16 against bands running -3 to -2,
+      // which put a wreck in front of some bands nearer than it and behind
+      // others further off, by arithmetic rather than by where anything was.
+      z: one ? -3 + one.depth : 0
 
       transform: Scale {
         xScale: relic.one ? relic.one.scale : 1
