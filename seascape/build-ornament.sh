@@ -30,16 +30,22 @@ trap 'rm -rf "$entry"' EXIT
 # this, because keeping two hand-written lists in step is a job nobody does
 # until something is quietly missing from the scene.
 WANTED=(
-  "cephalopods OCTOPUS_HEAD createCephalopods octopusArms squidArms squidBody"
+  "cephalopods OCTOPUS_HEAD createCephalopods octopusArms octopusHead squidArms squidBody"
+  "crags createCrags"
   "drift createDrift"
   "fish_shape frameAt SPAN STEPS"
   "flora CORAL createFlora"
-  "passers HULL PING_RINGS SCREWS SUBMARINE SUB_SCREW WAKE createPassers ringAt"
-  "rays SPREAD createRays"
+  "nemos createNemos"
+  "passers FROTH_MOST HULL PING_RINGS SCREWS SUBMARINE SUB_SCREW createPassers ringAt"
+  "rays SPREAD createRays fade"
+  "reef KINDS SHAPES createReef"
   "relics BLOCK_CARD BLOCK_LINES CHEST_BANDS CHEST_BODY CHEST_LOCK LAPTOP_BASE LAPTOP_LINES LAPTOP_SCREEN SMOKER SMOKER_LIP WRECK WRECK_SPAR createRelics"
   "seabed createSeabed"
   "shoal SPECIES WILD createShoal daySeed freshSeed"
   "sun sunNow"
+  "swarm createSwarm"
+  "visitors BODIES createVisitors"
+  "walkers CRAB_SHELL crabLegs crabShell createWalkers starfishBody"
 )
 
 : >"$entry/entry.ts"

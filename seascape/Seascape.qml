@@ -243,6 +243,28 @@ Item {
    */
   property real crawlerInk: 0.42
 
+  /**
+   * How far it has to come off the floor to be lit as a thing in the water, in
+   * its own head widths.
+   *
+   * Well under the height of a jet, and that is the whole point of the number.
+   * At the jet's own height the only behaviour that changed weight would be the
+   * one behaviour already unmistakable, and the others would all be lit
+   * identically whether the animal was flat on the sand or standing up off it.
+   */
+  property real crawlerLift: 0.8
+
+  /**
+   * And how dark it may be once it is up there.
+   *
+   * Above `crawlerInk` for the reason `crawlerInk` is above the open water's:
+   * what matters is not how dark a thing is, it is how much darker it is than
+   * whatever is behind it. Flat on the bed the answer behind it is sand. Off
+   * the bed the answer is water, which is lighter, so the same animal needs
+   * more weight up there to read as the same animal.
+   */
+  property real crawlerRisen: 0.62
+
   // ------------------------------------------------------------------ the bed
   //
   // What the water sits on, and what grows out of it.
@@ -259,18 +281,26 @@ Item {
   /** How thick a blade is drawn against the strand it belongs to. */
   property real bladeGirth: 0.8
 
-  property real kelpsPerK: 12
-  property real grassesPerK: 62
-  property real coralsPerK: 22
-  property real stonesPerK: 25
+  property real anemonesPerK: 18
   property real cliffsPerK: 5.5
+  property real coralsPerK: 22
+  property real crabsPerK: 7
+  property real fansPerK: 9
+  property real grassesPerK: 62
+  property real kelpsPerK: 12
+  property real starfishPerK: 5
+  property real stonesPerK: 25
 
   property int leastOfEach: 2
-  property int mostKelps: 38
-  property int mostGrasses: 155
-  property int mostCorals: 52
-  property int mostStones: 64
+  property int mostAnemones: 46
   property int mostCliffs: 16
+  property int mostCorals: 52
+  property int mostCrabs: 18
+  property int mostFans: 24
+  property int mostGrasses: 155
+  property int mostKelps: 38
+  property int mostStarfish: 14
+  property int mostStones: 64
 
   /**
    * How many bands of ground stand between the sand and the horizon.
@@ -430,7 +460,31 @@ Item {
 
   /** How dark a boat and a ping may be. Both are far off, so barely at all. */
   property real hullInk: 0.16
-  property real pingInk: 0.22
+
+  /**
+   * A ping is the one thing here allowed to be seen from across the room.
+   *
+   * It was drawn at the hull's weight to begin with, and at that weight a ring
+   * a foot across and a pixel thick over dark water is nothing at all: the day
+   * spent its sonar and nobody on this machine ever saw one. What makes a ping
+   * rare is that it happens once, and the price of rarity is that the once has
+   * to land.
+   */
+  property real pingInk: 0.62
+
+  /**
+   * How dark the churn behind a hull may be.
+   *
+   * Above the hull's own, which is the only weight in this file that outranks
+   * the thing it belongs to. White water is the brightest thing on a sea, and
+   * the boat is a silhouette against the light rather than a lit object: what
+   * somebody actually picks out at that distance is the wake, and the hull is
+   * what they find at the front of it.
+   */
+  property real frothInk: 0.3
+
+  /** The share of a puff's life spent letting go of the last of its body. */
+  property real frothLetGo: 0.45
 
   /**
    * How many wedges one shaft is drawn from.
@@ -443,6 +497,9 @@ Item {
    * a tinted polygon laid on the water, which is the one thing it must not.
    */
   property int shaftPlies: 4
+
+  /** How much shorter each ply is than the one outside it; see `drop`. */
+  property real shaftTaper: 0.13
 
   /**
    * Bubbles are made and destroyed as the vents fire, and a Repeater handed a
@@ -512,6 +569,7 @@ Item {
   property var inklings: null
   property var wreckage: null
   property var passers: null
+  property var walkers: null
 
   property int herd: 0
   property int flurry: 0
@@ -542,6 +600,9 @@ Item {
   property int plumeSlots: 76
   property int passerSlots: 4
 
+  /** Every puff of churn a hull can have in the water at once; see `FROTH_MOST`. */
+  property int frothSlots: Ornament.FROTH_MOST
+
   /**
    * Flat copies of the simulations' records, republished once a tick.
    *
@@ -553,6 +614,7 @@ Item {
   property var fishes: []
   property var motes: []
   property var bubbles: []
+  property var churn: []
   property var rays: []
 
   /** The ground, published once when it is cut rather than every tick. */
@@ -566,6 +628,7 @@ Item {
   /** The cephalopods, and what is on the bottom or going over the top of it. */
   property var jetters: []
   property var crawlers: []
+  property var walking: []
   property var sunken: []
   property var plume: []
   property var crossing: []
@@ -631,6 +694,26 @@ Item {
   function column(at) {
     var hue = waterAt(at * height)
     return Qt.rgba(hue.r, hue.g, hue.b, waterInk)
+  }
+
+  /**
+   * A shaft's colour a share of the way down it, from what it is worth at the
+   * surface.
+   *
+   * The curve is `Ornament.fade`, so the sea on a desktop and the sea on the
+   * website end their light the same way. What it is there for is the thing a
+   * straight ramp gets wrong here: the column darkens as it goes down, so a
+   * shaft losing a fixed share of its alpha per pixel is gaining contrast at
+   * about the rate it is losing strength. It arrived at its hem still visible
+   * and stopped there, and what a reader saw was not light running out but a
+   * line ruled across the water.
+   *
+   * Sampled a tenth at a time, for the reason the disc's own shaft is: a stop
+   * is a corner, and a curve taken in a few long straight runs is a set of
+   * lines across the beam rather than a fade down it.
+   */
+  function shafted(lit, down) {
+    return Qt.rgba(ink.r, ink.g, ink.b, lit * Ornament.fade(down))
   }
 
   /**
@@ -736,12 +819,22 @@ Item {
     })
 
     flora = Ornament.createFlora({
+      anemones: spread(anemonesPerK, mostAnemones),
       corals: spread(coralsPerK, mostCorals),
+      fans: spread(fansPerK, mostFans),
       floor: seabed.floorAt,
       grasses: spread(grassesPerK, mostGrasses),
       height: height,
       kelps: spread(kelpsPerK, mostKelps),
       seed: seed,
+      width: width,
+    })
+
+    walkers = Ornament.createWalkers({
+      crabs: spread(crabsPerK, mostCrabs),
+      floor: seabed.floorAt,
+      seed: seed,
+      starfish: spread(starfishPerK, mostStarfish),
       width: width,
     })
 
@@ -859,19 +952,24 @@ Item {
     inklings.resize(width, height, seabed.floorAt)
     wreckage.resize(width, height, seabed.floorAt)
     passers.resize(width, height)
+    walkers.resize(width, height, seabed.floorAt)
     cutGround()
     publish()
     report()
   }
 
+  // The passers go first, so the fish answer the hull where it is this frame
+  // rather than where it was last one. Everything else in here is indifferent
+  // to the order it is stepped in.
   function advance(dt) {
-    shoal.step(dt, null)
+    passers.step(dt)
+    shoal.step(dt, null, passers.startle)
     drift.step(dt)
     light.step(dt)
     flora.step(dt)
-    inklings.step(dt)
+    inklings.step(dt, passers.startle)
+    walkers.step(dt)
     wreckage.step(dt)
-    passers.step(dt)
   }
 
   /**
@@ -916,15 +1014,16 @@ Item {
     var steps = Math.round(Math.max(0, seconds) / windStep)
 
     for (var i = 0; i < steps; i++) {
-      shoal.step(windStep, null)
-      drift.step(windStep)
-      light.step(windStep)
-      inklings.step(windStep)
-      wreckage.step(windStep)
-
       // The preview harness only. It exists to catch the rare things and it is
       // the one caller allowed to spend them; see the note above.
       if (rushed) passers.step(windStep)
+
+      shoal.step(windStep, null, rushed ? passers.startle : null)
+      drift.step(windStep)
+      light.step(windStep)
+      inklings.step(windStep, rushed ? passers.startle : null)
+      walkers.step(windStep)
+      wreckage.step(windStep)
     }
 
     flora.wind(steps * windStep)
@@ -1063,18 +1162,24 @@ Item {
     }
     jetters = jetting
 
+    // An octopus's arms and mantle are both rebuilt from its state here for
+    // the reason the squid's are: what it is doing decides which arm is long,
+    // how far each falls and whether the gait is running at all, and the
+    // breath decides the mantle. Splitting those across bindings would have
+    // the animal wearing one behaviour's arms over another's body.
     var crawling = []
     for (var o = 0; o < inklings.octopuses.length; o++) {
       var octopus = inklings.octopuses[o]
       var arms = []
-      var reaching = Ornament.octopusArms(octopus.crawl, octopus.facing, octopus.haul)
+      var reaching = Ornament.octopusArms(octopus)
       for (var q = 0; q < reaching.length; q++) arms.push(polygon(reaching[q], false))
       crawling.push({
         arms: arms,
         depth: octopus.depth,
+        doing: octopus.doing,
         facing: octopus.facing,
         haul: octopus.haul,
-        jetting: octopus.jetting,
+        head: Ornament.octopusHead(octopus.breath),
         lift: octopus.lift,
         size: octopus.size,
         x: octopus.x,
@@ -1082,6 +1187,28 @@ Item {
       })
     }
     crawlers = crawling
+
+    // A crab's shell and its legs are recut from the same stride, so they are
+    // read off together here for the reason the octopus's are: split across
+    // bindings, the animal would be walking on one frame's legs under another
+    // frame's back.
+    var afoot = []
+    for (var k = 0; k < walkers.walkers.length; k++) {
+      var walker = walkers.walkers[k]
+      var feet = []
+      for (var l = 0; l < walker.legs.length; l++) feet.push(polygon(walker.legs[l], false))
+      afoot.push({
+        body: walker.body,
+        depth: walker.depth,
+        facing: walker.facing,
+        feet: feet,
+        kind: walker.kind,
+        size: walker.size,
+        x: walker.x,
+        y: walker.y,
+      })
+    }
+    walking = afoot
 
     var lying = []
     for (var w = 0; w < wreckage.relics.length && w < relicSlots; w++) {
@@ -1118,6 +1245,13 @@ Item {
       })
     }
     crossing = going
+
+    var churning = []
+    for (var f = 0; f < passers.wake.length && f < frothSlots; f++) {
+      var puff = passers.wake[f]
+      churning.push({ age: puff.age, r: puff.r, x: puff.x, y: puff.y })
+    }
+    churn = churning
   }
 
   /**
@@ -1625,7 +1759,8 @@ Item {
       required property int index
 
       readonly property var ray: root.rays[index] || null
-      readonly property real lean: ray ? ray.reach * Math.tan(ray.tilt) : 0
+      readonly property real fall: ray ? ray.reach : 0
+      readonly property real slope: ray ? Math.tan(ray.tilt) : 0
       // Not `top`: an Item already has one, as an anchor line, and it is final.
       readonly property real mouth: ray ? ray.span / 2 : 0
       readonly property real hem: ray ? (ray.span * Ornament.SPREAD) / 2 : 0
@@ -1644,40 +1779,68 @@ Item {
           /** The outermost ply is full width; each one inside it is narrower. */
           readonly property real inset: 1 - index / root.shaftPlies
 
+          /**
+           * And each one inside it is shorter, which is what keeps the light
+           * from ending on a line.
+           *
+           * The plies are drawn one over another, so at any height they are the
+           * same fade repeated. A gradient this faint has only a few distinct
+           * values in the whole of it, and copies of it hung to the same depth
+           * step down at exactly the same heights: the eye is offered one edge
+           * as strong as all of them instead of several nobody can see.
+           * Staggering them gives each step its own height, and the core of the
+           * shaft runs out above the glow around it, which is what a shaft
+           * does.
+           */
+          readonly property real drop: shaft.fall * (1 - index * root.shaftTaper)
+
+          readonly property real lean: drop * shaft.slope
+          readonly property real lip: shaft.mouth * inset
+          readonly property real flare:
+            (shaft.mouth + (shaft.hem - shaft.mouth) *
+             (shaft.fall > 0 ? drop / shaft.fall : 0)) * inset
+
           anchors.fill: parent
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
+            id: wedge
+
+            /** What the shaft is worth where it enters the water. */
+            readonly property real lit: (root.rayInk / root.shaftPlies) * root.overcast *
+                                        (shaft.ray ? shaft.ray.glow : 0)
+
             fillGradient: LinearGradient {
               x1: 0
               y1: 0
               x2: 0
-              y2: shaft.ray ? shaft.ray.reach : 0
+              y2: ply.drop
 
-              GradientStop {
-                position: 0
-                color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
-                               (root.rayInk / root.shaftPlies) * root.overcast *
-                               (shaft.ray ? shaft.ray.glow : 0))
-              }
-              GradientStop {
-                position: 1
-                color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0)
-              }
+              GradientStop { position: 0; color: root.shafted(wedge.lit, 0) }
+              GradientStop { position: 0.1; color: root.shafted(wedge.lit, 0.1) }
+              GradientStop { position: 0.2; color: root.shafted(wedge.lit, 0.2) }
+              GradientStop { position: 0.3; color: root.shafted(wedge.lit, 0.3) }
+              GradientStop { position: 0.4; color: root.shafted(wedge.lit, 0.4) }
+              GradientStop { position: 0.5; color: root.shafted(wedge.lit, 0.5) }
+              GradientStop { position: 0.6; color: root.shafted(wedge.lit, 0.6) }
+              GradientStop { position: 0.7; color: root.shafted(wedge.lit, 0.7) }
+              GradientStop { position: 0.8; color: root.shafted(wedge.lit, 0.8) }
+              GradientStop { position: 0.9; color: root.shafted(wedge.lit, 0.9) }
+              GradientStop { position: 1; color: root.shafted(wedge.lit, 1) }
             }
             strokeColor: "transparent"
 
-            startX: shaft.ray ? shaft.ray.x - shaft.mouth * ply.inset : 0
+            startX: shaft.ray ? shaft.ray.x - ply.lip : 0
             startY: 0
 
-            PathLine { x: shaft.ray ? shaft.ray.x + shaft.mouth * ply.inset : 0; y: 0 }
+            PathLine { x: shaft.ray ? shaft.ray.x + ply.lip : 0; y: 0 }
             PathLine {
-              x: shaft.ray ? shaft.ray.x + shaft.hem * ply.inset + shaft.lean : 0
-              y: shaft.ray ? shaft.ray.reach : 0
+              x: shaft.ray ? shaft.ray.x + ply.flare + ply.lean : 0
+              y: ply.drop
             }
             PathLine {
-              x: shaft.ray ? shaft.ray.x - shaft.hem * ply.inset + shaft.lean : 0
-              y: shaft.ray ? shaft.ray.reach : 0
+              x: shaft.ray ? shaft.ray.x - ply.flare + ply.lean : 0
+              y: ply.drop
             }
           }
         }
@@ -2064,7 +2227,10 @@ Item {
   }
 
   // Octopuses, working the stones. On the bottom rather than in the water,
-  // except for the once in a long while when one lets go.
+  // except for the once in a long while when one lets go, and under it for the
+  // stretches it spends buried: `lift` goes negative and the bed is drawn over
+  // whatever is left showing, which is the animal's own first answer to a
+  // hull going over.
   Repeater {
     model: root.octopuses
 
@@ -2073,9 +2239,50 @@ Item {
       required property int index
 
       readonly property var one: root.crawlers[index] || null
-      readonly property real weight: one
-        ? root.crawlerInk * (1 - root.depthInk + root.depthInk * one.depth)
+
+      /**
+       * How far out of the bed's own murk it is: 0 flat on the sand, 1 clear of
+       * it, and below zero while it is buried, which is further into the bed
+       * than the bed is.
+       */
+      readonly property real aloft: one
+        ? Math.max(-1, Math.min(1, one.lift / root.crawlerLift))
         : 0
+
+      /**
+       * An octopus is on the bottom, so it recedes the way the bottom does.
+       *
+       * It was the one thing standing on the bed painted with the open water's
+       * rule. That rule keeps a share of a creature's weight whatever the
+       * distance, and it is right for a fish, for the reason `farInk` gives:
+       * an animal that faded as far as the ground does is an animal the eye
+       * loses in the middle of a stroke. Standing on the ground it is the wrong
+       * argument. It held a far octopus at a third of full ink over stones
+       * drawn at a twenty-fifth, and what that reads as is not distance. It is
+       * a sticker on the bed.
+       *
+       * So it runs between two weights by how far off the floor it is, and both
+       * of them go through `farInk`, which is what keeps the distance honest: a
+       * far octopus at the top of a jet still comes out lighter than the near
+       * sand it is crossing. Blending into the open water's rule instead would
+       * have broken exactly that, because that rule's floor does not fall with
+       * distance and a distant animal would have been drawn harder than the
+       * ground in front of it.
+       *
+       * Which is one fact stated twice. The murk it is seen through is the
+       * ground's, and it stops being behind the ground once it is above it.
+       */
+      readonly property real weight: {
+        if (!one)
+          return 0
+
+        var bedded = root.farInk(root.crawlerInk, one.depth)
+        var risen = root.farInk(root.crawlerRisen, one.depth)
+
+        // Under the sand is under the haze. A buried one is not a faint animal,
+        // it is a bump in the ground with an animal somewhere inside it.
+        return aloft < 0 ? bedded * (1 + aloft * 0.7) : bedded + (risen - bedded) * aloft
+      }
 
       visible: one !== null && weight > 0.002
       x: one ? one.x : 0
@@ -2088,8 +2295,10 @@ Item {
       }
 
       // The head, which is a dome rather than a drawing: at this weight what
-      // says octopus is eight arms leaving one blob, and the blob's own outline
-      // is the least of it.
+      // says octopus is the arms leaving one blob, and the blob's own outline
+      // is the least of it. It ventilates, which is small enough that nobody
+      // will name it and is the only thing a stopped octopus has to say it is
+      // alive. Most of this animal's day is now spent not travelling.
       Shape {
         preferredRendererType: Shape.CurveRenderer
 
@@ -2097,7 +2306,7 @@ Item {
           fillColor: root.afloat(pus.one ? pus.one.y : 0, pus.weight)
           strokeColor: "transparent"
 
-          PathSvg { path: Ornament.OCTOPUS_HEAD }
+          PathSvg { path: pus.one ? pus.one.head : Ornament.OCTOPUS_HEAD }
         }
       }
 
@@ -2118,6 +2327,70 @@ Item {
 
             PathPolyline { path: pus.one ? pus.one.arms[limb.index] : [] }
           }
+        }
+      }
+    }
+  }
+
+  // Crabs and starfish, which is everything down there that has legs and never
+  // uses them to leave. They are small on purpose: a crab is a shell the width
+  // of a fingernail and it is meant to be come across rather than presented, so
+  // most sittings will have one somewhere nobody has looked yet.
+  //
+  // Inked the way the octopus is inked and for the same reason. This is an
+  // animal standing on the ground, so it recedes as the ground does; there is
+  // no `lift` to blend against because none of them ever leaves the floor.
+  Repeater {
+    model: root.walking.length
+
+    delegate: Item {
+      id: crawl
+      required property int index
+
+      readonly property var one: root.walking[index] || null
+      readonly property real weight: one ? root.farInk(root.crawlerInk, one.depth) : 0
+
+      visible: one !== null && weight > 0.002
+      x: one ? one.x : 0
+      y: one ? one.y : 0
+      z: one ? one.depth : 0
+
+      transform: Scale {
+        xScale: crawl.one ? crawl.one.size : 1
+        yScale: crawl.one ? crawl.one.size : 1
+      }
+
+      // The legs first and the body over them, so a claw folded across the
+      // shell reads as a claw in front of a shell rather than a crack in it.
+      Repeater {
+        model: crawl.one ? crawl.one.feet.length : 0
+
+        delegate: Shape {
+          id: leg
+          required property int index
+
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            capStyle: ShapePath.RoundCap
+            fillColor: "transparent"
+            strokeColor: root.afloat(crawl.one ? crawl.one.y : 0, crawl.weight)
+            strokeWidth: 0.075
+
+            PathPolyline { path: crawl.one ? crawl.one.feet[leg.index] : [] }
+          }
+        }
+      }
+
+      Shape {
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+          fillColor: root.afloat(crawl.one ? crawl.one.y : 0, crawl.weight)
+          fillRule: ShapePath.WindingFill
+          strokeColor: "transparent"
+
+          PathSvg { path: crawl.one ? crawl.one.body : "" }
         }
       }
     }
@@ -2159,19 +2432,6 @@ Item {
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.HULL }
-          }
-
-          ShapePath {
-            capStyle: ShapePath.RoundCap
-            fillColor: "transparent"
-            strokeColor: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
-                                 root.hullInk * 0.5 * (passer.one ? passer.one.weight : 0))
-            strokeWidth: 0.012
-
-            PathMove { x: Ornament.WAKE[0].from[0]; y: Ornament.WAKE[0].from[1] }
-            PathLine { x: Ornament.WAKE[0].to[0]; y: Ornament.WAKE[0].to[1] }
-            PathMove { x: Ornament.WAKE[1].from[0]; y: Ornament.WAKE[1].from[1] }
-            PathLine { x: Ornament.WAKE[1].to[0]; y: Ornament.WAKE[1].to[1] }
           }
 
           ShapePath {
@@ -2237,7 +2497,11 @@ Item {
           border.color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b,
                                 root.pingInk * (ring ? ring.weight : 0) *
                                 (passer.one ? passer.one.weight : 0))
-          border.width: 1
+          // Thick where it leaves and a hairline by the time it is spent. A
+          // front carries what it was sent with, spread over a circle that
+          // keeps growing, so a ring that stayed a pixel wide the whole way out
+          // reads as a circle being scaled up rather than a sound going away.
+          border.width: Math.max(1, Math.round(4 * (ring ? ring.weight : 0)))
           color: "transparent"
           height: reach * 2
           radius: reach
@@ -2247,6 +2511,50 @@ Item {
           y: (passer.one ? passer.one.y : 0) - reach
         }
       }
+    }
+  }
+
+  // The churn a hull leaves: white water, as puffs that swell, open into the V
+  // astern and thin out where they lie.
+  //
+  // Filled rather than outlined, which is the opposite of the bubbles below and
+  // for the same reason they are outlined. A bubble is one thing with water
+  // behind it. Foam is not a collection of anything: it is a patch of water
+  // that has gone white, and the way to draw a patch is to let overlapping
+  // discs merge into one. Drawn as rings the wake came out as a trail of
+  // circles, which is a boat towing beads.
+  //
+  // Under the hull rather than over it, so a puff let go at the stern is water
+  // the boat is sitting in.
+  Repeater {
+    model: root.frothSlots
+
+    delegate: Rectangle {
+      required property int index
+
+      readonly property var puff: root.churn[index] || null
+
+      /** The weight it is drawn at, which goes out over the whole of its life. */
+      readonly property color hue: root.afloat(puff ? puff.y : 0,
+                                             root.frothInk * (puff ? (1 - puff.age) : 0))
+
+      /** What is left of its body, over the last of that life. */
+      readonly property real body: puff ? Math.min(1, (1 - puff.age) / root.frothLetGo) : 0
+
+      antialiasing: true
+      // Opaque, so overlapping puffs merge into one patch instead of piling
+      // their alphas into a bright knot wherever three of them meet. The alpha
+      // is spent at the end and nowhere else, for the reason the plume gives at
+      // length: a water-coloured disc still hides the wallpaper behind it, so
+      // the last frame of a puff would be a hole in the sea.
+      color: Qt.rgba(hue.r, hue.g, hue.b, body)
+      height: puff ? puff.r * 2 : 0
+      radius: height / 2
+      visible: puff !== null
+      width: height
+      x: puff ? puff.x - puff.r : 0
+      y: puff ? puff.y - puff.r : 0
+      z: 1.15
     }
   }
 
