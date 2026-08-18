@@ -41,10 +41,13 @@ workspace you are on, and that is what lets the same component be a desktop
 background and an offscreen preview.
 
 - `import "Ornament.js" as Ornament`, and `Quickshell.Hyprland` for the gate.
-- `daylight`, `dusk` and `today` on the root item, and a five-minute timer that
-  reads them off `Ornament.sunNow` and `Ornament.daySeed`. They live on the root
-  rather than on each `Seascape` because there is one sun, one date, and there
-  may be three monitors.
+- `daylight`, `dusk` and `today` on the root item, read off `Ornament.sunNow`
+  and `Ornament.daySeed` every time `SystemClock` turns the minute. They live on
+  the root rather than on each `Seascape` because there is one sun, one date,
+  and there may be three monitors. The clock is the system's rather than a
+  `Timer` of ours, because a `Timer` counts the time the machine was awake for:
+  a laptop shut at three in the morning and opened at ten came back to the sky
+  it was shut on, and put a full moon over somebody's breakfast.
 - A `Seascape` inside the panel, anchored to the panel rather than to either
   wallpaper image, so changing the background wipes across underneath the fish
   and they swim on through it without a break.

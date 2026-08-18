@@ -183,7 +183,7 @@ Item {
   property real openWater: 0.22
   property real snowInk: 0.15
   property real bubbleInk: 0.3
-  property real rayInk: 0.05
+  property real rayInk: 0.07
 
   /**
    * How much of the light gets through, which is mostly a question of the hour.
@@ -209,9 +209,9 @@ Item {
   property int minFish: 6
   property int maxFish: 22
 
-  property real pxPerMote: 19000
-  property int minMotes: 30
-  property int maxMotes: 170
+  property real pxPerMote: 12500
+  property int minMotes: 40
+  property int maxMotes: 280
 
   /** Places on the floor that bubble, and shafts coming through the surface. */
   property int vents: 3
@@ -263,14 +263,14 @@ Item {
   property real grassesPerK: 48
   property real coralsPerK: 17
   property real stonesPerK: 25
-  property real cliffsPerK: 3.4
+  property real cliffsPerK: 5.5
 
   property int leastOfEach: 2
   property int mostKelps: 30
   property int mostGrasses: 120
   property int mostCorals: 40
   property int mostStones: 64
-  property int mostCliffs: 11
+  property int mostCliffs: 16
 
   /**
    * How many bands of ground stand between the sand and the horizon.
@@ -278,10 +278,16 @@ Item {
    * A count rather than a density, because these run the whole width of the box
    * whatever it is: what a wider screen wants is not more of them, it is the
    * same ones drawn longer. Four is what it takes for the eye to read a slope
-   * going away rather than a wall with a step in it, and past about six the
-   * bands are too close in weight to tell apart.
+   * going away rather than a wall with a step in it.
+   *
+   * The ceiling on it used to be six, and it moved with the water rather than
+   * with taste. The bands were drawn against a column that was one colour from
+   * top to bottom, so the fourth came out the same green as the third and there
+   * was nothing to be had by cutting a fifth. Light that runs out with depth
+   * gives each of them a different water to stand against, and seven of them
+   * are seven distances.
    */
-  property int ranges: 5
+  property int ranges: 7
 
   /**
    * How much of the wallpaper the water hides.
@@ -300,8 +306,47 @@ Item {
   /** How much darker a cut-out is than the shape it is cut from. */
   property real cutShade: 0.34
 
-  /** How far off the water's own colour the lit top of the column is. */
-  property real waterLid: 0.05
+  /**
+   * How far off the water's own colour the lit top of the column is, at noon.
+   *
+   * The one number that makes the water a volume rather than a backdrop. Every
+   * other weight in the scene is measured against `surface`, which is the water
+   * at the very bottom of the box, so a column that ran flat from top to bottom
+   * left every distance to be carried by the shapes alone: the far ground came
+   * out the same colour as the water it stood in, arithmetically the same, and
+   * the top half of the picture was one field of green with fish in it.
+   *
+   * Light from above is what a body of water has instead of a horizon. Put it
+   * back and the bottom of the box is deep because it is dark, and the hills at
+   * the back are hills because they are darker than the water behind them.
+   */
+  property real waterLid: 0.13
+
+  /**
+   * How much of that light is still about at midnight.
+   *
+   * Not none. A night sea is not a black rectangle: there is a moon on it for
+   * half the month and a sky behind that, and what reaches this far down is
+   * little rather than nothing. What it must not do is stay at the day's
+   * strength, because then the two hours look the same and the clock the whole
+   * sun is read off buys nothing anybody can see.
+   */
+  property real lidNight: 0.24
+
+  /**
+   * How fast the light runs out on the way down.
+   *
+   * Light in water falls off a curve and not a ramp, which is the difference
+   * between a sea and a printed gradient: the first fathom takes most of it and
+   * the rest is spent slowly. At 1 the column is a straight fade and the eye
+   * reads a wall that has been shaded; past about 3 the light is gone before it
+   * has left the surface and the box is flat again a few hundred px lower.
+   */
+  property real sinkage: 2.1
+
+  /** The lit top of the column at the hour it actually is. */
+  readonly property real lit:
+    root.waterLid * (root.lidNight + (1 - root.lidNight) * root.daylight)
 
   /** How dark the ground and the things rooted in it may be, at the front. */
   property real sandInk: 0.13
@@ -339,6 +384,22 @@ Item {
    * statement is made and the reason it reads at a glance.
    */
   property real crestInk: 0.24
+
+  /**
+   * What a cliff's own edge is worth, however far back it stands.
+   *
+   * A cliff is drawn where there is no light left to model it with: its fill
+   * goes to the haze with everything else, and a mass the colour of the water
+   * it is in is not a mountain, it is nothing. So its edge is held above the
+   * haze and the shape comes back as an outline, which is all a silhouette
+   * ever was.
+   *
+   * The ground bands are deliberately not given this. They are stacked a few
+   * dozen px apart across the whole width, and a line along the top of each is
+   * a contour map rather than a country: what tells two of them apart is that
+   * one is in front of the other, and that is a mass and not an edge.
+   */
+  property real hazeCrest: 0.11
 
   property real crestWidth: 1.5
 
@@ -561,16 +622,38 @@ Item {
    */
   function waterAt(y) {
     var t = height > 0 ? Math.max(0, Math.min(1, y / height)) : 0
-    var lid = tint(waterLid)
+    var glow = Math.pow(1 - t, sinkage)
+    var lid = tint(lit)
 
-    return Qt.rgba(lid.r + (surface.r - lid.r) * t,
-                   lid.g + (surface.g - lid.g) * t,
-                   lid.b + (surface.b - lid.b) * t,
+    return Qt.rgba(surface.r + (lid.r - surface.r) * glow,
+                   surface.g + (lid.g - surface.g) * glow,
+                   surface.b + (lid.b - surface.b) * glow,
                    1)
   }
 
-  /** A weight against the water at a height, rather than against the surface. */
-  function fume(y, weight) {
+  /** The water at a share of the way down the box, as the gradient wants it. */
+  function column(at) {
+    var hue = waterAt(at * height)
+    return Qt.rgba(hue.r, hue.g, hue.b, waterInk)
+  }
+
+  /**
+   * A weight against the water at a height, rather than against the surface.
+   *
+   * What anything in the water is drawn in, and it is a different question from
+   * what anything on the bottom is drawn in. `tint` measures against `surface`,
+   * which is the water at the very bottom of the box: fine for a hill, which is
+   * a mass the water is in front of, and wrong for a fish, which is in the
+   * water and has to stay a step off whatever the water is where it is
+   * swimming. With the column lit from above, a fish drawn by `tint` came out
+   * the exact colour of the water at one particular height and vanished as it
+   * swam through it.
+   *
+   * At the bottom of the box the two agree, because there the water is the
+   * surface colour. Everywhere above it this keeps the contrast the weight was
+   * asking for.
+   */
+  function afloat(y, weight) {
     var w = Math.max(0, Math.min(1, weight))
     var base = waterAt(y)
 
@@ -607,8 +690,9 @@ Item {
    * distance, because an animal that faded into the murk as far as the ground
    * does would be an animal the eye loses in the middle of a stroke.
    */
-  function farInk(full, depth) {
-    return hazeInk + (full - hazeInk) * Math.max(0, Math.min(1, depth))
+  function farInk(full, depth, floor) {
+    var low = floor === undefined ? hazeInk : floor
+    return low + (full - low) * Math.max(0, Math.min(1, depth))
   }
 
   /** A per-thousand-px-of-width density as a count this box can hold. */
@@ -1069,16 +1153,21 @@ Item {
     anchors.fill: parent
     z: -4
 
+    // A stop every eighth of the way down rather than one at each end. The
+    // column is a curve now, and a gradient with two stops on it is the chord
+    // of that curve: the same two ends, none of the falloff between them, and
+    // the light spread evenly down a box it is meant to run out of near the
+    // top. Eight is where the seams stop being findable.
     gradient: Gradient {
-      GradientStop {
-        position: 0
-        color: Qt.rgba(root.waterAt(0).r, root.waterAt(0).g, root.waterAt(0).b, root.waterInk)
-      }
-      GradientStop {
-        position: 1
-        color: Qt.rgba(root.waterAt(root.height).r, root.waterAt(root.height).g,
-                       root.waterAt(root.height).b, root.waterInk)
-      }
+      GradientStop { position: 0; color: root.column(0) }
+      GradientStop { position: 0.125; color: root.column(0.125) }
+      GradientStop { position: 0.25; color: root.column(0.25) }
+      GradientStop { position: 0.375; color: root.column(0.375) }
+      GradientStop { position: 0.5; color: root.column(0.5) }
+      GradientStop { position: 0.625; color: root.column(0.625) }
+      GradientStop { position: 0.75; color: root.column(0.75) }
+      GradientStop { position: 0.875; color: root.column(0.875) }
+      GradientStop { position: 1; color: root.column(1) }
     }
   }
 
@@ -1102,7 +1191,8 @@ Item {
 
       ShapePath {
         fillColor: root.tint(root.farInk(root.sandInk, wall.cliff ? wall.cliff.depth : 0))
-        strokeColor: root.tint(root.farInk(root.crestInk, wall.cliff ? wall.cliff.depth : 0))
+        strokeColor: root.tint(root.farInk(root.crestInk, wall.cliff ? wall.cliff.depth : 0,
+                                           root.hazeCrest))
         strokeWidth: root.crestWidth
 
         PathPolyline { path: wall.cliff ? wall.cliff.points : [] }
@@ -1279,6 +1369,18 @@ Item {
     }
   }
 
+  /**
+   * The two bodies above the water, in the order they are drawn.
+   *
+   * The sun first and the moon over it, which only matters at the two moments
+   * of the day when both are up and near each other, and then only because one
+   * of them has to be.
+   */
+  readonly property var bodies: [
+    { cratered: 0, hue: root.sunlight, passage: root.sun, show: root.daylight },
+    { cratered: 1, hue: root.moonlight, passage: root.moon, show: 1 - root.daylight },
+  ]
+
   // The disc above the water, and the light coming off it. Behind everything
   // that swims, because it is up there and they are down here.
   // The two bodies above the water, and the light off whichever is up.
@@ -1289,14 +1391,20 @@ Item {
   // picture on their own clocks, one fading as the other rises, which is what
   // the sky does.
   Repeater {
-    model: [
-      { hue: root.sunlight, cratered: 0, passage: root.sun, show: root.daylight },
-      { hue: root.moonlight, cratered: 1, passage: root.moon, show: 1 - root.daylight },
-    ]
+    // A count rather than the list itself, and the delegate reads the list by
+    // index, which is what every other Repeater here does. A Repeater handed a
+    // JS array throws away every delegate it owns and builds them again each
+    // time that array is rebuilt, and this one is rebuilt on the minute now
+    // that the sky is read off the wall clock. Two Shapes, a radial gradient
+    // and ten gradient stops, torn down and stood up again every sixty seconds
+    // to show a disc that has moved by a hair.
+    model: 2
 
     delegate: Item {
       id: sky
-      required property var modelData
+      required property int index
+
+      readonly property var modelData: root.bodies[index]
 
       // Not `x` and `y`: an Item already has both, as its own position, and
       // they are final. The same trap the light shafts hit with `top`.
@@ -1537,7 +1645,7 @@ Item {
       readonly property var mote: root.motes[index] || null
 
       antialiasing: true
-      color: root.tint(root.snowInk * (mote ? mote.depth : 0))
+      color: root.afloat(mote ? mote.y : 0, root.snowInk * (mote ? mote.depth : 0))
       height: mote ? mote.r * 2 : 0
       radius: height / 2
       visible: mote !== null
@@ -1588,7 +1696,7 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-          fillColor: root.tint(swimmer.weight)
+          fillColor: root.afloat(swimmer.fish ? swimmer.fish.y : 0, swimmer.weight)
           // A fish is three closed subpaths in one string: the body, the tail
           // swung off its joint, and the dorsal rooted inside the back. They
           // are meant to overlap, and a canvas fills them into one silhouette
@@ -1614,7 +1722,7 @@ Item {
       // ink of its own, which is why a fish reads as a cutout in the water
       // instead of a sticker on it.
       Rectangle {
-        color: root.shade(swimmer.weight)
+        color: root.afloat(swimmer.fish ? swimmer.fish.y : 0, swimmer.weight * root.cutShade)
         height: swimmer.frame ? swimmer.frame.eye.r * 2 : 0
         radius: height / 2
         visible: swimmer.frame !== null
@@ -1801,7 +1909,7 @@ Item {
       /** What is left of a puff's own body, over the last of its life. */
       readonly property real body: puff ? Math.min(1, (1 - puff.age) / root.plumeLetGo) : 0
 
-      readonly property color hue: root.fume(puff ? puff.y : 0,
+      readonly property color hue: root.afloat(puff ? puff.y : 0,
                                              root.plumeInk * (puff ? Math.sqrt(1 - puff.age) : 0))
 
       antialiasing: true
@@ -1872,7 +1980,7 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-          fillColor: root.tint(cuttle.weight)
+          fillColor: root.afloat(cuttle.one ? cuttle.one.y : 0, cuttle.weight)
           fillRule: ShapePath.WindingFill
           strokeColor: "transparent"
 
@@ -1892,7 +2000,7 @@ Item {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
-            strokeColor: root.tint(cuttle.weight)
+            strokeColor: root.afloat(cuttle.one ? cuttle.one.y : 0, cuttle.weight)
             strokeWidth: 0.035
 
             PathPolyline { path: cuttle.one ? cuttle.one.arms[tentacle.index] : [] }
@@ -1993,7 +2101,8 @@ Item {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
-            fillColor: root.tint(root.hullInk * (passer.one ? passer.one.weight : 0))
+            fillColor: root.afloat(passer.one ? passer.one.y : 0,
+                                   root.hullInk * (passer.one ? passer.one.weight : 0))
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.HULL }
@@ -2013,7 +2122,8 @@ Item {
           }
 
           ShapePath {
-            fillColor: root.tint(root.hullInk * (passer.one ? passer.one.weight : 0))
+            fillColor: root.afloat(passer.one ? passer.one.y : 0,
+                                   root.hullInk * (passer.one ? passer.one.weight : 0))
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SCREWS }
@@ -2039,7 +2149,8 @@ Item {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
-            fillColor: root.tint(root.hullInk * (passer.one ? passer.one.weight : 0))
+            fillColor: root.afloat(passer.one ? passer.one.y : 0,
+                                   root.hullInk * (passer.one ? passer.one.weight : 0))
             fillRule: ShapePath.WindingFill
             strokeColor: "transparent"
 
@@ -2047,7 +2158,8 @@ Item {
           }
 
           ShapePath {
-            fillColor: root.tint(root.hullInk * (passer.one ? passer.one.weight : 0))
+            fillColor: root.afloat(passer.one ? passer.one.y : 0,
+                                   root.hullInk * (passer.one ? passer.one.weight : 0))
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SUB_SCREW }

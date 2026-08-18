@@ -82,16 +82,25 @@ Item {
     root.today = Ornament.daySeed()
   }
 
-  // Five minutes, the same tick the site runs. Finer than the eye can follow
-  // the light change, and the whole tick is two dozen multiplications. It is
-  // also how long after midnight a new day's water is offered, which nobody
-  // can be awake enough to measure.
-  Timer {
-    interval: 5 * 60 * 1000
-    repeat: true
-    running: true
-    triggeredOnStart: true
-    onTriggered: root.readSun()
+  /**
+   * The clock the sky is read off, and it is the machine's own rather than a
+   * stopwatch of ours.
+   *
+   * This used to be a five-minute `Timer`, which was wrong in a way that only
+   * shows on a laptop. A `Timer` counts monotonic time, and monotonic time is
+   * the time this machine has been awake for: one that suspends at ten to three
+   * in the morning and is opened at ten comes back with most of that five
+   * minutes still to run, and until it runs out the sky is the sky it was shut
+   * on. A full moon over somebody's breakfast, and the water still washed for
+   * night under it.
+   *
+   * `SystemClock` is the wall clock, which is the thing a sun is actually a
+   * function of. It re-reads on the minute: finer than the light changes, and
+   * the longest the sky can be wrong for after a lid comes up.
+   */
+  SystemClock {
+    precision: SystemClock.Minutes
+    onDateChanged: root.readSun()
   }
 
 
@@ -245,7 +254,10 @@ Item {
     }
   }
 
-  Component.onCompleted: refreshBackground()
+  Component.onCompleted: {
+    root.readSun()
+    refreshBackground()
+  }
 
   Variants {
     model: Quickshell.screens
