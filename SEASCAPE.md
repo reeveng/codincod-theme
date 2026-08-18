@@ -107,9 +107,14 @@ finished frame. `Lens.qml`, and `lens.frag` beside it.
       afford. The white water off a hull is brighter still and gets none: it is a
       dozen puffs at once, each of which would want a gradient of its own, for a
       crossing that happens once a day.
-- [ ] **Depth of field**: the far wall soft, the near rock softer, the middle
-      sharp. Both of those groups stand still, so a blur of them is paid for once
-      rather than every frame, which is the only reason it is affordable here.
+- [x] **Depth of field**: the far wall soft, the near rock soft by how far
+      forward each mass of it stands, everything between them as sharp as it was.
+      Neither group moves, so each is rendered to a texture once and blurred once,
+      however long the sea is left on show; a blur of the fish would be that work
+      again on every frame, which is the whole reason those two and nothing else.
+      The near rock takes less of it than it wants to. It is nearly black on dark
+      water, so past about a quarter the blur does not defocus the branches on it,
+      it deletes them.
 - [ ] **Bokeh on the near snow**: a mote a hand from the glass is a soft disc
       rather than a hard dot, which is drawn defocus rather than filtered
       defocus, and the strongest depth cue in real footage of water.

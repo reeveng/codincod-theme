@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Shapes
 import "Ornament.js" as Ornament
 
@@ -265,6 +266,30 @@ Item {
    * own surface, the way the night wash is, is written there.
    */
   property real vignetteInk: 0.3
+
+  /**
+   * How far out of focus the two ends of the water are, 0 for a lens that holds
+   * all of it.
+   *
+   * A camera focused on something has to give up everything else, and this scene
+   * gave up nothing: the wall at the back of the murk and the rock at the edge of
+   * the frame were cut as sharply as the coral in the middle, which is the one
+   * thing a picture can do that an eye cannot. Two planes go soft and everything
+   * between them stays as it was, because those two are the only groups here that
+   * can be blurred at a price a wallpaper can pay.
+   *
+   * What makes them cheap is that neither moves. A blur is the frame rendered to
+   * a texture and worked over, and a texture of something that never changes is
+   * built once and then simply drawn, however long it stays on screen. Blurring
+   * the fish would be that same work again on every frame.
+   *
+   * The near rock is softer than the far wall, which is how a lens behaves: what
+   * is a hand from the glass is further outside the field than what is a long way
+   * behind the subject. Each mass of near rock takes its own share of it by how
+   * far forward it actually stands.
+   */
+  property real farBlur: 0.34
+  property real nearBlur: 0.24
 
   // ------------------------------------------------------------------- density
   //
@@ -1848,40 +1873,64 @@ Item {
   // to them and nothing collides with them: a silhouette at the back is the
   // cheapest statement that the sea carries on past the edge of the picture,
   // and without one the scene is a tank.
-  Repeater {
-    model: root.scarp.length
+  //
+  // Wrapped in one item so the whole wall can go out of focus together, which it
+  // may because it is the one group in this scene with a lane of z to itself: a
+  // cliff is at `-3.4` plus a distance that never reaches `0.2`, and the nearest
+  // thing above it is a hill at `-2.92`. Everything else here sorts by distance
+  // against everything else, and a group of those lifted out into a layer would
+  // be a hill drawn in front of the wreck standing behind it.
+  //
+  // The texture is half the size of the box on each side, which is a quarter of
+  // the memory and most of the way to the blur before the blur runs. Nothing in
+  // here moves, so all of it is paid for once.
+  Item {
+    anchors.fill: parent
+    z: -3.3
 
-    delegate: Shape {
-      id: wall
-      required property int index
+    layer.enabled: root.farBlur > 0
+    layer.textureSize: Qt.size(Math.max(1, root.width / 2), Math.max(1, root.height / 2))
+    layer.effect: MultiEffect {
+      blur: root.farBlur
+      blurEnabled: true
+      blurMax: 24
+    }
 
-      readonly property var cliff: root.scarp[index] || null
-      readonly property real weight: root.farInk(root.sandInk, cliff ? cliff.depth : 0)
+    Repeater {
+      model: root.scarp.length
 
-      anchors.fill: parent
-      preferredRendererType: Shape.CurveRenderer
-      visible: cliff !== null
-      z: cliff ? -3.4 + cliff.depth : -3.4
+      delegate: Shape {
+        id: wall
+        required property int index
 
-      ShapePath {
-        fillGradient: LinearGradient {
-          x1: 0
-          y1: 0
-          x2: 0
-          y2: root.height
+        readonly property var cliff: root.scarp[index] || null
+        readonly property real weight: root.farInk(root.sandInk, cliff ? cliff.depth : 0)
 
-          GradientStop { position: 0; color: root.ground(0, wall.weight) }
-          GradientStop { position: 0.35; color: root.ground(0.35, wall.weight) }
-          GradientStop { position: 0.5; color: root.ground(0.5, wall.weight) }
-          GradientStop { position: 0.62; color: root.ground(0.62, wall.weight) }
-          GradientStop { position: 0.72; color: root.ground(0.72, wall.weight) }
-          GradientStop { position: 0.82; color: root.ground(0.82, wall.weight) }
-          GradientStop { position: 0.91; color: root.ground(0.91, wall.weight) }
-          GradientStop { position: 1; color: root.ground(1, wall.weight) }
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
+        visible: cliff !== null
+        z: cliff ? -3.4 + cliff.depth : -3.4
+
+        ShapePath {
+          fillGradient: LinearGradient {
+            x1: 0
+            y1: 0
+            x2: 0
+            y2: root.height
+
+            GradientStop { position: 0; color: root.ground(0, wall.weight) }
+            GradientStop { position: 0.35; color: root.ground(0.35, wall.weight) }
+            GradientStop { position: 0.5; color: root.ground(0.5, wall.weight) }
+            GradientStop { position: 0.62; color: root.ground(0.62, wall.weight) }
+            GradientStop { position: 0.72; color: root.ground(0.72, wall.weight) }
+            GradientStop { position: 0.82; color: root.ground(0.82, wall.weight) }
+            GradientStop { position: 0.91; color: root.ground(0.91, wall.weight) }
+            GradientStop { position: 1; color: root.ground(1, wall.weight) }
+          }
+          strokeColor: "transparent"
+
+          PathPolyline { path: wall.cliff ? wall.cliff.points : [] }
         }
-        strokeColor: "transparent"
-
-        PathPolyline { path: wall.cliff ? wall.cliff.points : [] }
       }
     }
   }
@@ -3554,9 +3603,38 @@ Item {
       readonly property var one: root.masonry[index] || null
       readonly property real weight: one ? root.cragInk * one.depth : 0
 
+      /**
+       * How far outside the field this mass stands, 0 at the plane everything is
+       * cut sharp on and 1 pressed against the glass.
+       *
+       * Only the rock in front of the surface goes soft, which is the same test
+       * that decides whether it is drawn there at all: a mass further back than
+       * `cragNear` sorts into the water with the plants and the fish, and a plant
+       * standing beside a blurred rock at the same distance would be the picture
+       * admitting it had cheated.
+       */
+      readonly property real adrift: one && one.depth >= root.cragNear
+        ? (one.depth - root.cragNear) / Math.max(0.01, 1 - root.cragNear)
+        : 0
+
       anchors.fill: parent
       visible: one !== null
       z: one ? (one.depth >= root.cragNear ? one.depth + 0.5 : one.depth) : 0
+
+      // Softer than the far wall, and each mass by how far forward it stands. A
+      // lens gives up what is a hand from the glass long before it gives up what
+      // is a long way behind the subject, and this rock is the hand.
+      //
+      // Rock does not move, so the texture is drawn once and the blur run over it
+      // once, however long the sea is left on show. It is the whole reason a
+      // wallpaper can have any of this.
+      layer.enabled: crag.adrift > 0 && root.nearBlur > 0
+      layer.textureSize: Qt.size(Math.max(1, root.width / 2), Math.max(1, root.height / 2))
+      layer.effect: MultiEffect {
+        blur: root.nearBlur * crag.adrift
+        blurEnabled: true
+        blurMax: 48
+      }
 
       Shape {
         anchors.fill: parent
