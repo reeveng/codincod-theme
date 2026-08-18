@@ -183,18 +183,24 @@ that is upside down and a wreck that is working look identical.
 
 ```bash
 # One still of the whole scene, offscreen, without taking over a desktop.
-QT_ASSUME_STDERR_HAS_CONSOLE=1 QT_QPA_PLATFORM=offscreen \
-  qml6 preview.qml -- seed=28 daylight=0 dusk=0 settle=40 out=sea.png
+./look.sh preview.qml seed=28 daylight=0 dusk=0 settle=40 out=sea.png
 
 # Every silhouette, large and alone, on a sheet. This is the one that finds
 # drawing bugs.
-QT_ASSUME_STDERR_HAS_CONSOLE=1 QT_QPA_PLATFORM=offscreen qml6 shapes.qml
+./look.sh shapes.qml
 
-# A clip. The scene's own timer is off and the water is stepped by hand, so the
-# rate is the one asked for however long each grab takes.
-QT_QPA_PLATFORM=offscreen qml6 record.qml -- \
-  out=/tmp/frames frames=240 fps=20 width=1280 height=800 settle=90
+# A clip, as frames. The scene's own timer is off and the water is stepped by
+# hand, so the rate is the one asked for however long each grab takes.
+./look.sh record.qml out=/tmp/frames frames=240 fps=20 width=1280 height=800
+
+# A clip, as a gif. The same frames, scaled down and through one palette.
+./gif.sh seed=28 seconds=8 wide=600 out=sea.gif
 ```
+
+Through `look.sh` rather than `qml6`, and that is not tidiness: the offscreen
+platform on its own loads Qt's software scene graph, which paints with QPainter
+and ignores `preferredRendererType`, so every sheet would answer for a renderer
+the desktop never runs.
 
 `seed` picks which water: most of what lies on the floor is placed by a roll of
 the dice, so the only way to see the rare things is to ask for a sea that has

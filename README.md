@@ -34,7 +34,7 @@ website and were placed on the same ladder to match.
 
 ## The sea
 
-![The sea, twelve seconds of it](seascape.gif)
+![The sea, eight seconds of it](seascape.gif)
 
 `seascape/` is an Omarchy shell plugin that replaces the desktop background
 with water: a shoal working through it, marine snow falling, bubbles coming off
@@ -132,7 +132,20 @@ cd seascape && ./look.sh record.qml \
 and on its own, which is the only way to tell a drawing that is wrong from a
 drawing that is merely small.
 
-All three go through `look.sh` rather than `qml6`, and that is not a
+`gif.sh` is those frames and ffmpeg, and it is what the clip at the top of this
+page comes out of:
+
+```bash
+cd seascape && ./gif.sh                        # sea.gif, eight seconds of it
+cd seascape && ./gif.sh seed=42 daylight=0 march=0.2 wide=900 out=night.gif
+```
+
+It records larger than it writes and scales down, which is the only
+antialiasing the curve renderer has, and it takes the film and the camera's
+wander off first: both change every pixel in the picture every frame, and a gif
+stores what changed. The script says what that is worth in the file.
+
+All the sheets go through `look.sh` rather than `qml6`, and that is not a
 convenience. `QT_QPA_PLATFORM=offscreen` by itself loads Qt's software scene
 graph, which paints with QPainter and ignores `preferredRendererType`
 altogether, so the harness would answer every question about a renderer the
