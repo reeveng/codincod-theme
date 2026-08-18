@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.m0QKy2kBQ7/entry.ts
+  // ../../../../../../tmp/tmp.a3KRv6XHoD/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -1769,13 +1769,14 @@ var __ornament = (() => {
   var CLIFF_RISE_SPAN = 0.16;
   var CLIFF_SPAN_LEAST = 0.12;
   var CLIFF_SPAN_SPAN = 0.26;
-  var CLIFF_STEPS = 14;
+  var CLIFF_STEPS = 150;
   var CLIFF_DEEP = 0.05;
   var CLIFF_NEAR = 0.16;
+  var CLIFF_RANGES = 3;
   var MIN_SPAN7 = 1;
   var mix = (far, near, at) => far + (near - far) * at;
   function createSeabed(options) {
-    var _a, _b, _c;
+    var _a, _b;
     const swell = makeNoise2(options.seed ^ 24235);
     const lumps = makeNoise2(options.seed ^ 4293);
     const random = makeRandom(options.seed ^ 11534);
@@ -1807,20 +1808,27 @@ var __ornament = (() => {
       }
       return bands;
     }
-    function raise() {
-      const middle = random() * width;
-      const span = width * (CLIFF_SPAN_LEAST + random() * CLIFF_SPAN_SPAN);
-      const rise = height * (CLIFF_RISE_LEAST + random() * CLIFF_RISE_SPAN);
-      const rough = makeNoise2(random() * 65535 | 0);
-      const depth = CLIFF_DEEP + random() * (CLIFF_NEAR - CLIFF_DEEP);
-      const foot = floorAt(middle, depth);
+    function raise(depth, peaks) {
+      const domes = Array.from({ length: Math.max(1, peaks) }, () => {
+        const bulk = random();
+        return {
+          middle: random() * width,
+          rise: height * (CLIFF_RISE_LEAST + bulk * CLIFF_RISE_SPAN),
+          rough: makeNoise2(random() * 65535 | 0),
+          span: width * (CLIFF_SPAN_LEAST + bulk * CLIFF_SPAN_SPAN)
+        };
+      });
       const ridge2 = [];
       for (let at = 0; at <= CLIFF_STEPS; at++) {
-        const t = at / CLIFF_STEPS;
-        const x = middle - span / 2 + t * span;
-        const dome = (1 - Math.cos(t * Math.PI * 2)) / 2;
-        const broken = 1 + rough(t * 3.1, 0) * 0.34;
-        ridge2.push({ x, y: foot - rise * dome * broken });
+        const x = -OVERHANG + at / CLIFF_STEPS * (width + OVERHANG * 2);
+        let lift = 0;
+        for (const dome of domes) {
+          const t = (x - (dome.middle - dome.span / 2)) / dome.span;
+          if (t <= 0 || t >= 1) continue;
+          const swell2 = (1 - Math.cos(t * Math.PI * 2)) / 2;
+          lift = Math.max(lift, dome.rise * swell2 * (1 + dome.rough(t * 3.1, 0) * 0.34));
+        }
+        ridge2.push({ x, y: floorAt(x, depth) - lift });
       }
       return { depth, ridge: ridge2 };
     }
@@ -1840,8 +1848,18 @@ var __ornament = (() => {
     }
     let ridge = cutRidge(1);
     let ranges = cutRanges(Math.max(0, (_a = options.ranges) != null ? _a : 0));
-    let cliffs = Array.from({ length: Math.max(0, (_b = options.cliffs) != null ? _b : 0) }, raise);
-    let stones = Array.from({ length: Math.max(0, (_c = options.stones) != null ? _c : 0) }, settle);
+    function skylines() {
+      var _a2;
+      const summits = Math.max(0, (_a2 = options.cliffs) != null ? _a2 : 0);
+      if (summits === 0) return [];
+      return Array.from({ length: CLIFF_RANGES }, (_, at) => {
+        const step = CLIFF_RANGES > 1 ? at / (CLIFF_RANGES - 1) : 0;
+        const share = Math.round(summits * (at + 1) / CLIFF_RANGES) - Math.round(summits * at / CLIFF_RANGES);
+        return raise(CLIFF_DEEP + step * (CLIFF_NEAR - CLIFF_DEEP), share);
+      });
+    }
+    let cliffs = skylines();
+    let stones = Array.from({ length: Math.max(0, (_b = options.stones) != null ? _b : 0) }, settle);
     return {
       get cliffs() {
         return cliffs;
@@ -1863,7 +1881,7 @@ var __ornament = (() => {
         height = Math.max(MIN_SPAN7, nextHeight);
         ridge = cutRidge(1);
         ranges = cutRanges(ranges.length);
-        cliffs = cliffs.map(raise);
+        cliffs = skylines();
         stones = stones.map(settle);
       },
       get ridge() {
