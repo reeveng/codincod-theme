@@ -30,6 +30,7 @@ trap 'rm -rf "$entry"' EXIT
 # this, because keeping two hand-written lists in step is a job nobody does
 # until something is quietly missing from the scene.
 WANTED=(
+  "biome abreast createBiome"
   "cephalopods OCTOPUS_HEAD createCephalopods octopusArms octopusHead squidArms squidBody"
   "crags SPRIGS createCrags"
   "drift createDrift"

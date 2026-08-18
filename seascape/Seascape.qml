@@ -613,6 +613,22 @@ Item {
   property var visitors: null
   property var flock: null
 
+  /**
+   * The water itself: the place everything is in, and the register of what is
+   * in it.
+   *
+   * Not a conductor. Nothing here decides that a crab should freeze or that a
+   * crown should shut; it says what is in this water and how big and how
+   * frightening each of them looks, and every plant, crab and clownfish reads
+   * it and makes its own mind up. That is why a starfish ignores the lot and an
+   * anemone answers only what is nearly on top of it, without either of them
+   * having been told anything.
+   *
+   * What it costs to add an animal to this scene is that the animal enters the
+   * water. Nothing else changes anywhere.
+   */
+  property var water: null
+
   property int herd: 0
   property int flurry: 0
   property int beams: 0
@@ -907,6 +923,8 @@ Item {
     flurry = moteCount()
     beams = shafts
 
+    water = Ornament.createBiome()
+
     seabed = Ornament.createSeabed({
       cliffs: spread(cliffsPerK, mostCliffs),
       height: height,
@@ -917,7 +935,7 @@ Item {
     })
 
     flora = Ornament.createFlora({
-      about: about,
+      about: water.about,
       anemones: spread(anemonesPerK, mostAnemones),
       corals: spread(coralsPerK, mostCorals),
       fans: spread(fansPerK, mostFans),
@@ -930,7 +948,7 @@ Item {
     })
 
     walkers = Ornament.createWalkers({
-      about: about,
+      about: water.about,
       crabs: spread(crabsPerK, mostCrabs),
       floor: seabed.floorAt,
       seed: seed,
@@ -958,6 +976,32 @@ Item {
       width: width,
     })
 
+    // The cephalopods, entered from out here rather than from inside their own
+    // file. Everything else in this water puts itself in; these do not, because
+    // `cephalopods.ts` is in the middle of somebody else's change and a scene
+    // is a worse place to be waiting than a comment is.
+    //
+    // An octopus is measured across its arms rather than its head, which is
+    // twice the size it is drawn at and is the honest number: what a crab sees
+    // coming over a stone is the reach, and the head is the least of it.
+    water.enter(function () {
+      var seen = []
+
+      for (var o = 0; o < inklings.octopuses.length; o++) {
+        var pus = inklings.octopuses[o]
+        if (pus.lift > 0) {
+          seen.push({ depth: pus.depth, menace: 0.55, size: pus.size * 2, x: pus.x, y: pus.y })
+        }
+      }
+
+      for (var q = 0; q < inklings.squids.length; q++) {
+        var squid = inklings.squids[q]
+        seen.push({ depth: squid.depth, menace: 0.3, size: squid.size, x: squid.x, y: squid.y })
+      }
+
+      return seen
+    })
+
     wreckage = Ornament.createRelics({
       floor: seabed.floorAt,
       height: height,
@@ -977,6 +1021,7 @@ Item {
       height: height,
       kinds: visitorKinds || undefined,
       seed: seed,
+      water: water,
       width: width,
     })
 
@@ -985,6 +1030,7 @@ Item {
       eager: rushed,
       height: height,
       seed: seed,
+      water: water,
       width: width,
     })
 
@@ -1472,71 +1518,6 @@ Item {
       churning.push({ age: puff.age, r: puff.r, x: puff.x, y: puff.y })
     }
     churn = churning
-  }
-
-  /**
-   * What is in this water, big enough to be worth noticing, as `{size, x, y}`.
-   *
-   * Handed to the plants, the walkers and the clownfish at the moment they are
-   * built, and read by each of them once a step. It is a register rather than
-   * an order: nothing here decides that a crab should freeze or that a crown
-   * should shut. It says what is in the water, and every one of them makes its
-   * own mind up about what is worth minding and from how far off, which is why
-   * a starfish ignores all of it and an anemone answers only what is nearly on
-   * top of it.
-   *
-   * That is the whole of the arrangement. Nothing is dispatched, so adding an
-   * animal to this scene needs no change anywhere else: it turns up in here and
-   * whoever cares about it already knows what to do.
-   *
-   * `size` is the drawn width in px, which is as much of anything as a crab can
-   * make out. What decides a reach is how big a thing looks, and a shark on the
-   * far side of the water looks small.
-   */
-  function about() {
-    var seen = []
-
-    // The bed is built before the water is, so this can be asked before there
-    // is anything to ask about. An empty water is the right answer then: it is
-    // what everything reading this does when it is handed nothing.
-    if (!visitors || !inklings || !flock) return seen
-
-    for (var v = 0; v < visitors.crossing.length; v++) {
-      var guest = visitors.crossing[v]
-      if (guest.weight > 0.05) seen.push({ size: guest.size, x: guest.x, y: guest.y })
-    }
-
-    for (var o = 0; o < inklings.octopuses.length; o++) {
-      var pus = inklings.octopuses[o]
-      seen.push({ size: pus.size * 2, x: pus.x, y: pus.y })
-    }
-
-    for (var q = 0; q < inklings.squids.length; q++) {
-      var squid = inklings.squids[q]
-      seen.push({ size: squid.size, x: squid.x, y: squid.y })
-    }
-
-    // The flock as one thing rather than as several hundred. A bait ball going
-    // over is a shadow the width of the whole ball; passed a fish at a time it
-    // would be hundreds of animals none of which is bigger than a crab.
-    if (flock.weight > 0.05 && flock.specks.length > 0) {
-      var lx = flock.specks[0].x
-      var rx = lx
-      var ty = flock.specks[0].y
-      var by = ty
-
-      for (var f = 1; f < flock.specks.length; f++) {
-        var one = flock.specks[f]
-        if (one.x < lx) lx = one.x
-        if (one.x > rx) rx = one.x
-        if (one.y < ty) ty = one.y
-        if (one.y > by) by = one.y
-      }
-
-      seen.push({ size: rx - lx, x: (lx + rx) / 2, y: (ty + by) / 2 })
-    }
-
-    return seen
   }
 
   /**
