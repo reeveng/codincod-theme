@@ -201,3 +201,33 @@ the dice, so the only way to see the rare things is to ask for a sea that has
 one.
 `settle` winds the scene on before the grab, and it is the only way to catch a
 boat.
+
+## What it costs
+
+```bash
+# Where a frame goes, at a desktop's size, on the renderer the desktop uses.
+./bench.sh frames=120 width=2560 height=1440
+
+# The same water with a layer left out, which is the only way to price one.
+./bench.sh zero=specks
+
+# The same water before anything was allowed to hold a drawing.
+./bench.sh tolerance=0
+```
+
+A frame is the JavaScript and the scene graph added together, and `bench.sh`
+reports both halves and the rate they allow. The JavaScript is one `advance` and
+one `publish`; the scene graph is Qt's own polish, sync, render and swap, which
+it reports when asked in the environment and which no amount of moving work out
+of `publish` can hide.
+
+Two things about the numbers. They are medians, because a machine being worked on
+has a browser and an indexer on it and one stalled frame is worth a third of a
+mean. And the water is `rushed`, which is the harness setting that forces the
+rare things, so what is measured is a sea with a flock crossing it and a boat
+overhead rather than the quiet one most seconds hold.
+
+`render` is not the cost of drawing the scene. A still frame of it draws in about
+a millisecond. It is the cost of rebuilding and uploading the geometry of every
+`Shape` that changed, which is why the whole of the work here is about how few of
+them change.
