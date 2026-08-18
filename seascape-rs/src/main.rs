@@ -39,12 +39,13 @@ fn main() {
     sim.call("wind", &[settle]);
 
     let mut geo: VertexBuffers<paint::Vertex, u32> = VertexBuffers::new();
+    let mut bed = bed::Bed::default();
     let t0 = std::time::Instant::now();
     let floats = sim.call("publish", &[]) as usize;
     let published = t0.elapsed();
 
     let t1 = std::time::Instant::now();
-    bed::Frame::new(sim.frame(floats)).tessellate(&mut geo);
+    bed.take(sim.frame(floats), &mut geo);
     let cut = t1.elapsed();
 
     let paint = paint::Paint::new(width, height);
@@ -67,7 +68,7 @@ fn main() {
         for _ in 0..20 {
             sim.call("step", &[0.033]);
             let floats = sim.call("publish", &[]) as usize;
-            bed::Frame::new(sim.frame(floats)).tessellate(&mut geo);
+            bed.take(sim.frame(floats), &mut geo);
             paint.draw(&geo.vertices, &geo.indices);
         }
         for _ in 0..laps {
@@ -76,7 +77,7 @@ fn main() {
             let b = std::time::Instant::now();
             let floats = sim.call("publish", &[]) as usize;
             let c = std::time::Instant::now();
-            bed::Frame::new(sim.frame(floats)).tessellate(&mut geo);
+            bed.take(sim.frame(floats), &mut geo);
             let d = std::time::Instant::now();
             paint.draw(&geo.vertices, &geo.indices);
             let e = std::time::Instant::now();

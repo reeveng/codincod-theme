@@ -1341,6 +1341,7 @@ var Sea = (() => {
   }
   function build(width, height, seed, tolerance) {
     box = { height, width };
+    handed.length = 0;
     seabed = createSeabed({
       cliffs: spread(PER_K.cliffs, MOST.cliffs, width),
       height,
@@ -1387,7 +1388,8 @@ var Sea = (() => {
       put(points[i].y);
     }
   }
-  function putPlant(plant) {
+  var handed = [];
+  function putPlant(plant, at2) {
     put(KINDS2[plant.kind] ?? 0);
     put(plant.depth);
     put(plant.girth);
@@ -1395,6 +1397,12 @@ var Sea = (() => {
     put(plant.x);
     put(plant.y);
     put(plant.cut);
+    if (handed[at2] === plant.cut) {
+      put(0);
+      return;
+    }
+    handed[at2] = plant.cut;
+    put(1);
     putPoints(plant.points);
     put(plant.blades.length);
     for (let b = 0; b < plant.blades.length; b++) putPoints(plant.blades[b]);
@@ -1410,7 +1418,7 @@ var Sea = (() => {
   function publish() {
     at = 0;
     if (!flora || !seabed) return 0;
-    put(1);
+    put(2);
     put(box.width);
     put(box.height);
     const groundAt = at;
@@ -1440,7 +1448,7 @@ var Sea = (() => {
       putPoints(cliff.ridge);
       ground++;
     }
-    for (const plant of flora.plants) putPlant(plant);
+    for (let p = 0; p < flora.plants.length; p++) putPlant(flora.plants[p], p);
     geometry[groundAt] = ground;
     geometry[plantAt] = flora.plants.length;
     return at;

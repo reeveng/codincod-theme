@@ -80,6 +80,7 @@ function spread(perThousand: number, most: number, width: number): number {
 
 export function build(width: number, height: number, seed: number, tolerance: number): void {
   box = { height, width }
+  handed.length = 0
 
   seabed = createSeabed({
     cliffs: spread(PER_K.cliffs, MOST.cliffs, width),
@@ -135,7 +136,11 @@ function putPoints(points: readonly { x: number; y: number }[]): void {
   }
 }
 
-function putPlant(plant: Plant): void {
+/** What each plant was last handed over at, so a still one is not handed over
+ *  again. A plant says when it has recut itself and nothing else changes. */
+const handed: number[] = []
+
+function putPlant(plant: Plant, at: number): void {
   put(KINDS[plant.kind] ?? 0)
   put(plant.depth)
   put(plant.girth)
@@ -143,6 +148,14 @@ function putPlant(plant: Plant): void {
   put(plant.x)
   put(plant.y)
   put(plant.cut)
+
+  if (handed[at] === plant.cut) {
+    put(0)
+    return
+  }
+  handed[at] = plant.cut
+  put(1)
+
   putPoints(plant.points)
   put(plant.blades.length)
   for (let b = 0; b < plant.blades.length; b++) putPoints(plant.blades[b])
@@ -163,14 +176,16 @@ function putPlant(plant: Plant): void {
  * ```
  * version width height groundCount plantCount
  * ground: kind depth n (x y)*n
- * plant:  kind depth girth scale x y cut  n (x y)*n  blades (n (x y)*n)*blades
+ * plant:  kind depth girth scale x y cut cut-again
+ *         and, only where it has cut again since it was last handed over,
+ *         n (x y)*n  blades (n (x y)*n)*blades  twigs (width n n*n)*twigs
  * ```
  */
 export function publish(): number {
   at = 0
   if (!flora || !seabed) return 0
 
-  put(1)
+  put(2)
   put(box.width)
   put(box.height)
 
@@ -206,7 +221,7 @@ export function publish(): number {
     ground++
   }
 
-  for (const plant of flora.plants) putPlant(plant)
+  for (let p = 0; p < flora.plants.length; p++) putPlant(flora.plants[p], p)
 
   geometry[groundAt] = ground
   geometry[plantAt] = flora.plants.length
