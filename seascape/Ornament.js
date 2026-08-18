@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.87j0NGe3hH/entry.ts
+  // ../../../../../../tmp/tmp.FEYCzcGH5J/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -2294,7 +2294,7 @@ var __ornament = (() => {
       const queue = Math.max(RANK_LEAST, 1 - rank * RANK_STEP);
       const length = host.span * BODY * queue * (1 - BODY_SPAN / 2 + random() * BODY_SPAN);
       const x = host.x + (random() - 0.5) * host.span;
-      const y = host.y - CLEAR * length;
+      const y = Math.min(host.y, reef.surfaceAt(x, host.depth)) - CLEAR * length;
       return {
         aim: { x, y },
         beat: random() * Math.PI * 2,
@@ -2942,7 +2942,6 @@ var __ornament = (() => {
   var COLUMN = 16;
   var GIRTH = 0.15;
   var CROWN_RATE = 1.1;
-  var DEPTH_SIZE4 = 0.4;
   var SWELL_RATE = 0.55;
   var SWELL_CELLS = 1.8;
   var SWELL_SHARE = 0.6;
@@ -2993,7 +2992,7 @@ var __ornament = (() => {
         const face = sort.cling * perch;
         const stand = depth + face * (1 - depth) * roll();
         const grown = sort.size[0] + roll() * (sort.size[1] - sort.size[0]);
-        const scale = grown * rise * GROWTH * shrink(stand);
+        const scale = grown * rise * GROWTH * stand;
         const span = sort.width * scale;
         const y = surfaceAt(x, stand);
         if (!room(x, y, span * sort.room)) continue;
@@ -3027,7 +3026,6 @@ var __ornament = (() => {
       }
       return true;
     }
-    const shrink = (stand) => 1 - DEPTH_SIZE4 + DEPTH_SIZE4 * stand;
     function raise() {
       var _a, _b;
       const roll = makeRandom(options.seed ^ 37295);
@@ -3145,7 +3143,7 @@ var __ornament = (() => {
   };
   var DEPTH_FAR6 = 0.35;
   var DEPTH_NEAR6 = 0.85;
-  var DEPTH_SIZE5 = 0.45;
+  var DEPTH_SIZE4 = 0.45;
   var PUFF_GAP = 0.13;
   var PUFF_SLOWEST = 0.72;
   var PUFF_FASTEST = 1.28;
@@ -3181,7 +3179,7 @@ var __ornament = (() => {
           depth,
           kind,
           lean: (roll() - 0.5) * LEAN2[kind] * 2,
-          scale: (least + roll() * (most - least)) * (1 - DEPTH_SIZE5 + DEPTH_SIZE5 * depth),
+          scale: (least + roll() * (most - least)) * (1 - DEPTH_SIZE4 + DEPTH_SIZE4 * depth),
           x,
           y: floor(x)
         });
@@ -3537,7 +3535,7 @@ var __ornament = (() => {
   var OPENING = 0.4;
   var DEEP_LEAST = 0.3;
   var DEEP_SPAN = 0.5;
-  var DEPTH_SIZE6 = 0.7;
+  var DEPTH_SIZE5 = 0.7;
   var SHORTEST2 = 3.4;
   var LONGEST2 = 7.5;
   var FIDGET = 0.055;
@@ -3679,7 +3677,7 @@ var __ornament = (() => {
           one.tilt += turn * Math.min(1, TILT_EASE * dt);
         }
         one.depth = Math.max(0.05, Math.min(1, deep + w * thick));
-        one.size = home.long * (1 - DEPTH_SIZE6 + DEPTH_SIZE6 * one.depth);
+        one.size = home.long * (1 - DEPTH_SIZE5 + DEPTH_SIZE5 * one.depth);
         one.x = nextX;
         one.y = nextY;
       }
@@ -3806,7 +3804,7 @@ var __ornament = (() => {
   var WING_SIDE = 0.6;
   var WING_SHRINK = 0.1;
   var WING_PHASE = 0.17;
-  var DEPTH_SIZE7 = 0.55;
+  var DEPTH_SIZE6 = 0.55;
   var FELT_REACH = 1.9;
   var FELT = 0.34;
   var MIN_SPAN11 = 1;
@@ -3865,7 +3863,7 @@ var __ornament = (() => {
           facing,
           kind,
           lift: side * out * WING_SIDE * size,
-          size: size * (1 - made * WING_SHRINK) * (1 - DEPTH_SIZE7 + DEPTH_SIZE7 * depth),
+          size: size * (1 - made * WING_SHRINK) * (1 - DEPTH_SIZE6 + DEPTH_SIZE6 * depth),
           stroke: (random() + made * WING_PHASE) % 1,
           tilt: 0,
           weight: 0,
@@ -4180,7 +4178,7 @@ var __ornament = (() => {
   var CRAB_LARGEST = 17;
   var STARFISH_SMALLEST = 15;
   var STARFISH_LARGEST = 31;
-  var DEPTH_SIZE8 = 0.55;
+  var DEPTH_SIZE7 = 0.55;
   var DEPTH_FAR7 = 0.12;
   var DEPTH_NEAR7 = 1;
   var STAR_BACK = 1.7;
@@ -4292,7 +4290,7 @@ var __ornament = (() => {
       const back = crab ? random() : random() ** STAR_BACK;
       const depth = DEPTH_FAR7 + back * (DEPTH_NEAR7 - DEPTH_FAR7);
       const span = crab ? CRAB_SMALLEST + random() * (CRAB_LARGEST - CRAB_SMALLEST) : STARFISH_SMALLEST + random() * (STARFISH_LARGEST - STARFISH_SMALLEST);
-      const size = span * (1 - DEPTH_SIZE8 + DEPTH_SIZE8 * depth);
+      const size = span * (1 - DEPTH_SIZE7 + DEPTH_SIZE7 * depth);
       const x = random() * width;
       const odd = [];
       const arms = [];
