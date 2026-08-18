@@ -8,6 +8,16 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
+/// A buffer with room to spare, so a frame that grows does not want a new one.
+fn room(device: &wgpu::Device, bytes: usize, usage: wgpu::BufferUsages) -> wgpu::Buffer {
+    device.create_buffer(&wgpu::BufferDescriptor {
+        label: None,
+        size: bytes as u64,
+        usage: usage | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    })
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Vertex {
@@ -80,6 +90,10 @@ pub struct Paint {
     pipeline: wgpu::RenderPipeline,
     bind: wgpu::BindGroup,
     uniforms: wgpu::Buffer,
+    /// Held rather than made every frame: a buffer a frame long is an
+    /// allocation a frame long, and the bed is much the same size every time.
+    vertices: std::cell::RefCell<wgpu::Buffer>,
+    indices: std::cell::RefCell<wgpu::Buffer>,
     msaa: wgpu::TextureView,
     target: wgpu::Texture,
     view: wgpu::TextureView,
@@ -205,7 +219,23 @@ impl Paint {
         });
         let view = target.create_view(&Default::default());
 
-        Paint { device, queue, pipeline, bind, uniforms, msaa, target, view, width, height }
+        let vertices = std::cell::RefCell::new(room(&device, 1 << 20, wgpu::BufferUsages::VERTEX));
+        let indices = std::cell::RefCell::new(room(&device, 1 << 20, wgpu::BufferUsages::INDEX));
+
+        Paint {
+            device,
+            queue,
+            pipeline,
+            bind,
+            uniforms,
+            vertices,
+            indices,
+            msaa,
+            target,
+            view,
+            width,
+            height,
+        }
     }
 
     /// The water's own colours, which are the theme's rather than this file's.
@@ -224,20 +254,18 @@ impl Paint {
     }
 
     pub fn draw(&self, vertices: &[Vertex], indices: &[u32]) {
-        let vbuf = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-        let ibuf = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
+        let mut vbuf = self.vertices.borrow_mut();
+        let mut ibuf = self.indices.borrow_mut();
+        let want = bytemuck::cast_slice::<Vertex, u8>(vertices);
+        if (vbuf.size() as usize) < want.len() {
+            *vbuf = room(&self.device, want.len() * 2, wgpu::BufferUsages::VERTEX);
+        }
+        let holds = bytemuck::cast_slice::<u32, u8>(indices);
+        if (ibuf.size() as usize) < holds.len() {
+            *ibuf = room(&self.device, holds.len() * 2, wgpu::BufferUsages::INDEX);
+        }
+        self.queue.write_buffer(&vbuf, 0, want);
+        self.queue.write_buffer(&ibuf, 0, holds);
 
         let mut enc = self.device.create_command_encoder(&Default::default());
         {

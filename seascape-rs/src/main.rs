@@ -56,6 +56,48 @@ fn main() {
     paint.draw(&geo.vertices, &geo.indices);
     let drawn = t2.elapsed();
 
+    // What a frame costs once the scene is standing, which is the number this
+    // whole exercise is about. The still above is one frame; these are the rest.
+    let laps: usize = arg("frames", "0").parse().unwrap();
+    if laps > 0 {
+        let mut stepped = 0.0;
+        let mut published = 0.0;
+        let mut cut = 0.0;
+        let mut drawn = 0.0;
+        for _ in 0..20 {
+            sim.call("step", &[0.033]);
+            let floats = sim.call("publish", &[]) as usize;
+            bed::Frame::new(sim.frame(floats)).tessellate(&mut geo);
+            paint.draw(&geo.vertices, &geo.indices);
+        }
+        for _ in 0..laps {
+            let a = std::time::Instant::now();
+            sim.call("step", &[0.033]);
+            let b = std::time::Instant::now();
+            let floats = sim.call("publish", &[]) as usize;
+            let c = std::time::Instant::now();
+            bed::Frame::new(sim.frame(floats)).tessellate(&mut geo);
+            let d = std::time::Instant::now();
+            paint.draw(&geo.vertices, &geo.indices);
+            let e = std::time::Instant::now();
+            stepped += (b - a).as_secs_f64();
+            published += (c - b).as_secs_f64();
+            cut += (d - c).as_secs_f64();
+            drawn += (e - d).as_secs_f64();
+        }
+        let each = 1000.0 / laps as f64;
+        let frame = (stepped + published + cut + drawn) * each;
+        println!(
+            "a frame: step {:.2}ms  publish {:.2}ms  cut {:.2}ms  draw {:.2}ms  = {:.2}ms, {:.0} a second",
+            stepped * each,
+            published * each,
+            cut * each,
+            drawn * each,
+            frame,
+            1000.0 / frame,
+        );
+    }
+
     let pixels = paint.read();
     let file = std::fs::File::create(&out).expect("cannot write the still");
     let mut png = png::Encoder::new(std::io::BufWriter::new(file), width, height);
