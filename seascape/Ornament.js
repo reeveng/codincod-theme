@@ -1759,6 +1759,8 @@ var __ornament = (() => {
   var KELP_SPAN = 0.3;
   var GRASS_LEAST = 0.05;
   var GRASS_SPAN = 0.085;
+  var TUFT_CROWDED = 46;
+  var TUFT_FEWEST = 2;
   var TUFT_LEAST = 3;
   var TUFT_MOST = 7;
   var TUFT_SPLAY = 0.34;
@@ -1818,7 +1820,18 @@ var __ornament = (() => {
     trail: 0.2
   };
   var WEEDS = [FRILL, FRILL, LETTUCE, STRAP, WRACK];
+  var LEAF_CROWDED = 210;
+  var LEAF_FEWEST = 3;
   var BLADE_STEPS = 5;
+  var STEP_SPAN = 8;
+  var FEWEST_STEPS = 2;
+  function cuts(most, drawn2) {
+    return Math.max(FEWEST_STEPS, Math.min(most, Math.round(drawn2 / STEP_SPAN)));
+  }
+  function crowded(most, fewest, drawn2, roomy) {
+    const room = Math.min(1, Math.max(0, drawn2 / roomy));
+    return Math.max(Math.min(most, fewest), Math.round(most * room));
+  }
   var FORK_REACH = 0.58;
   var FORK_SPLAY = 0.5;
   var CORAL_SMALLEST = 0.9;
@@ -1852,6 +1865,9 @@ var __ornament = (() => {
   var RIB_GIVE = 0.5;
   var RIB_LEAST = 6;
   var RIB_MOST = 10;
+  var RIB_CROWDED = 44;
+  var RIB_FEWEST = 3;
+  var RIB_TWIGGED = 14;
   var RIB_OPEN = 1.25;
   var RIB_SEAT = 0.12;
   var RIB_REACH = 0.95;
@@ -1908,13 +1924,13 @@ var __ornament = (() => {
     if (kind === "kelp") return KELP_GIRTH * ((_a = weed == null ? void 0 : weed.girth) != null ? _a : 1) * depth;
     return GRASS_GIRTH * depth;
   }
-  function feeler(x, y, span, open, phase) {
+  function feeler(x, y, span, open, phase, steps) {
     const points = [{ x, y }];
-    const pace = span / CROWN_STEPS;
+    const pace = span / steps;
     let atX = x;
     let atY = y;
-    for (let step = 1; step <= CROWN_STEPS; step++) {
-      const u = step / CROWN_STEPS;
+    for (let step = 1; step <= steps; step++) {
+      const u = step / steps;
       const heading = open * (1 + CROWN_CURL * u) + Math.sin(phase + u * CROWN_WAVES) * CROWN_WAVE * u;
       atX += pace * Math.sin(heading);
       atY -= pace * Math.cos(heading);
@@ -1924,18 +1940,19 @@ var __ornament = (() => {
   }
   function crown(seed, drawn2) {
     const random = makeRandom(seed);
-    const crowd = Math.min(1, Math.max(0, drawn2 / CROWN_CROWDED));
     const most = CROWN_LEAST + Math.floor(random() * (CROWN_MOST - CROWN_LEAST + 1));
-    const count = Math.max(CROWN_FEWEST, Math.round(most * crowd));
+    const count = crowded(most, CROWN_FEWEST, drawn2, CROWN_CROWDED);
     const tentacles = [];
     for (let made = 0; made < count; made++) {
       const across = count < 2 ? 0 : made / (count - 1) * 2 - 1;
+      const span = CROWN_REACH * (0.75 + random() * 0.55);
       tentacles.push({
         beat: 0.7 + random() * 0.7,
         own: random() * Math.PI * 2,
         shift: across * ANEMONE_GIRTH * 0.5,
         slant: across * CROWN_OPEN * (0.72 + random() * 0.56),
-        span: CROWN_REACH * (0.75 + random() * 0.55)
+        span,
+        steps: cuts(CROWN_STEPS, span * drawn2)
       });
     }
     return tentacles;
@@ -1950,7 +1967,8 @@ var __ornament = (() => {
         mouth.y,
         one.span * span,
         one.slant,
-        phase * one.beat + one.own
+        phase * one.beat + one.own,
+        one.steps
       )
     );
   }
@@ -2017,7 +2035,7 @@ var __ornament = (() => {
         mates: crop(kind, span),
         own: random() * Math.PI * 2,
         rate: SWAY_SLOWEST + random() * (SWAY_FASTEST - SWAY_SLOWEST),
-        steps: STEPS2[kind],
+        steps: cuts(STEPS2[kind], span * STEMS[kind]),
         tentacles: kind === "anemone" ? crown(random() * 65535 | 0, span) : [],
         weed
       });
@@ -2059,7 +2077,8 @@ var __ornament = (() => {
     }
     function clump(span) {
       const mates = [];
-      const count = TUFT_LEAST + Math.floor(random() * (TUFT_MOST - TUFT_LEAST + 1));
+      const most = TUFT_LEAST + Math.floor(random() * (TUFT_MOST - TUFT_LEAST + 1));
+      const count = crowded(most, TUFT_FEWEST, span, TUFT_CROWDED);
       for (let made = 0; made < count; made++) {
         const side = made % 2 === 0 ? 1 : -1;
         const out = (Math.floor(made / 2) + 1) / Math.ceil(count / 2);
@@ -2076,7 +2095,8 @@ var __ornament = (() => {
     }
     function ribs(span) {
       const mates = [];
-      const count = RIB_LEAST + Math.floor(random() * (RIB_MOST - RIB_LEAST + 1));
+      const most = RIB_LEAST + Math.floor(random() * (RIB_MOST - RIB_LEAST + 1));
+      const count = crowded(most, RIB_FEWEST, span, RIB_CROWDED);
       for (let made = 0; made < count; made++) {
         const side = made % 2 === 0 ? 1 : -1;
         const up = (Math.floor(made / 2) + 1) / Math.ceil(count / 2);
@@ -2142,7 +2162,7 @@ var __ornament = (() => {
             sway.own * mate.beat + mate.own,
             amp,
             mate.slant,
-            sway.steps
+            cuts(sway.steps, mate.span)
           )
         );
         return;
@@ -2169,7 +2189,9 @@ var __ornament = (() => {
         );
       });
       const blades = limbs.slice(1);
-      const each = Math.max(1, Math.round(weed.blades / limbs.length));
+      const leafy = crowded(weed.blades, LEAF_FEWEST, span, LEAF_CROWDED);
+      const each = Math.max(1, Math.round(leafy / limbs.length));
+      const bends = cuts(BLADE_STEPS, span * weed.span);
       for (const limb of limbs) {
         const foot = limb[0];
         const tip = limb[limb.length - 1];
@@ -2191,8 +2213,8 @@ var __ornament = (() => {
           const flareX = -runY / run * side;
           const flareY = runX / run * side;
           const blade2 = [];
-          for (let step = 0; step <= BLADE_STEPS; step++) {
-            const u = step / BLADE_STEPS;
+          for (let step = 0; step <= bends; step++) {
+            const u = step / bends;
             const out = Math.sin(u * Math.PI * 0.62) * (1 - u * 0.72) * weed.flare;
             const down = u * weed.trail;
             blade2.push({
@@ -2217,11 +2239,11 @@ var __ornament = (() => {
           sway.own * mate.beat + mate.own,
           amp * RIB_GIVE,
           mate.slant,
-          FAN_STEPS
+          cuts(FAN_STEPS, mate.span)
         );
         blades.push(rib);
         const half2 = rib[Math.floor(rib.length / 2)];
-        if (!half2) continue;
+        if (!half2 || mate.span < RIB_TWIGGED) continue;
         blades.push(
           strand(
             half2.x,
