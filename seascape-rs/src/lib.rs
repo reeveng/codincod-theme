@@ -18,6 +18,7 @@ pub struct Scene {
     sim: sim::Sim,
     bed: bed::Bed,
     geo: VertexBuffers<paint::Vertex, u32>,
+    swings: Vec<[f32; 2]>,
 }
 
 /// Where a frame's time went, in milliseconds.
@@ -26,6 +27,8 @@ pub struct Spent {
     pub step: f64,
     pub publish: f64,
     pub cut: f64,
+    /// Whether the triangles moved, which only a crown redrawing itself does.
+    pub redrawn: bool,
 }
 
 impl Scene {
@@ -34,7 +37,28 @@ impl Scene {
         sim.call("build", &[width as f64, height as f64, seed, tolerance]);
         sim.call("wind", &[settle]);
 
-        Scene { sim, bed: bed::Bed::default(), geo: VertexBuffers::new() }
+        let mut scene = Scene {
+            sim,
+            bed: bed::Bed::default(),
+            geo: VertexBuffers::new(),
+            swings: Vec::new(),
+        };
+
+        // The scene as it stands, which is everything that will not change
+        // today. After this a frame is two numbers a plant.
+        let floats = scene.sim.call("layout", &[]) as usize;
+        scene.bed.stand(scene.sim.frame(floats));
+        scene
+    }
+
+    /// Every limb of every plant, for the card to bend the bed by.
+    pub fn limbs(&self) -> &[paint::Limb] {
+        self.bed.limbs()
+    }
+
+    /// Where every plant's sway has got to, this frame.
+    pub fn swings(&self) -> &[[f32; 2]] {
+        &self.swings
     }
 
     /// Carry the water forward and cut whatever moved.
@@ -50,8 +74,10 @@ impl Scene {
         let publish = ms(b);
 
         let c = std::time::Instant::now();
-        self.bed.take(self.sim.frame(floats), &mut self.geo);
-        Spent { step, publish, cut: ms(c) }
+        let redrawn = self
+            .bed
+            .take(self.sim.frame(floats), &mut self.geo, &mut self.swings);
+        Spent { step, publish, cut: ms(c), redrawn }
     }
 
     pub fn geometry(&self) -> (&[paint::Vertex], &[u32]) {

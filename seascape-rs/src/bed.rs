@@ -1,4 +1,4 @@
-//! A frame of the bed, read off the bridge's buffer and cut into triangles.
+//! The bed, cut into triangles once and bent on the card after that.
 //!
 //! The wire is `js/scene.ts`, and the shapes are the ones `Seascape.qml` draws:
 //! the ground at each distance, closed off under the box, and the plants
@@ -6,14 +6,20 @@
 //! numbers the shader needs to work one out, which is what keeps the water's
 //! own gradient a gradient rather than eight stops.
 //!
-//! ## A plant is cut when it has moved and not before
+//! ## The bed is cut once
 //!
-//! Most of the bed is standing still at any moment: a plant holds the drawing
-//! it last made until the water has bent it far enough to be worth another, and
-//! says so with a number that goes up. So this keeps what it cut for each plant
-//! and cuts again only for the ones that said they had moved. What it costs to
-//! keep is the triangles themselves; what it saves is tessellating a bed that
-//! did not change, which was the whole of the frame.
+//! A plant is a short tree of limbs: a line rooted on the ground or somewhere up
+//! another line, and the water's whole say in it is one amplitude and one clock.
+//! So the shape goes over at rest, each vertex carrying which limb it belongs to
+//! and how far up that limb it sits, and the bending is a few lines of the
+//! vertex shader; see `paint.rs`. What a frame costs after that is two numbers a
+//! plant.
+//!
+//! The anemone is the exception and it is the honest one. A crown is not a shape
+//! with a bend put through it, it is a heading that keeps turning, so where it
+//! has turned to is the drawing itself. It comes over as points and is cut again
+//! whenever it has moved far enough to be worth it, which is what the whole bed
+//! used to do.
 use lyon_tessellation::geom::point;
 use lyon_tessellation::path::{LineCap, Path};
 use lyon_tessellation::{
@@ -21,7 +27,17 @@ use lyon_tessellation::{
     StrokeVertex, VertexBuffers,
 };
 
-use crate::paint::Vertex;
+use crate::paint::{Limb, Vertex, STIFF};
+
+/// A point of a line at rest, and how far up its limb it sits.
+type Along = (f32, f32, f32);
+
+/// A leaf as it comes off the wire: the limb it grows on, where up it, and the
+/// shape it is in that limb's own frame.
+type Leaf = (usize, f32, Vec<(f32, f32)>);
+
+/// A line and the limb that bends it, for the tessellator.
+type Bent<'a> = (u32, &'a Vec<Along>);
 
 /// Mirrors of `Seascape.qml`: what each thing is worth in ink, and where a leaf
 /// stops being drawn in its strand's own path.
@@ -36,7 +52,9 @@ const STONE_INK: f32 = 0.25;
 /// it, which is what a gradient is.
 const DOWN_THE_BOX: f32 = -1.0;
 
-/// Coral, on the wire.
+/// The two kinds this has anything to say about. A kelp, a grass and a fan are
+/// all a frame of limbs and are drawn without being named.
+const ANEMONE: u8 = 2;
 const CORAL: u8 = 4;
 
 struct Cursor<'a> {
@@ -67,13 +85,11 @@ fn haze(full: f32, depth: f32) -> f32 {
     HAZE_INK + (full - HAZE_INK) * depth.clamp(0.0, 1.0)
 }
 
-/// One thing's triangles, and the drawing they were cut from.
+/// One thing's triangles, and where it stands in the water.
 #[derive(Default)]
 struct Cut {
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
-    /// What the plant said it had cut when this was made, or -1 for never.
-    stamp: f32,
     /// Where it stands in the water, since that is what the order is by.
     depth: f32,
 }
@@ -85,10 +101,29 @@ impl Cut {
     }
 }
 
-/// The bed, kept between frames.
+/// One line of a plant, as the standing scene described it.
+struct Bough {
+    beat: f32,
+    give: f32,
+    own: f32,
+    seat: f32,
+    shift: f32,
+    slant: f32,
+    span: f32,
+    steps: usize,
+    /// Which limb it leaves, in this plant's own numbering, or -1 for the ground.
+    stem: i32,
+}
+
+/// The bed, standing.
 pub struct Bed {
     ground: Vec<Cut>,
     plants: Vec<Cut>,
+    kinds: Vec<u8>,
+    girths: Vec<f32>,
+    /// Every limb of every plant, in one table the card reads by index.
+    limbs: Vec<Limb>,
+    order: Vec<usize>,
     height: f32,
     fill: FillTessellator,
     stroke: StrokeTessellator,
@@ -99,6 +134,10 @@ impl Default for Bed {
         Bed {
             ground: Vec::new(),
             plants: Vec::new(),
+            kinds: Vec::new(),
+            girths: Vec::new(),
+            limbs: Vec::new(),
+            order: Vec::new(),
             height: 0.0,
             fill: FillTessellator::new(),
             stroke: StrokeTessellator::new(),
@@ -107,57 +146,48 @@ impl Default for Bed {
 }
 
 impl Bed {
-    /// Take a published frame, cut whatever moved, and lay the whole bed out in
-    /// the order the water sorts it.
-    pub fn take(&mut self, floats: &[f32], geo: &mut VertexBuffers<Vertex, u32>) {
-        assert_eq!(floats[0], 2.0, "the bridge speaks a version this does not");
+    /// Take the standing scene: the ground, the corals, and every plant the
+    /// water only bends, cut where they stand and never cut again.
+    pub fn stand(&mut self, floats: &[f32]) {
+        assert_eq!(floats[0], 3.0, "the bridge speaks a version this does not");
         let width = floats[1];
         self.height = floats[2];
 
         let mut cursor = Cursor { at: 3, floats };
-        let ground = cursor.next() as usize;
+        let grounds = cursor.next() as usize;
         let plants = cursor.next() as usize;
 
-        if self.ground.is_empty() {
-            // The water itself, which everything else is drawn into, and then
-            // the ground. Neither is cut again while the scene stands.
-            let mut sea = Cut { depth: -9.0, stamp: 0.0, ..Default::default() };
-            let box_of = [
-                (0.0, 0.0),
-                (width, 0.0),
-                (width, self.height),
-                (0.0, self.height),
-            ];
-            self.fill_shape(&mut sea, &box_of, 0.0, false);
-            self.ground.push(sea);
-        }
+        // The water itself, which everything else is drawn into.
+        let mut sea = Cut { depth: -9.0, ..Default::default() };
+        let box_of = [
+            (0.0, 0.0),
+            (width, 0.0),
+            (width, self.height),
+            (0.0, self.height),
+        ];
+        self.fill_shape(&mut sea, &box_of, 0.0, false);
+        self.ground = vec![sea];
 
-        let fresh = self.ground.len() == 1;
-        for at in 0..ground {
+        for _ in 0..grounds {
             let kind = cursor.next() as u8;
             let depth = cursor.next();
             let ridge = cursor.points();
-            if !fresh {
-                continue;
-            }
             let weight = match kind {
                 0 => SAND_INK,
                 3 => haze(STONE_INK, depth),
                 _ => haze(SAND_INK, depth),
             };
-            let mut cut = Cut { depth: lane(kind, depth), stamp: 0.0, ..Default::default() };
+            let mut cut = Cut { depth: lane(kind, depth), ..Default::default() };
             self.fill_shape(&mut cut, &ridge, weight, true);
-            let _ = at;
             self.ground.push(cut);
         }
         self.ground
             .sort_by(|a, b| a.depth.partial_cmp(&b.depth).unwrap());
 
-        if self.plants.len() != plants {
-            self.plants = (0..plants)
-                .map(|_| Cut { stamp: -1.0, ..Default::default() })
-                .collect();
-        }
+        self.plants = Vec::with_capacity(plants);
+        self.kinds = Vec::with_capacity(plants);
+        self.girths = Vec::with_capacity(plants);
+        self.limbs.clear();
 
         for at in 0..plants {
             let kind = cursor.next() as u8;
@@ -166,13 +196,207 @@ impl Bed {
             let scale = cursor.next();
             let x = cursor.next();
             let y = cursor.next();
-            let stamp = cursor.next();
-            let again = cursor.next() > 0.5;
 
-            if !again {
-                self.plants[at].depth = depth;
+            self.kinds.push(kind);
+            self.girths.push(girth);
+
+            let mut cut = Cut { depth, ..Default::default() };
+            let weight = haze(FLORA_INK, depth);
+
+            if kind == CORAL {
+                let grown = cursor.next() as usize;
+                for _ in 0..grown {
+                    let width = cursor.next();
+                    let n = cursor.next() as usize;
+                    let mut carved = Vec::with_capacity(n);
+                    for _ in 0..n {
+                        carved.push(cursor.next());
+                    }
+                    self.stroke_coral(&mut cut, &carved, width * scale, scale, x, y, weight);
+                }
+                self.plants.push(cut);
                 continue;
             }
+
+            if kind == ANEMONE {
+                self.plants.push(cut);
+                continue;
+            }
+
+            let boughs = self.boughs(&mut cursor);
+            let leaves = self.leafage(&mut cursor);
+            self.cut_frame(&mut cut, &boughs, &leaves, at as u32, girth, x, y, weight);
+            self.plants.push(cut);
+        }
+
+        self.order = (0..self.plants.len()).collect();
+        let depths: Vec<f32> = self.plants.iter().map(|c| c.depth).collect();
+        self.order
+            .sort_by(|a, b| depths[*a].partial_cmp(&depths[*b]).unwrap());
+    }
+
+    /// The limbs of one plant, read off the wire.
+    fn boughs(&mut self, cursor: &mut Cursor) -> Vec<Bough> {
+        let count = cursor.next() as usize;
+        let mut boughs = Vec::with_capacity(count);
+
+        for _ in 0..count {
+            boughs.push(Bough {
+                beat: cursor.next(),
+                give: cursor.next(),
+                own: cursor.next(),
+                seat: cursor.next(),
+                shift: cursor.next(),
+                slant: cursor.next(),
+                span: cursor.next(),
+                steps: cursor.next() as usize,
+                stem: cursor.next() as i32,
+            });
+        }
+
+        boughs
+    }
+
+    fn leafage(&mut self, cursor: &mut Cursor) -> Vec<Leaf> {
+        let count = cursor.next() as usize;
+        let mut leaves: Vec<Leaf> = Vec::with_capacity(count);
+        for _ in 0..count {
+            let limb = cursor.next() as usize;
+            let seat = cursor.next();
+            leaves.push((limb, seat, cursor.points()));
+        }
+        leaves
+    }
+
+    /// A plant at rest, with every vertex told which limb bends it and how far
+    /// up that limb it sits.
+    #[allow(clippy::too_many_arguments)]
+    fn cut_frame(
+        &mut self,
+        into: &mut Cut,
+        boughs: &[Bough],
+        leaves: &[Leaf],
+        plant: u32,
+        girth: f32,
+        x: f32,
+        y: f32,
+        weight: f32,
+    ) {
+        let base = self.limbs.len() as u32;
+
+        // Every limb at rest, which is a straight line from a root somewhere up
+        // the limb it leaves. That root and that line are the whole of what the
+        // card needs to put the plant back where the water has it.
+        let mut lines: Vec<Vec<Along>> = Vec::with_capacity(boughs.len());
+        for bough in boughs {
+            let root = if bough.stem < 0 {
+                [x + bough.shift, y]
+            } else {
+                let on = &self.limbs[base as usize + bough.stem as usize];
+                [
+                    on.root[0] + bough.seat * on.axis[0],
+                    on.root[1] + bough.seat * on.axis[1],
+                ]
+            };
+            let axis = [bough.span * bough.slant.sin(), -bough.span * bough.slant.cos()];
+
+            self.limbs.push(Limb {
+                root,
+                axis,
+                beat: bough.beat,
+                give: bough.give,
+                own: bough.own,
+                seat: bough.seat,
+                steps: bough.steps as f32,
+                plant,
+                stem: if bough.stem < 0 { -1 } else { base as i32 + bough.stem },
+                pad: 0.0,
+            });
+
+            let mut line = Vec::with_capacity(bough.steps + 1);
+            for step in 0..=bough.steps {
+                let t = step as f32 / bough.steps as f32;
+                line.push((root[0] + t * axis[0], root[1] + t * axis[1], t));
+            }
+            lines.push(line);
+        }
+
+        // A leaf is a shape in the frame of the limb it grows on, so every one
+        // of its points carries the seat rather than a place of its own: the
+        // card turns the whole leaf by however far the limb has turned there,
+        // which is what keeps it from crossing what it grows from.
+        let mut leafed: Vec<(usize, Vec<Along>)> = Vec::with_capacity(leaves.len());
+        for (limb, seat, shape) in leaves {
+            let bough = &boughs[*limb];
+            let on = &lines[*limb];
+            let up = (seat * (on.len() - 1) as f32).round() as usize;
+            let held = on[up.min(on.len() - 1)];
+
+            // A leaf seated on the root itself has no line under it to take a
+            // direction from, and the bed draws it as the point it stands on.
+            let lean = if up == 0 { 0.0 } else { bough.slant.sin() };
+            let rise = if up == 0 { 0.0 } else { bough.slant.cos() };
+
+            let mut line = Vec::with_capacity(shape.len());
+            for (sx, sy) in shape {
+                line.push((
+                    held.0 - lean * sx + rise * sy,
+                    held.1 + rise * sx + lean * sy,
+                    *seat,
+                ));
+            }
+            leafed.push((*limb, line));
+        }
+
+        // The strand and its limbs at the plant's own weight, and the leaves at
+        // a share of it where the plant is stout enough for the two to read
+        // apart. The rule is `Seascape.qml`'s and the numbers are its own.
+        let parted = girth * (1.0 - BLADE_GIRTH) >= BLADE_SPLIT;
+        let mut thick: Vec<Bent> = Vec::new();
+        let mut thin: Vec<Bent> = Vec::new();
+
+        for (at, line) in lines.iter().enumerate() {
+            thick.push((base + at as u32, line));
+        }
+        for (limb, line) in &leafed {
+            if parted {
+                thin.push((base + *limb as u32, line));
+            } else {
+                thick.push((base + *limb as u32, line));
+            }
+        }
+
+        self.stroke_lines(into, &thick, girth, weight, y);
+        if parted {
+            self.stroke_lines(into, &thin, girth * BLADE_GIRTH, weight, y);
+        }
+    }
+
+    /// Take a frame of the water and say whether the triangles moved, which
+    /// only a crown redrawing itself can do: everything else is bent on the
+    /// card, and a buffer nothing has changed is a buffer nobody has to send.
+    pub fn take(
+        &mut self,
+        floats: &[f32],
+        geo: &mut VertexBuffers<Vertex, u32>,
+        swings: &mut Vec<[f32; 2]>,
+    ) -> bool {
+        let mut cursor = Cursor { at: 0, floats };
+        let plants = cursor.next() as usize;
+
+        swings.clear();
+        swings.reserve(plants);
+        let mut redrawn = geo.vertices.is_empty();
+
+        for at in 0..plants {
+            let amp = cursor.next();
+            let own = cursor.next();
+            swings.push([amp, own]);
+
+            if cursor.next() < 0.5 {
+                continue;
+            }
+            redrawn = true;
 
             let strand = cursor.points();
             let count = cursor.next() as usize;
@@ -180,65 +404,53 @@ impl Bed {
             for _ in 0..count {
                 blades.push(cursor.points());
             }
-            let grown = cursor.next() as usize;
-            let mut twigs = Vec::with_capacity(grown);
-            for _ in 0..grown {
-                let width = cursor.next();
-                let n = cursor.next() as usize;
-                let mut carved = Vec::with_capacity(n);
-                for _ in 0..n {
-                    carved.push(cursor.next());
-                }
-                twigs.push(Twig { carved, width });
-            }
 
-            let plant = Plant { blades, depth, girth, kind, scale, strand, twigs, x, y };
             let mut held = std::mem::take(&mut self.plants[at]);
             held.clear();
-            held.depth = depth;
-            held.stamp = stamp;
-            self.cut_plant(&mut held, &plant);
+            let weight = haze(FLORA_INK, held.depth);
+            let girth = self.girths[at];
+            self.cut_anemone(&mut held, &strand, &blades, girth, weight);
             self.plants[at] = held;
         }
 
-        // Sorted into the water by distance the way everything in this scene is,
-        // so a near plant is drawn over a far one.
-        let mut order: Vec<usize> = (0..self.plants.len()).collect();
-        order.sort_by(|a, b| {
-            self.plants[*a]
-                .depth
-                .partial_cmp(&self.plants[*b].depth)
-                .unwrap()
-        });
+        if !redrawn {
+            return false;
+        }
 
         geo.vertices.clear();
         geo.indices.clear();
         for cut in &self.ground {
             lay(cut, geo);
         }
-        for at in order {
-            lay(&self.plants[at], geo);
+        for at in &self.order {
+            lay(&self.plants[*at], geo);
         }
+        true
     }
 
-    fn cut_plant(&mut self, into: &mut Cut, plant: &Plant) {
-        let weight = haze(FLORA_INK, plant.depth);
-        if plant.kind == CORAL {
-            self.stroke_coral(into, plant, weight);
-            return;
-        }
+    /// Every limb of every plant, for the card to bend the bed by.
+    pub fn limbs(&self) -> &[Limb] {
+        &self.limbs
+    }
 
-        let parted = plant.girth * (1.0 - BLADE_GIRTH) >= BLADE_SPLIT;
-        let mut lines: Vec<&Vec<(f32, f32)>> = vec![&plant.strand];
-        if !parted {
-            lines.extend(plant.blades.iter());
-        }
-        self.stroke_lines(into, &lines, plant.girth, weight, plant.y);
+    /// A crown and the column under it, as they were drawn this frame.
+    fn cut_anemone(
+        &mut self,
+        into: &mut Cut,
+        strand: &[(f32, f32)],
+        blades: &[Vec<(f32, f32)>],
+        girth: f32,
+        weight: f32,
+    ) {
+        let shade = strand.first().map(|p| p.1).unwrap_or(0.0);
+        let held: Vec<(u32, Vec<Along>)> = std::iter::once(strand.to_vec())
+            .chain(blades.iter().cloned())
+            .map(|line| (STIFF, line.into_iter().map(|(x, y)| (x, y, 0.0)).collect()))
+            .collect();
+        let lines: Vec<Bent> =
+            held.iter().map(|(limb, line)| (*limb, line)).collect();
 
-        if parted {
-            let leaves: Vec<&Vec<(f32, f32)>> = plant.blades.iter().collect();
-            self.stroke_lines(into, &leaves, plant.girth * BLADE_GIRTH, weight, plant.y);
-        }
+        self.stroke_lines(into, &lines, girth, weight, shade);
     }
 
     /// A ridge as the ground, closed off under the bottom of the box.
@@ -268,36 +480,80 @@ impl Bed {
                     pos: v.position().to_array(),
                     weight,
                     shade: DOWN_THE_BOX,
+                    limb: STIFF,
+                    t: 0.0,
                 }),
             )
             .unwrap();
         join(into, &geo);
     }
 
-    /// Several lines at one weight in one ink, which is what a plant is.
+    /// Several lines at one weight in one ink, which is what a plant is. Each
+    /// carries the limb that bends it, and each point how far up that limb it is.
     fn stroke_lines(
         &mut self,
         into: &mut Cut,
-        lines: &[&Vec<(f32, f32)>],
+        lines: &[Bent],
         width: f32,
         weight: f32,
         shade: f32,
     ) {
-        let mut builder = Path::builder();
-        let mut any = false;
-        for line in lines {
+        for (limb, line) in lines {
             if line.len() < 2 {
                 continue;
             }
-            any = true;
-            builder.begin(point(line[0].0, line[0].1));
+            let mut builder = Path::builder_with_attributes(1);
+            builder.begin(point(line[0].0, line[0].1), &[line[0].2]);
             for p in &line[1..] {
-                builder.line_to(point(p.0, p.1));
+                builder.line_to(point(p.0, p.1), &[p.2]);
             }
             builder.end(false);
+            let path = builder.build();
+
+            let mut geo = VertexBuffers::<Vertex, u32>::new();
+            self.stroke
+                .tessellate_path(
+                    &path,
+                    &StrokeOptions::tolerance(0.1)
+                        .with_line_width(width)
+                        .with_line_cap(LineCap::Round),
+                    &mut BuffersBuilder::new(&mut geo, |mut v: StrokeVertex| {
+                        let pos = v.position().to_array();
+                        let t = v.interpolated_attributes()[0];
+                        Vertex { pos, weight, shade, limb: *limb, t }
+                    }),
+                )
+                .unwrap();
+            join(into, &geo);
         }
-        if !any {
+    }
+
+    /// A coral, which is drawn rather than swayed: the site's own strokes,
+    /// scaled to this one's size and stood where it grows.
+    #[allow(clippy::too_many_arguments)]
+    fn stroke_coral(
+        &mut self,
+        into: &mut Cut,
+        carved: &[f32],
+        width: f32,
+        scale: f32,
+        x: f32,
+        y: f32,
+        weight: f32,
+    ) {
+        if carved.len() < 8 {
             return;
+        }
+        let at = |i: usize| point(x + carved[i] * scale, y + carved[i + 1] * scale);
+
+        // A twig is a move and a curve, and several of them can share one
+        // width: the bushier corals are written as one drawing with a stroke
+        // apiece rather than as one branch each.
+        let mut builder = Path::builder();
+        for branch in (0..carved.len() - 7).step_by(8) {
+            builder.begin(at(branch));
+            builder.cubic_bezier_to(at(branch + 2), at(branch + 4), at(branch + 6));
+            builder.end(false);
         }
         let path = builder.build();
 
@@ -311,53 +567,13 @@ impl Bed {
                 &mut BuffersBuilder::new(&mut geo, |v: StrokeVertex| Vertex {
                     pos: v.position().to_array(),
                     weight,
-                    shade,
+                    shade: y,
+                    limb: STIFF,
+                    t: 0.0,
                 }),
             )
             .unwrap();
         join(into, &geo);
-    }
-
-    /// A coral, which is drawn rather than swayed: the site's own strokes,
-    /// scaled to this one's size and stood where it grows.
-    fn stroke_coral(&mut self, into: &mut Cut, plant: &Plant, weight: f32) {
-        for twig in &plant.twigs {
-            if twig.carved.len() < 8 {
-                continue;
-            }
-            let at = |i: usize| {
-                point(
-                    plant.x + twig.carved[i] * plant.scale,
-                    plant.y + twig.carved[i + 1] * plant.scale,
-                )
-            };
-            // A twig is a move and a curve, and several of them can share one
-            // width: the bushier corals are written as one drawing with a
-            // stroke apiece rather than as one branch each.
-            let mut builder = Path::builder();
-            for branch in (0..twig.carved.len() - 7).step_by(8) {
-                builder.begin(at(branch));
-                builder.cubic_bezier_to(at(branch + 2), at(branch + 4), at(branch + 6));
-                builder.end(false);
-            }
-            let path = builder.build();
-
-            let mut geo = VertexBuffers::<Vertex, u32>::new();
-            self.stroke
-                .tessellate_path(
-                    &path,
-                    &StrokeOptions::tolerance(0.1)
-                        .with_line_width(twig.width * plant.scale)
-                        .with_line_cap(LineCap::Round),
-                    &mut BuffersBuilder::new(&mut geo, |v: StrokeVertex| Vertex {
-                        pos: v.position().to_array(),
-                        weight,
-                        shade: plant.y,
-                    }),
-                )
-                .unwrap();
-            join(into, &geo);
-        }
     }
 }
 
@@ -373,24 +589,6 @@ fn lay(cut: &Cut, geo: &mut VertexBuffers<Vertex, u32>) {
     let base = geo.vertices.len() as u32;
     geo.vertices.extend_from_slice(&cut.vertices);
     geo.indices.extend(cut.indices.iter().map(|i| i + base));
-}
-
-struct Plant {
-    blades: Vec<Vec<(f32, f32)>>,
-    depth: f32,
-    girth: f32,
-    kind: u8,
-    scale: f32,
-    strand: Vec<(f32, f32)>,
-    twigs: Vec<Twig>,
-    x: f32,
-    y: f32,
-}
-
-/// One stroke of a coral: a move and a curve, at its own width.
-struct Twig {
-    carved: Vec<f32>,
-    width: f32,
 }
 
 /// Where a piece of ground sorts, in the lanes `Seascape.qml` gives them.

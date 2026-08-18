@@ -103,6 +103,9 @@ export function build(width: number, height: number, seed: number, tolerance: nu
   flora = createFlora({
     anemones: spread(PER_K.anemones, MOST.anemones, width),
     corals: spread(PER_K.corals, MOST.corals, width),
+    // The crowns and nothing else. Everything the water only bends is handed
+    // over as a shape once and swayed on the card; see `layout`.
+    cutting: ["anemone"],
     fans: spread(PER_K.fans, MOST.fans, width),
     floor: seabed.floorAt,
     grasses: spread(PER_K.grasses, MOST.grasses, width),
@@ -136,30 +139,39 @@ function putPoints(points: readonly { x: number; y: number }[]): void {
   }
 }
 
-/** What each plant was last handed over at, so a still one is not handed over
- *  again. A plant says when it has recut itself and nothing else changes. */
-const handed: number[] = []
+function putGround(): void {
+  if (!seabed) return
 
-function putPlant(plant: Plant, at: number): void {
-  put(KINDS[plant.kind] ?? 0)
-  put(plant.depth)
-  put(plant.girth)
-  put(plant.scale)
-  put(plant.x)
-  put(plant.y)
-  put(plant.cut)
-
-  if (handed[at] === plant.cut) {
-    put(0)
-    return
-  }
-  handed[at] = plant.cut
+  put(GROUND.sand)
   put(1)
+  putPoints(seabed.ridge)
 
-  putPoints(plant.points)
-  put(plant.blades.length)
-  for (let b = 0; b < plant.blades.length; b++) putPoints(plant.blades[b])
+  for (const band of seabed.ranges) {
+    put(GROUND.hill)
+    put(band.depth)
+    putPoints(band.ridge)
+  }
 
+  if (reef) {
+    put(GROUND.mound)
+    put(reef.depth)
+    putPoints(reef.crest)
+  }
+
+  for (const cliff of seabed.cliffs) {
+    put(GROUND.cliff)
+    put(cliff.depth)
+    putPoints(cliff.ridge)
+  }
+}
+
+/** How many pieces of ground the layout will write. */
+function grounds(): number {
+  if (!seabed) return 0
+  return 1 + seabed.ranges.length + (reef ? 1 : 0) + seabed.cliffs.length
+}
+
+function putTwigs(plant: Plant): void {
   put(plant.twigs.length)
   for (let t = 0; t < plant.twigs.length; t++) {
     const twig = plant.twigs[t]
@@ -171,60 +183,124 @@ function putPlant(plant: Plant, at: number): void {
 }
 
 /**
- * A frame of the bed, written into `geometry`. Returns how many floats it took.
+ * The scene as it stands, which is everything that will not change today.
+ *
+ * The ground, the corals and the shape of every plant the water only bends:
+ * where its limbs are rooted, how long each is and how it leans, and the leaves
+ * hanging off them. All of it goes over once, and after that a frame is two
+ * numbers a plant; see `publish`.
  *
  * ```
- * version width height groundCount plantCount
+ * 3 width height groundCount plantCount
  * ground: kind depth n (x y)*n
- * plant:  kind depth girth scale x y cut cut-again
- *         and, only where it has cut again since it was last handed over,
- *         n (x y)*n  blades (n (x y)*n)*blades  twigs (width n n*n)*twigs
+ * plant:  kind depth girth scale x y
+ *         kelp, grass, fan: limbs (beat give own seat shift slant span steps stem)*n
+ *                           leaves (limb seat n (x y)*n)*n
+ *         coral:            twigs (width n n*n)*n
+ *         anemone:          nothing; it is cut again every frame it moves
+ * ```
+ */
+export function layout(): number {
+  at = 0
+  if (!flora || !seabed) return 0
+
+  put(3)
+  put(box.width)
+  put(box.height)
+  put(grounds())
+  put(flora.plants.length)
+
+  putGround()
+
+  for (let p = 0; p < flora.plants.length; p++) {
+    const plant = flora.plants[p]
+    put(KINDS[plant.kind] ?? 0)
+    put(plant.depth)
+    put(plant.girth)
+    put(plant.scale)
+    put(plant.x)
+    put(plant.y)
+
+    if (plant.kind === "coral") {
+      putTwigs(plant)
+      continue
+    }
+    if (plant.kind === "anemone") continue
+
+    const frame = flora.madeOf(p)
+    if (!frame) {
+      put(0)
+      put(0)
+      continue
+    }
+
+    put(frame.limbs.length)
+    for (const limb of frame.limbs) {
+      put(limb.beat)
+      put(limb.give)
+      put(limb.own)
+      put(limb.seat)
+      put(limb.shift)
+      put(limb.slant)
+      put(limb.span)
+      put(limb.steps)
+      put(limb.stem)
+    }
+
+    put(frame.leaves.length)
+    for (const leaf of frame.leaves) {
+      put(leaf.limb)
+      put(leaf.seat)
+      putPoints(leaf.shape)
+    }
+  }
+
+  return at
+}
+
+/** What each anemone was last handed over at, so a still one is not handed
+ *  over again. A plant says when it has recut itself, and nothing else does. */
+const handed: number[] = []
+
+/**
+ * A frame of the water: where every plant's sway has got to.
+ *
+ * Two numbers a plant, which the renderer bends the standing shape by. The
+ * anemone is the exception and it is the reason there is a third number: a
+ * crown is a heading that keeps turning rather than a shape with a bend put
+ * through it, so where it has turned to is the drawing, and it comes over as
+ * points the way it always did.
+ *
+ * ```
+ * plantCount
+ * plant: amp own cut-again
+ *        and, for an anemone that has cut again, n (x y)*n blades (n (x y)*n)*n
  * ```
  */
 export function publish(): number {
   at = 0
-  if (!flora || !seabed) return 0
+  if (!flora) return 0
 
-  put(2)
-  put(box.width)
-  put(box.height)
+  put(flora.plants.length)
 
-  const groundAt = at
-  put(0)
-  const plantAt = at
-  put(0)
+  for (let p = 0; p < flora.plants.length; p++) {
+    const plant = flora.plants[p]
+    const swing = flora.swinging[p]
+    put(swing ? swing.amp : 0)
+    put(swing ? swing.own : 0)
 
-  let ground = 0
-  put(GROUND.sand)
-  put(1)
-  putPoints(seabed.ridge)
-  ground++
+    if (plant.kind !== "anemone" || handed[p] === plant.cut) {
+      put(0)
+      continue
+    }
 
-  for (const band of seabed.ranges) {
-    put(GROUND.hill)
-    put(band.depth)
-    putPoints(band.ridge)
-    ground++
+    handed[p] = plant.cut
+    put(1)
+    putPoints(plant.points)
+    put(plant.blades.length)
+    for (let b = 0; b < plant.blades.length; b++) putPoints(plant.blades[b])
   }
 
-  if (reef) {
-    put(GROUND.mound)
-    put(reef.depth)
-    putPoints(reef.crest)
-    ground++
-  }
-
-  for (const cliff of seabed.cliffs) {
-    put(GROUND.cliff)
-    put(cliff.depth)
-    putPoints(cliff.ridge)
-    ground++
-  }
-
-  for (let p = 0; p < flora.plants.length; p++) putPlant(flora.plants[p], p)
-
-  geometry[groundAt] = ground
-  geometry[plantAt] = flora.plants.length
   return at
 }
 

@@ -163,14 +163,13 @@ impl Wall {
 
         let paint = Paint::new(device, queue, format, self.width, self.height, false);
         paint.water(self.ink, self.surface_hue, 0.13, 2.1);
+
+        let scene = Scene::new(self.width, self.height, self.seed, self.tolerance, self.settle);
+        // The standing bed goes over once and stays there; see `bed.rs`.
+        paint.plant(scene.limbs());
+
         self.paint = Some(paint);
-        self.scene = Some(Scene::new(
-            self.width,
-            self.height,
-            self.seed,
-            self.tolerance,
-            self.settle,
-        ));
+        self.scene = Some(scene);
     }
 
     fn draw(&mut self, qh: &QueueHandle<Self>) {
@@ -191,14 +190,15 @@ impl Wall {
         }
         self.beat = Some(now);
 
-        scene.advance(since.min(TICK * 3.0));
+        let spent = scene.advance(since.min(TICK * 3.0));
+        paint.sway(scene.swings());
         let frame = match self.target.get_current_texture() {
             Ok(frame) => frame,
             Err(_) => return,
         };
         let view = frame.texture.create_view(&Default::default());
         let (vertices, indices) = scene.geometry();
-        paint.draw(&view, vertices, indices);
+        paint.draw(&view, vertices, indices, spent.redrawn);
 
         // Asked for before the frame is handed over, which is what keeps the
         // water going at the rate the screen actually refreshes rather than at

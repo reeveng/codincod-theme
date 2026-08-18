@@ -19,10 +19,14 @@ fn main() {
     // holds and how fast the column gives it up.
     paint.water(hue("#35c26d"), hue("#0e1712"), 0.13, 2.1);
 
+    // The standing bed goes over once; a frame is the sway after that.
+    paint.plant(scene.limbs());
+
     let spent = scene.advance(0.0);
+    paint.sway(scene.swings());
     let (vertices, indices) = scene.geometry();
     let t = std::time::Instant::now();
-    paint.draw(&view, vertices, indices);
+    paint.draw(&view, vertices, indices, spent.redrawn);
     paint.settle();
     let drawn = t.elapsed().as_secs_f64() * 1000.0;
     println!(
@@ -39,16 +43,18 @@ fn main() {
     let laps: usize = arg("frames", "0").parse().unwrap();
     if laps > 0 {
         for _ in 0..20 {
-            scene.advance(0.033);
+            let spent = scene.advance(0.033);
+            paint.sway(scene.swings());
             let (vertices, indices) = scene.geometry();
-            paint.draw(&view, vertices, indices);
+            paint.draw(&view, vertices, indices, spent.redrawn);
         }
         let (mut step, mut publish, mut cut, mut drawn) = (0.0, 0.0, 0.0, 0.0);
         for _ in 0..laps {
             let spent = scene.advance(0.033);
             let (vertices, indices) = scene.geometry();
             let t = std::time::Instant::now();
-            paint.draw(&view, vertices, indices);
+            paint.sway(scene.swings());
+            paint.draw(&view, vertices, indices, spent.redrawn);
             paint.settle();
             drawn += t.elapsed().as_secs_f64() * 1000.0;
             step += spent.step;
@@ -69,7 +75,7 @@ fn main() {
     }
 
     let (vertices, indices) = scene.geometry();
-    paint.draw(&view, vertices, indices);
+    paint.draw(&view, vertices, indices, true);
     let pixels = paint.read();
     let file = std::fs::File::create(&out).expect("cannot write the still");
     let mut png = png::Encoder::new(std::io::BufWriter::new(file), width, height);

@@ -22,6 +22,7 @@ var Sea = (() => {
   __export(scene_exports, {
     build: () => build,
     geometry: () => geometry,
+    layout: () => layout,
     publish: () => publish,
     step: () => step,
     wind: () => wind
@@ -379,7 +380,10 @@ var Sea = (() => {
     const plants = [];
     const sways = [];
     const tolerance = Math.max(0, options.tolerance ?? TOLERANCE);
+    const cutting = new Set(options.cutting ?? ["anemone", "coral", "fan", "grass", "kelp"]);
     const drawn = [];
+    const frames = [];
+    const swinging = [];
     const beds = [];
     const heights = /* @__PURE__ */ new Map();
     function plant(kind) {
@@ -510,6 +514,8 @@ var Sea = (() => {
       sways.length = 0;
       beds.length = 0;
       drawn.length = 0;
+      frames.length = 0;
+      swinging.length = 0;
       heights.clear();
       for (let made = 0; made < Math.max(1, Math.round(width / MEADOW_EVERY)); made++) {
         beds.push(anywhere());
@@ -520,135 +526,192 @@ var Sea = (() => {
       for (let made = 0; made < Math.max(0, options.grasses ?? 0); made++) plant("grass");
       for (let made = 0; made < Math.max(0, options.kelps ?? 0); made++) plant("kelp");
     }
-    function bend(at2, field) {
-      const one = plants[at2];
-      const sway = sways[at2];
-      const span = heights.get(at2);
+    function bend(at3, field) {
+      const one = plants[at3];
+      const sway = sways[at3];
+      const span = heights.get(at3);
       if (!one || !sway || span == null || one.kind === "coral") return;
       const current = field(one.x / width * FIELD_CELLS + drift, drift);
       const own = Math.sin(sway.own);
       const amp = sway.lean * (current * CURRENT_SHARE + own * (1 - CURRENT_SHARE));
+      const swing = swinging[at3];
+      if (swing) {
+        swing.amp = amp;
+        swing.own = sway.own;
+      } else {
+        swinging[at3] = { amp, own: sway.own };
+      }
+      if (!cutting.has(one.kind)) return;
       const shy = one.kind === "anemone" ? 1 - sway.fright * COLUMN_SQUAT : 1;
       const stem = span * STEMS[one.kind] * shy;
-      const was = drawn[at2];
+      const was = drawn[at3];
       if (was && stir2(one.kind, span, was, amp, sway.fright, sway.own, stem) < tolerance) return;
-      drawn[at2] = { amp, fright: sway.fright, own: sway.own, stem };
+      drawn[at3] = { amp, fright: sway.fright, own: sway.own, stem };
       one.cut++;
-      const points = strand(one.x, one.y, stem, sway.own, amp, 0, sway.steps);
-      one.points = points;
       if (one.kind === "anemone") {
+        const points = strand(one.x, one.y, stem, sway.own, amp, 0, sway.steps);
         const mouth = points[points.length - 1];
         const out = span * (1 - sway.fright * CROWN_PULL);
+        one.points = points;
         one.blades = mouth ? crownAt(mouth, sway.tentacles, out, sway.own) : [];
         return;
       }
-      if (one.kind === "fan") {
-        one.blades = ribsOf(sway, amp, points);
-        return;
-      }
-      if (one.kind === "grass") {
-        one.blades = sway.mates.map(
-          (mate) => strand(
-            one.x + mate.shift,
-            one.y,
-            mate.span,
-            sway.own * mate.beat + mate.own,
-            amp,
-            mate.slant,
-            cuts(sway.steps, mate.span)
-          )
-        );
-        return;
-      }
-      one.blades = leaves(sway, span, amp, points);
+      cutFrom(one, framed(at3), amp, sway.own);
     }
-    function leaves(sway, span, amp, points) {
+    function framed(at3) {
+      const held = frames[at3];
+      if (held) return held;
+      const made = grown(at3);
+      frames[at3] = made;
+      return made;
+    }
+    const seated = (seat, steps) => Math.min(steps, Math.max(0, Math.round(seat * steps))) / steps;
+    function grown(at3) {
+      const one = plants[at3];
+      const sway = sways[at3];
+      const span = heights.get(at3);
+      if (!one || !sway || span == null) return { leaves: [], limbs: [] };
+      const limbs = [
+        {
+          beat: 1,
+          give: 1,
+          own: 0,
+          seat: 0,
+          shift: 0,
+          slant: 0,
+          span: span * STEMS[one.kind],
+          steps: sway.steps,
+          stem: -1
+        }
+      ];
+      if (one.kind === "grass") {
+        for (const mate of sway.mates) {
+          limbs.push({
+            beat: mate.beat,
+            give: 1,
+            own: mate.own,
+            seat: 0,
+            shift: mate.shift,
+            slant: mate.slant,
+            span: mate.span,
+            steps: cuts(sway.steps, mate.span),
+            stem: -1
+          });
+        }
+        return { leaves: [], limbs };
+      }
+      if (one.kind === "fan") {
+        for (const mate of sway.mates) {
+          const rib = limbs.length;
+          const steps = cuts(FAN_STEPS, mate.span);
+          limbs.push({
+            beat: mate.beat,
+            give: RIB_GIVE,
+            own: mate.own,
+            seat: seated(mate.seat, sway.steps),
+            shift: 0,
+            slant: mate.slant,
+            span: mate.span,
+            steps,
+            stem: 0
+          });
+          if (mate.span < RIB_TWIGGED) continue;
+          limbs.push({
+            beat: 1,
+            give: RIB_GIVE,
+            own: mate.own,
+            seat: Math.floor((steps + 1) / 2) / steps,
+            shift: 0,
+            slant: mate.slant * RIB_SPLAY,
+            span: mate.span * RIB_TWIG,
+            steps: 2,
+            stem: rib
+          });
+        }
+        return { leaves: [], limbs };
+      }
       const weed = sway.weed ?? FRILL;
-      const limbs = [points];
       weed.forks.forEach((up, made) => {
-        const on = points[Math.min(points.length - 1, Math.round(up * sway.steps))];
-        if (!on) return;
-        limbs.push(
-          strand(
-            on.x,
-            on.y,
-            span * (1 - up) * FORK_REACH,
-            sway.own + up * Math.PI,
-            amp * (1 - up),
-            (made % 2 === 0 ? 1 : -1) * FORK_SPLAY,
-            Math.max(2, Math.round(sway.steps * (1 - up)))
-          )
-        );
+        limbs.push({
+          beat: 1,
+          give: 1 - up,
+          own: up * Math.PI,
+          seat: seated(up, sway.steps),
+          shift: 0,
+          slant: (made % 2 === 0 ? 1 : -1) * FORK_SPLAY,
+          span: span * (1 - up) * FORK_REACH,
+          steps: Math.max(FEWEST_STEPS, Math.round(sway.steps * (1 - up))),
+          stem: 0
+        });
       });
-      const blades = limbs.slice(1);
+      return { leaves: leafage(weed, limbs, span), limbs };
+    }
+    function leafage(weed, limbs, span) {
+      const leaves = [];
       const leafy = crowded(weed.blades, LEAF_FEWEST, span, LEAF_CROWDED);
       const each = Math.max(1, Math.round(leafy / limbs.length));
       const bends = cuts(BLADE_STEPS, span * weed.span);
-      for (const limb of limbs) {
-        const foot = limb[0];
-        const tip = limb[limb.length - 1];
-        if (!foot || !tip) continue;
-        const reach = Math.hypot(tip.x - foot.x, tip.y - foot.y);
+      limbs.forEach((limb, on) => {
         for (let made = 0; made < each; made++) {
           const seat = weed.seat + made / each * (1 - weed.seat);
-          const up = Math.round(seat * (limb.length - 1));
-          const on = limb[Math.min(limb.length - 1, up)];
-          const under = limb[Math.max(0, up - 1)];
-          if (!on || !under) continue;
-          const runX = on.x - under.x;
-          const runY = on.y - under.y;
-          const run = Math.hypot(runX, runY) || 1;
           const side = made % 2 === 0 ? 1 : -1;
-          const long = reach * weed.span * (1 - weed.taper * seat);
-          const trailX = -runX / run;
-          const trailY = -runY / run;
-          const flareX = -runY / run * side;
-          const flareY = runX / run * side;
-          const blade = [];
+          const long = limb.span * weed.span * (1 - weed.taper * seat);
+          const shape = [];
           for (let step2 = 0; step2 <= bends; step2++) {
             const u = step2 / bends;
             const out = Math.sin(u * Math.PI * 0.62) * (1 - u * 0.72) * weed.flare;
-            const down = u * weed.trail;
-            blade.push({
-              x: on.x + (trailX * down + flareX * out) * long,
-              y: on.y + (trailY * down + flareY * out) * long
-            });
+            shape.push({ x: u * weed.trail * long, y: out * long * side });
           }
-          blades.push(blade);
+          leaves.push({ limb: on, seat: seated(seat, limb.steps), shape });
         }
-      }
-      return blades;
+      });
+      return leaves;
     }
-    function ribsOf(sway, amp, points) {
-      const blades = [];
-      for (const mate of sway.mates) {
-        const on = points[Math.min(points.length - 1, Math.round(mate.seat * sway.steps))];
-        if (!on) continue;
-        const rib = strand(
-          on.x,
-          on.y,
-          mate.span,
-          sway.own * mate.beat + mate.own,
-          amp * RIB_GIVE,
-          mate.slant,
-          cuts(FAN_STEPS, mate.span)
-        );
-        blades.push(rib);
-        const half = rib[Math.floor(rib.length / 2)];
-        if (!half || mate.span < RIB_TWIGGED) continue;
-        blades.push(
+    function cutFrom(one, frame, amp, own) {
+      const lines = [];
+      for (const limb of frame.limbs) {
+        const root = limb.stem < 0 ? { x: one.x + limb.shift, y: one.y } : at2(lines[limb.stem], limb.seat);
+        lines.push(
           strand(
-            half.x,
-            half.y,
-            mate.span * RIB_TWIG,
-            sway.own + mate.own,
-            amp * RIB_GIVE,
-            mate.slant * RIB_SPLAY,
-            2
+            root.x,
+            root.y,
+            limb.span,
+            own * limb.beat + limb.own,
+            amp * limb.give,
+            limb.slant,
+            limb.steps
           )
         );
       }
-      return blades;
+      const blades = lines.slice(1);
+      for (const leaf of frame.leaves) {
+        const line = lines[leaf.limb];
+        if (!line) continue;
+        const up = Math.round(leaf.seat * (line.length - 1));
+        const on = line[Math.min(line.length - 1, up)];
+        const under = line[Math.max(0, up - 1)];
+        if (!on || !under) continue;
+        const runX = on.x - under.x;
+        const runY = on.y - under.y;
+        const run = Math.hypot(runX, runY) || 1;
+        const trailX = -runX / run;
+        const trailY = -runY / run;
+        const blade = [];
+        for (const step2 of leaf.shape) {
+          blade.push({
+            x: on.x + trailX * step2.x + trailY * step2.y,
+            y: on.y + trailY * step2.x - trailX * step2.y
+          });
+        }
+        blades.push(blade);
+      }
+      one.points = lines[0] ?? [];
+      one.blades = blades;
+    }
+    function at2(line, seat) {
+      if (!line || line.length === 0) return { x: 0, y: 0 };
+      const up = Math.round(seat * (line.length - 1));
+      return line[Math.min(line.length - 1, Math.max(0, up))] ?? { x: 0, y: 0 };
     }
     function strand(x, y, span, phase, amp, slant, steps) {
       const lean = Math.sin(slant);
@@ -676,14 +739,14 @@ var Sea = (() => {
     }
     function carry(seconds, water) {
       drift += DRIFT * seconds;
-      for (let at2 = 0; at2 < sways.length; at2++) {
-        const sway = sways[at2];
-        const one = plants[at2];
+      for (let at3 = 0; at3 < sways.length; at3++) {
+        const sway = sways[at3];
+        const one = plants[at3];
         if (!sway || !one) continue;
-        const shy = one.kind === "anemone" ? scared(one, heights.get(at2) ?? 0, water) : 0;
+        const shy = one.kind === "anemone" ? scared(one, heights.get(at3) ?? 0, water) : 0;
         const fright = Math.max(0, Math.max(sway.fright - seconds / PULL_FADE, shy));
         if (sway.rate > 0 || fright !== sway.fright) {
-          sways[at2] = { ...sway, fright, own: sway.own + sway.rate * seconds };
+          sways[at3] = { ...sway, fright, own: sway.own + sway.rate * seconds };
         }
       }
     }
@@ -693,7 +756,7 @@ var Sea = (() => {
       return (Math.abs(amp - was.amp) + reach * turned) * SWING[kind] + span * SWEEP[kind] * turned + Math.abs(stem - was.stem) + Math.abs(fright - was.fright) * span * CROWN_PULL;
     }
     function recut() {
-      for (let at2 = 0; at2 < plants.length; at2++) bend(at2, noise);
+      for (let at3 = 0; at3 < plants.length; at3++) bend(at3, noise);
     }
     function advance(seconds) {
       carry(Math.min(Math.max(seconds, 0), 0.1), options.about?.() ?? []);
@@ -702,6 +765,11 @@ var Sea = (() => {
     sow();
     advance(0);
     return {
+      madeOf(at3) {
+        const one = plants[at3];
+        if (!one || one.kind === "coral" || one.kind === "anemone") return null;
+        return framed(at3);
+      },
       plants,
       resize(nextWidth, nextHeight, nextFloor) {
         width = Math.max(MIN_SPAN, nextWidth);
@@ -711,6 +779,7 @@ var Sea = (() => {
         advance(0);
       },
       step: advance,
+      swinging,
       wind(seconds) {
         carry(Math.max(seconds, 0), []);
         recut();
@@ -1361,6 +1430,9 @@ var Sea = (() => {
     flora = createFlora({
       anemones: spread(PER_K.anemones, MOST.anemones, width),
       corals: spread(PER_K.corals, MOST.corals, width),
+      // The crowns and nothing else. Everything the water only bends is handed
+      // over as a shape once and swayed on the card; see `layout`.
+      cutting: ["anemone"],
       fans: spread(PER_K.fans, MOST.fans, width),
       floor: seabed.floorAt,
       grasses: spread(PER_K.grasses, MOST.grasses, width),
@@ -1388,24 +1460,32 @@ var Sea = (() => {
       put(points[i].y);
     }
   }
-  var handed = [];
-  function putPlant(plant, at2) {
-    put(KINDS2[plant.kind] ?? 0);
-    put(plant.depth);
-    put(plant.girth);
-    put(plant.scale);
-    put(plant.x);
-    put(plant.y);
-    put(plant.cut);
-    if (handed[at2] === plant.cut) {
-      put(0);
-      return;
-    }
-    handed[at2] = plant.cut;
+  function putGround() {
+    if (!seabed) return;
+    put(GROUND.sand);
     put(1);
-    putPoints(plant.points);
-    put(plant.blades.length);
-    for (let b = 0; b < plant.blades.length; b++) putPoints(plant.blades[b]);
+    putPoints(seabed.ridge);
+    for (const band of seabed.ranges) {
+      put(GROUND.hill);
+      put(band.depth);
+      putPoints(band.ridge);
+    }
+    if (reef) {
+      put(GROUND.mound);
+      put(reef.depth);
+      putPoints(reef.crest);
+    }
+    for (const cliff of seabed.cliffs) {
+      put(GROUND.cliff);
+      put(cliff.depth);
+      putPoints(cliff.ridge);
+    }
+  }
+  function grounds() {
+    if (!seabed) return 0;
+    return 1 + seabed.ranges.length + (reef ? 1 : 0) + seabed.cliffs.length;
+  }
+  function putTwigs(plant) {
     put(plant.twigs.length);
     for (let t = 0; t < plant.twigs.length; t++) {
       const twig = plant.twigs[t];
@@ -1415,42 +1495,75 @@ var Sea = (() => {
       for (let n = 0; n < cut.length; n++) put(cut[n]);
     }
   }
-  function publish() {
+  function layout() {
     at = 0;
     if (!flora || !seabed) return 0;
-    put(2);
+    put(3);
     put(box.width);
     put(box.height);
-    const groundAt = at;
-    put(0);
-    const plantAt = at;
-    put(0);
-    let ground = 0;
-    put(GROUND.sand);
-    put(1);
-    putPoints(seabed.ridge);
-    ground++;
-    for (const band of seabed.ranges) {
-      put(GROUND.hill);
-      put(band.depth);
-      putPoints(band.ridge);
-      ground++;
+    put(grounds());
+    put(flora.plants.length);
+    putGround();
+    for (let p = 0; p < flora.plants.length; p++) {
+      const plant = flora.plants[p];
+      put(KINDS2[plant.kind] ?? 0);
+      put(plant.depth);
+      put(plant.girth);
+      put(plant.scale);
+      put(plant.x);
+      put(plant.y);
+      if (plant.kind === "coral") {
+        putTwigs(plant);
+        continue;
+      }
+      if (plant.kind === "anemone") continue;
+      const frame = flora.madeOf(p);
+      if (!frame) {
+        put(0);
+        put(0);
+        continue;
+      }
+      put(frame.limbs.length);
+      for (const limb of frame.limbs) {
+        put(limb.beat);
+        put(limb.give);
+        put(limb.own);
+        put(limb.seat);
+        put(limb.shift);
+        put(limb.slant);
+        put(limb.span);
+        put(limb.steps);
+        put(limb.stem);
+      }
+      put(frame.leaves.length);
+      for (const leaf of frame.leaves) {
+        put(leaf.limb);
+        put(leaf.seat);
+        putPoints(leaf.shape);
+      }
     }
-    if (reef) {
-      put(GROUND.mound);
-      put(reef.depth);
-      putPoints(reef.crest);
-      ground++;
+    return at;
+  }
+  var handed = [];
+  function publish() {
+    at = 0;
+    if (!flora) return 0;
+    put(flora.plants.length);
+    for (let p = 0; p < flora.plants.length; p++) {
+      const plant = flora.plants[p];
+      const swing = flora.swinging[p];
+      put(swing ? swing.amp : 0);
+      put(swing ? swing.own : 0);
+      if (plant.kind !== "anemone" || handed[p] === plant.cut) {
+        put(0);
+        continue;
+      }
+      handed[p] = plant.cut;
+      put(1);
+      putPoints(plant.points);
+      put(plant.blades.length);
+      for (let b = 0; b < plant.blades.length; b++) putPoints(plant.blades[b]);
     }
-    for (const cliff of seabed.cliffs) {
-      put(GROUND.cliff);
-      put(cliff.depth);
-      putPoints(cliff.ridge);
-      ground++;
-    }
-    for (let p = 0; p < flora.plants.length; p++) putPlant(flora.plants[p], p);
-    geometry[groundAt] = ground;
-    geometry[plantAt] = flora.plants.length;
     return at;
   }
   return __toCommonJS(scene_exports);
