@@ -70,7 +70,7 @@ var __ornament = (() => {
     SPECIES: () => SPECIES,
     SPREAD: () => SPREAD,
     SPRIGS: () => SPRIGS,
-    STEPS: () => STEPS,
+    STEPS: () => STEPS2,
     SUBMARINE: () => SUBMARINE,
     SUB_SCREW: () => SUB_SCREW,
     WILD: () => WILD,
@@ -114,14 +114,14 @@ var __ornament = (() => {
   }
   function createBiome() {
     const sources = /* @__PURE__ */ new Set();
-    const gathered = [];
+    const gathered2 = [];
     return {
       about() {
-        gathered.length = 0;
+        gathered2.length = 0;
         for (const source of sources) {
-          for (const one of source()) gathered.push(one);
+          for (const one of source()) gathered2.push(one);
         }
-        return gathered;
+        return gathered2;
       },
       enter(source) {
         sources.add(source);
@@ -1131,6 +1131,627 @@ var __ornament = (() => {
     return arms;
   }
 
+  // ../../codincodv2/assets/js/ornament/flora.ts
+  var gatherings = [];
+  function gathered(twigs) {
+    for (const held of gatherings) {
+      if (held.drawn === twigs) return held.gathered;
+    }
+    const made = [];
+    for (const twig of twigs) {
+      const same = made.find((one) => one.width === twig.width);
+      if (same) same.d += ` ${twig.d}`;
+      else made.push({ d: twig.d, width: twig.width });
+    }
+    gatherings.push({ drawn: twigs, gathered: made });
+    return made;
+  }
+  var CORAL = [
+    { d: "M0 0 C-2 -14 -10 -18 -16 -26", width: 5 },
+    { d: "M0 0 C0 -16 2 -24 0 -34", width: 6 },
+    { d: "M0 0 C2 -12 10 -16 18 -22", width: 4.5 },
+    { d: "M-8 -14 C-12 -20 -16 -22 -22 -24", width: 3 },
+    { d: "M8 -12 C12 -18 18 -20 24 -20", width: 3 }
+  ];
+  var BUSH = [
+    { d: "M0 0 C-4 -8 -14 -10 -24 -12", width: 4 },
+    { d: "M0 0 C-2 -10 -6 -15 -10 -22", width: 4.5 },
+    { d: "M0 0 C1 -9 3 -14 4 -20", width: 5 },
+    { d: "M0 0 C4 -8 12 -11 22 -14", width: 4 },
+    { d: "M-12 -9 C-16 -14 -18 -16 -20 -22", width: 2.5 },
+    { d: "M10 -10 C14 -14 18 -15 22 -20", width: 2.5 }
+  ];
+  var STAGHORN = [
+    { d: "M0 0 C0 -12 -2 -22 -6 -34", width: 5.5 },
+    { d: "M0 0 C3 -10 6 -18 8 -30", width: 4.5 },
+    { d: "M-3 -20 C-8 -26 -12 -28 -16 -36", width: 3 },
+    { d: "M6 -20 C10 -26 14 -27 18 -32", width: 3 },
+    { d: "M0 -6 C-6 -10 -10 -12 -14 -14", width: 2.5 }
+  ];
+  var BOULDER = [
+    { d: "M0 0 C-9 -4 -13 -9 -12 -15", width: 7 },
+    { d: "M0 0 C-4 -6 -5 -12 -4 -18", width: 7 },
+    { d: "M0 0 C3 -6 5 -12 5 -17", width: 7 },
+    { d: "M0 0 C9 -4 13 -9 11 -15", width: 7 }
+  ];
+  var REEF = [BOULDER, BOULDER, BUSH, BUSH, CORAL, STAGHORN];
+  var FIELD_CELLS2 = 3.6;
+  var DRIFT2 = 0.06;
+  var KELP_LEAST = 0.22;
+  var KELP_SPAN = 0.3;
+  var GRASS_LEAST = 0.05;
+  var GRASS_SPAN = 0.085;
+  var TUFT_CROWDED = 46;
+  var TUFT_FEWEST = 2;
+  var TUFT_LEAST = 3;
+  var TUFT_MOST = 7;
+  var TUFT_SPLAY = 0.34;
+  var TUFT_ROOT = 0.16;
+  var GRASS_RUNT = 0.5;
+  var KELP_GIRTH = 5.2;
+  var GRASS_GIRTH = 2;
+  var KELP_STEPS = 12;
+  var GRASS_STEPS = 6;
+  var KELP_LEAN = 0.34;
+  var GRASS_LEAN = 0.14;
+  var SWAY_SLOWEST = 0.22;
+  var SWAY_FASTEST = 0.44;
+  var CURRENT_SHARE = 0.68;
+  var FRILL = {
+    blades: 7,
+    flare: 0.3,
+    forks: [],
+    girth: 1,
+    seat: 0.14,
+    span: 0.44,
+    stature: 1,
+    taper: 0.45,
+    trail: 0.95
+  };
+  var STRAP = {
+    blades: 4,
+    flare: 0.42,
+    forks: [],
+    girth: 1.35,
+    seat: 0.55,
+    span: 0.95,
+    stature: 0.74,
+    taper: 0.08,
+    trail: 0.8
+  };
+  var WRACK = {
+    blades: 24,
+    flare: 0.28,
+    forks: [0.3, 0.48, 0.66],
+    girth: 0.8,
+    seat: 0.2,
+    span: 0.34,
+    stature: 0.78,
+    taper: 0.3,
+    trail: 0.85
+  };
+  var LETTUCE = {
+    blades: 15,
+    flare: 0.95,
+    forks: [],
+    girth: 0.62,
+    seat: 0.06,
+    span: 0.33,
+    stature: 0.44,
+    taper: 0.05,
+    trail: 0.2
+  };
+  var WEEDS = [FRILL, FRILL, LETTUCE, STRAP, WRACK];
+  var LEAF_CROWDED = 210;
+  var LEAF_FEWEST = 3;
+  var BLADE_STEPS = 5;
+  var STEP_SPAN = 8;
+  var FEWEST_STEPS = 2;
+  function cuts(most, drawn2) {
+    return Math.max(FEWEST_STEPS, Math.min(most, Math.round(drawn2 / STEP_SPAN)));
+  }
+  function crowded(most, fewest, drawn2, roomy) {
+    const room = Math.min(1, Math.max(0, drawn2 / roomy));
+    return Math.max(Math.min(most, fewest), Math.round(most * room));
+  }
+  var FORK_REACH = 0.58;
+  var FORK_SPLAY = 0.5;
+  var CORAL_SMALLEST = 0.9;
+  var CORAL_LARGEST = 2.4;
+  var ANEMONE_LEAST = 0.03;
+  var ANEMONE_SPAN = 0.028;
+  var ANEMONE_GIRTH = 0.15;
+  var ANEMONE_LEAN = 0.08;
+  var ANEMONE_STEPS = 3;
+  var CROWN_LEAST = 12;
+  var CROWN_MOST = 20;
+  var CROWN_OPEN = 0.92;
+  var CROWN_CURL = 0.36;
+  var CROWN_REACH = 0.95;
+  var CROWN_WAVE = 0.22;
+  var CROWN_WAVES = 2.2;
+  var CROWN_STEPS = 5;
+  var CROWN_CROWDED = 30;
+  var CROWN_FEWEST = 6;
+  var CROWN_MINDS = 2.4;
+  var CROWN_NOTICE = 0.9;
+  var CROWN_PULL = 0.62;
+  var COLUMN_SQUAT = 0.22;
+  var PULL_FADE = 6;
+  var FAN_LEAST = 0.055;
+  var FAN_SPAN = 0.05;
+  var FAN_GIRTH = 0.07;
+  var FAN_STEM = 0.34;
+  var FAN_LEAN = 0.06;
+  var FAN_STEPS = 4;
+  var RIB_GIVE = 0.5;
+  var RIB_LEAST = 6;
+  var RIB_MOST = 10;
+  var RIB_CROWDED = 44;
+  var RIB_FEWEST = 3;
+  var RIB_TWIGGED = 14;
+  var RIB_OPEN = 1.25;
+  var RIB_SEAT = 0.12;
+  var RIB_REACH = 0.95;
+  var RIB_TWIG = 0.38;
+  var RIB_SPLAY = 1.35;
+  var MEADOW_EVERY = 620;
+  var MEADOW_SPREAD = 0.13;
+  var MEADOW_DEEP = 0.16;
+  var MEADOW_STRAY = 0.14;
+  var DEPTH_FAR3 = 0.12;
+  var DEPTH_NEAR3 = 1;
+  var PLANT_SHRINK = 0.78;
+  var shrunk = (depth) => 1 - PLANT_SHRINK + PLANT_SHRINK * depth;
+  var CROWN_BACK = 1.7;
+  var MIN_SPAN2 = 1;
+  var LEANS = {
+    anemone: ANEMONE_LEAN,
+    coral: 0,
+    fan: FAN_LEAN,
+    grass: GRASS_LEAN,
+    kelp: KELP_LEAN
+  };
+  var STEMS = {
+    anemone: 1,
+    coral: 0,
+    fan: FAN_STEM,
+    grass: 1,
+    kelp: 1
+  };
+  var TOLERANCE = 0.25;
+  var SWING = {
+    anemone: 2,
+    coral: 0,
+    fan: 2,
+    grass: 2,
+    kelp: 2
+  };
+  var SWEEP2 = {
+    anemone: 0.25,
+    coral: 0,
+    fan: 0,
+    grass: 0,
+    kelp: 0
+  };
+  var STEPS = {
+    anemone: ANEMONE_STEPS,
+    coral: 0,
+    fan: FAN_STEPS,
+    grass: GRASS_STEPS,
+    kelp: KELP_STEPS
+  };
+  function girthOf(kind, weed, span, depth) {
+    var _a;
+    if (kind === "anemone") return span * ANEMONE_GIRTH;
+    if (kind === "fan") return span * FAN_GIRTH;
+    if (kind === "kelp") return KELP_GIRTH * ((_a = weed == null ? void 0 : weed.girth) != null ? _a : 1) * shrunk(depth);
+    return GRASS_GIRTH * shrunk(depth);
+  }
+  function feeler(x, y, span, open, phase, steps) {
+    const points = [{ x, y }];
+    const pace = span / steps;
+    let atX = x;
+    let atY = y;
+    for (let step = 1; step <= steps; step++) {
+      const u = step / steps;
+      const heading = open * (1 + CROWN_CURL * u) + Math.sin(phase + u * CROWN_WAVES) * CROWN_WAVE * u;
+      atX += pace * Math.sin(heading);
+      atY -= pace * Math.cos(heading);
+      points.push({ x: atX, y: atY });
+    }
+    return points;
+  }
+  function crown(seed, drawn2) {
+    const random = makeRandom(seed);
+    const most = CROWN_LEAST + Math.floor(random() * (CROWN_MOST - CROWN_LEAST + 1));
+    const count = crowded(most, CROWN_FEWEST, drawn2, CROWN_CROWDED);
+    const tentacles = [];
+    for (let made = 0; made < count; made++) {
+      const across = count < 2 ? 0 : made / (count - 1) * 2 - 1;
+      const span = CROWN_REACH * (0.75 + random() * 0.55);
+      tentacles.push({
+        beat: 0.7 + random() * 0.7,
+        own: random() * Math.PI * 2,
+        shift: across * ANEMONE_GIRTH * 0.5,
+        slant: across * CROWN_OPEN * (0.72 + random() * 0.56),
+        span,
+        steps: cuts(CROWN_STEPS, span * drawn2)
+      });
+    }
+    return tentacles;
+  }
+  function crownSwept(span, turned) {
+    return span * SWEEP2.anemone * turned;
+  }
+  function crownAt(mouth, tentacles, span, phase) {
+    return tentacles.map(
+      (one) => feeler(
+        mouth.x + one.shift * span,
+        mouth.y,
+        one.span * span,
+        one.slant,
+        phase * one.beat + one.own,
+        one.steps
+      )
+    );
+  }
+  function createFlora(options) {
+    var _a;
+    const noise = makeNoise2(options.seed ^ 20240);
+    const random = makeRandom(options.seed ^ 27452);
+    let width = Math.max(MIN_SPAN2, options.width);
+    let height = Math.max(MIN_SPAN2, options.height);
+    let floor = options.floor;
+    let drift = 0;
+    const plants = [];
+    const sways = [];
+    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE);
+    const drawn2 = [];
+    const beds = [];
+    const heights = /* @__PURE__ */ new Map();
+    function plant(kind) {
+      var _a2, _b;
+      const { depth, x } = where(kind);
+      if (kind === "coral") {
+        plants.push({
+          blades: [],
+          cut: 0,
+          depth,
+          girth: 0,
+          kind,
+          points: [],
+          scale: (CORAL_SMALLEST + random() * (CORAL_LARGEST - CORAL_SMALLEST)) * shrunk(depth),
+          twigs: gathered((_a2 = REEF[Math.floor(random() * REEF.length)]) != null ? _a2 : CORAL),
+          x,
+          y: floor(x, depth)
+        });
+        sways.push({
+          fright: 0,
+          lean: 0,
+          mates: [],
+          own: random() * Math.PI * 2,
+          rate: 0,
+          steps: 0,
+          tentacles: [],
+          weed: null
+        });
+        drawn2.push(null);
+        return;
+      }
+      const weed = kind === "kelp" ? (_b = WEEDS[Math.floor(random() * WEEDS.length)]) != null ? _b : FRILL : null;
+      const span = height * stature(kind, weed) * shrunk(depth);
+      plants.push({
+        blades: [],
+        cut: 0,
+        depth,
+        girth: girthOf(kind, weed, span, depth),
+        kind,
+        points: [],
+        scale: 1,
+        twigs: [],
+        x,
+        y: floor(x, depth)
+      });
+      sways.push({
+        fright: 0,
+        lean: span * LEANS[kind],
+        mates: crop(kind, span),
+        own: random() * Math.PI * 2,
+        rate: SWAY_SLOWEST + random() * (SWAY_FASTEST - SWAY_SLOWEST),
+        steps: cuts(STEPS[kind], span * STEMS[kind]),
+        tentacles: kind === "anemone" ? crown(random() * 65535 | 0, span) : [],
+        weed
+      });
+      drawn2.push(null);
+      heights.set(plants.length - 1, span);
+    }
+    function stature(kind, weed) {
+      var _a2;
+      if (kind === "anemone") return ANEMONE_LEAST + random() * ANEMONE_SPAN;
+      if (kind === "fan") return FAN_LEAST + random() * FAN_SPAN;
+      if (kind === "kelp") return (KELP_LEAST + random() * KELP_SPAN) * ((_a2 = weed == null ? void 0 : weed.stature) != null ? _a2 : 1);
+      return GRASS_LEAST + random() * GRASS_SPAN;
+    }
+    function crop(kind, span) {
+      if (kind === "fan") return ribs(span);
+      if (kind === "grass") return clump(span);
+      return [];
+    }
+    function where(kind) {
+      if (kind === "anemone") {
+        return {
+          depth: DEPTH_FAR3 + random() ** CROWN_BACK * (DEPTH_NEAR3 - DEPTH_FAR3),
+          x: random() * width
+        };
+      }
+      return kind === "grass" ? sprig() : anywhere();
+    }
+    function anywhere() {
+      return { depth: DEPTH_FAR3 + random() * (DEPTH_NEAR3 - DEPTH_FAR3), x: random() * width };
+    }
+    function sprig() {
+      const bed = beds[Math.floor(random() * beds.length)];
+      if (!bed || random() < MEADOW_STRAY) return anywhere();
+      const depth = bed.depth + (random() + random() - 1) * MEADOW_DEEP;
+      return {
+        depth: Math.min(DEPTH_NEAR3, Math.max(DEPTH_FAR3, depth)),
+        x: bed.x + (random() + random() - 1) * MEADOW_SPREAD * width
+      };
+    }
+    function clump(span) {
+      const mates = [];
+      const most = TUFT_LEAST + Math.floor(random() * (TUFT_MOST - TUFT_LEAST + 1));
+      const count = crowded(most, TUFT_FEWEST, span, TUFT_CROWDED);
+      for (let made = 0; made < count; made++) {
+        const side = made % 2 === 0 ? 1 : -1;
+        const out = (Math.floor(made / 2) + 1) / Math.ceil(count / 2);
+        mates.push({
+          beat: 0.82 + random() * 0.4,
+          own: random() * Math.PI * 2,
+          seat: 0,
+          shift: side * out * span * TUFT_ROOT * (0.4 + random() * 0.6),
+          slant: side * out * TUFT_SPLAY * (0.5 + random() * 0.5),
+          span: span * (GRASS_RUNT + random() * (1 - GRASS_RUNT))
+        });
+      }
+      return mates;
+    }
+    function ribs(span) {
+      const mates = [];
+      const most = RIB_LEAST + Math.floor(random() * (RIB_MOST - RIB_LEAST + 1));
+      const count = crowded(most, RIB_FEWEST, span, RIB_CROWDED);
+      for (let made = 0; made < count; made++) {
+        const side = made % 2 === 0 ? 1 : -1;
+        const up = (Math.floor(made / 2) + 1) / Math.ceil(count / 2);
+        mates.push({
+          beat: 0.9 + random() * 0.25,
+          own: random() * Math.PI * 2,
+          seat: Math.min(1, RIB_SEAT + up * (1 - RIB_SEAT) * (0.75 + random() * 0.35)),
+          shift: 0,
+          slant: side * RIB_OPEN * (1 - up * 0.55),
+          span: span * RIB_REACH * (1 - up * 0.18)
+        });
+      }
+      return mates;
+    }
+    function sow() {
+      var _a2, _b, _c, _d, _e;
+      plants.length = 0;
+      sways.length = 0;
+      beds.length = 0;
+      drawn2.length = 0;
+      heights.clear();
+      for (let made = 0; made < Math.max(1, Math.round(width / MEADOW_EVERY)); made++) {
+        beds.push(anywhere());
+      }
+      for (let made = 0; made < Math.max(0, (_a2 = options.anemones) != null ? _a2 : 0); made++) plant("anemone");
+      for (let made = 0; made < Math.max(0, (_b = options.corals) != null ? _b : 0); made++) plant("coral");
+      for (let made = 0; made < Math.max(0, (_c = options.fans) != null ? _c : 0); made++) plant("fan");
+      for (let made = 0; made < Math.max(0, (_d = options.grasses) != null ? _d : 0); made++) plant("grass");
+      for (let made = 0; made < Math.max(0, (_e = options.kelps) != null ? _e : 0); made++) plant("kelp");
+    }
+    function bend2(at, field) {
+      const one = plants[at];
+      const sway = sways[at];
+      const span = heights.get(at);
+      if (!one || !sway || span == null || one.kind === "coral") return;
+      const current = field(one.x / width * FIELD_CELLS2 + drift, drift);
+      const own = Math.sin(sway.own);
+      const amp = sway.lean * (current * CURRENT_SHARE + own * (1 - CURRENT_SHARE));
+      const shy2 = one.kind === "anemone" ? 1 - sway.fright * COLUMN_SQUAT : 1;
+      const stem = span * STEMS[one.kind] * shy2;
+      const was = drawn2[at];
+      if (was && stir2(one.kind, span, was, amp, sway.fright, sway.own, stem) < tolerance) return;
+      drawn2[at] = { amp, fright: sway.fright, own: sway.own, stem };
+      one.cut++;
+      const points = strand(one.x, one.y, stem, sway.own, amp, 0, sway.steps);
+      one.points = points;
+      if (one.kind === "anemone") {
+        const mouth = points[points.length - 1];
+        const out = span * (1 - sway.fright * CROWN_PULL);
+        one.blades = mouth ? crownAt(mouth, sway.tentacles, out, sway.own) : [];
+        return;
+      }
+      if (one.kind === "fan") {
+        one.blades = ribsOf(sway, amp, points);
+        return;
+      }
+      if (one.kind === "grass") {
+        one.blades = sway.mates.map(
+          (mate) => strand(
+            one.x + mate.shift,
+            one.y,
+            mate.span,
+            sway.own * mate.beat + mate.own,
+            amp,
+            mate.slant,
+            cuts(sway.steps, mate.span)
+          )
+        );
+        return;
+      }
+      one.blades = leaves(sway, span, amp, points);
+    }
+    function leaves(sway, span, amp, points) {
+      var _a2;
+      const weed = (_a2 = sway.weed) != null ? _a2 : FRILL;
+      const limbs = [points];
+      weed.forks.forEach((up, made) => {
+        const on = points[Math.min(points.length - 1, Math.round(up * sway.steps))];
+        if (!on) return;
+        limbs.push(
+          strand(
+            on.x,
+            on.y,
+            span * (1 - up) * FORK_REACH,
+            sway.own + up * Math.PI,
+            amp * (1 - up),
+            (made % 2 === 0 ? 1 : -1) * FORK_SPLAY,
+            Math.max(2, Math.round(sway.steps * (1 - up)))
+          )
+        );
+      });
+      const blades = limbs.slice(1);
+      const leafy = crowded(weed.blades, LEAF_FEWEST, span, LEAF_CROWDED);
+      const each = Math.max(1, Math.round(leafy / limbs.length));
+      const bends = cuts(BLADE_STEPS, span * weed.span);
+      for (const limb of limbs) {
+        const foot = limb[0];
+        const tip = limb[limb.length - 1];
+        if (!foot || !tip) continue;
+        const reach2 = Math.hypot(tip.x - foot.x, tip.y - foot.y);
+        for (let made = 0; made < each; made++) {
+          const seat = weed.seat + made / each * (1 - weed.seat);
+          const up = Math.round(seat * (limb.length - 1));
+          const on = limb[Math.min(limb.length - 1, up)];
+          const under = limb[Math.max(0, up - 1)];
+          if (!on || !under) continue;
+          const runX = on.x - under.x;
+          const runY = on.y - under.y;
+          const run = Math.hypot(runX, runY) || 1;
+          const side = made % 2 === 0 ? 1 : -1;
+          const long = reach2 * weed.span * (1 - weed.taper * seat);
+          const trailX = -runX / run;
+          const trailY = -runY / run;
+          const flareX = -runY / run * side;
+          const flareY = runX / run * side;
+          const blade2 = [];
+          for (let step = 0; step <= bends; step++) {
+            const u = step / bends;
+            const out = Math.sin(u * Math.PI * 0.62) * (1 - u * 0.72) * weed.flare;
+            const down = u * weed.trail;
+            blade2.push({
+              x: on.x + (trailX * down + flareX * out) * long,
+              y: on.y + (trailY * down + flareY * out) * long
+            });
+          }
+          blades.push(blade2);
+        }
+      }
+      return blades;
+    }
+    function ribsOf(sway, amp, points) {
+      const blades = [];
+      for (const mate of sway.mates) {
+        const on = points[Math.min(points.length - 1, Math.round(mate.seat * sway.steps))];
+        if (!on) continue;
+        const rib = strand(
+          on.x,
+          on.y,
+          mate.span,
+          sway.own * mate.beat + mate.own,
+          amp * RIB_GIVE,
+          mate.slant,
+          cuts(FAN_STEPS, mate.span)
+        );
+        blades.push(rib);
+        const half2 = rib[Math.floor(rib.length / 2)];
+        if (!half2 || mate.span < RIB_TWIGGED) continue;
+        blades.push(
+          strand(
+            half2.x,
+            half2.y,
+            mate.span * RIB_TWIG,
+            sway.own + mate.own,
+            amp * RIB_GIVE,
+            mate.slant * RIB_SPLAY,
+            2
+          )
+        );
+      }
+      return blades;
+    }
+    function strand(x, y, span, phase, amp, slant, steps) {
+      const lean = Math.sin(slant);
+      const rise = Math.cos(slant);
+      const points = [];
+      for (let step = 0; step <= steps; step++) {
+        const t = step / steps;
+        points.push({
+          x: x + span * t * lean + amp * Math.sin(phase + t * 2.4) * t,
+          y: y - span * t * rise
+        });
+      }
+      return points;
+    }
+    function scared(one, span, water) {
+      let worst = 0;
+      for (const thing of water) {
+        if (thing.size < span * CROWN_MINDS) continue;
+        const reach2 = thing.size * CROWN_NOTICE;
+        const away2 = Math.hypot(one.x - thing.x, one.y - thing.y);
+        if (away2 >= reach2) continue;
+        worst = Math.max(worst, (1 - away2 / reach2) * abreast(one.depth, thing.depth));
+      }
+      return worst;
+    }
+    function carry(seconds, water) {
+      var _a2;
+      drift += DRIFT2 * seconds;
+      for (let at = 0; at < sways.length; at++) {
+        const sway = sways[at];
+        const one = plants[at];
+        if (!sway || !one) continue;
+        const shy2 = one.kind === "anemone" ? scared(one, (_a2 = heights.get(at)) != null ? _a2 : 0, water) : 0;
+        const fright = Math.max(0, Math.max(sway.fright - seconds / PULL_FADE, shy2));
+        if (sway.rate > 0 || fright !== sway.fright) {
+          sways[at] = __spreadProps(__spreadValues({}, sway), { fright, own: sway.own + sway.rate * seconds });
+        }
+      }
+    }
+    function stir2(kind, span, was, amp, fright, own, stem) {
+      const reach2 = Math.max(Math.abs(amp), Math.abs(was.amp));
+      const turned = Math.abs(own - was.own);
+      return (Math.abs(amp - was.amp) + reach2 * turned) * SWING[kind] + span * SWEEP2[kind] * turned + Math.abs(stem - was.stem) + Math.abs(fright - was.fright) * span * CROWN_PULL;
+    }
+    function recut() {
+      for (let at = 0; at < plants.length; at++) bend2(at, noise);
+    }
+    function advance2(seconds) {
+      var _a2, _b;
+      carry(Math.min(Math.max(seconds, 0), 0.1), (_b = (_a2 = options.about) == null ? void 0 : _a2.call(options)) != null ? _b : []);
+      recut();
+    }
+    sow();
+    advance2(0);
+    return {
+      plants,
+      resize(nextWidth, nextHeight, nextFloor) {
+        width = Math.max(MIN_SPAN2, nextWidth);
+        height = Math.max(MIN_SPAN2, nextHeight);
+        floor = nextFloor;
+        sow();
+        advance2(0);
+      },
+      step: advance2,
+      wind(seconds) {
+        carry(Math.max(seconds, 0), []);
+        recut();
+      }
+    };
+  }
+
   // ../../codincodv2/assets/js/ornament/crags.ts
   var FRAMINGS = {
     cave: 1,
@@ -1176,7 +1797,7 @@ var __ornament = (() => {
     tuft: 4
   };
   var SPRIGS = {
-    fan: [
+    fan: gathered([
       { d: "M0 0 C1 -6 0 -10 -1 -15", width: 2.6 },
       { d: "M-1 -15 C-5 -19 -9 -21 -13 -27", width: 1.8 },
       { d: "M-1 -15 C-1 -21 -1 -25 -2 -31", width: 1.8 },
@@ -1185,23 +1806,23 @@ var __ornament = (() => {
       { d: "M4 -18 C7 -22 11 -23 14 -22", width: 1.2 },
       { d: "M-2 -22 C-4 -26 -5 -29 -6 -33", width: 1.2 },
       { d: "M0 -22 C2 -26 4 -29 6 -32", width: 1.2 }
-    ],
-    frond: [
+    ]),
+    frond: gathered([
       { d: "M0 0 C4 -8 3 -16 6 -25 C7 -29 6 -31 4 -33", width: 2.2 },
       { d: "M0 0 C-3 -7 -4 -14 -3 -21 C-3 -25 -4 -27 -6 -29", width: 1.8 },
       { d: "M1 -6 C-4 -10 -7 -15 -8 -21", width: 1.4 }
-    ],
-    sponge: [
+    ]),
+    sponge: gathered([
       { d: "M-3 -4 C-4 -9 -3 -12 -2 -14", width: 9 },
       { d: "M4 -3 C5 -7 5 -10 4 -12", width: 7 }
-    ],
-    tuft: [
+    ]),
+    tuft: gathered([
       { d: "M0 0 L-8 -11", width: 1.6 },
       { d: "M0 0 L-4 -15", width: 1.6 },
       { d: "M0 0 L1 -17", width: 1.6 },
       { d: "M0 0 L6 -14", width: 1.6 },
       { d: "M0 0 L10 -9", width: 1.6 }
-    ]
+    ])
   };
   var COLONIES_PER_K = 11;
   var COLONY_LEAST = 3;
@@ -1216,15 +1837,15 @@ var __ornament = (() => {
   var ISLE_RISE_LEAST = 0.78;
   var ISLE_RISE_SPAN = 0.45;
   var ISLE_STEPS = 90;
-  var MIN_SPAN2 = 1;
+  var MIN_SPAN3 = 1;
   function createCrags(options) {
     var _a, _b;
     const random = makeRandom(stir(options.seed ^ 15529) | 0);
     const rough = makeNoise2(options.seed ^ 39441);
     const bite = makeNoise2(options.seed ^ 2839);
     const bedding = makeNoise2(options.seed ^ 32307);
-    let width = Math.max(MIN_SPAN2, options.width);
-    let height = Math.max(MIN_SPAN2, options.height);
+    let width = Math.max(MIN_SPAN3, options.width);
+    let height = Math.max(MIN_SPAN3, options.height);
     let floor = options.floor;
     const framing = (_a = options.framing) != null ? _a : draw2();
     const hasIsle = (_b = options.isle) != null ? _b : isleAllowed(framing) && random() < ISLE_ODDS;
@@ -1404,8 +2025,8 @@ var __ornament = (() => {
        * day's rather than the box's.
        */
       resize(nextWidth, nextHeight, nextFloor) {
-        width = Math.max(MIN_SPAN2, nextWidth);
-        height = Math.max(MIN_SPAN2, nextHeight);
+        width = Math.max(MIN_SPAN3, nextWidth);
+        height = Math.max(MIN_SPAN3, nextHeight);
         floor = nextFloor;
         rocks = build2();
         isle = hasIsle ? raise() : null;
@@ -1418,18 +2039,18 @@ var __ornament = (() => {
   var isleAllowed = (framing) => framing === "hills" || framing === "open";
 
   // ../../codincodv2/assets/js/ornament/drift.ts
-  var FIELD_CELLS2 = 2.2;
-  var DRIFT2 = 0.04;
+  var FIELD_CELLS3 = 2.2;
+  var DRIFT3 = 0.04;
   var SWAY = 13;
   var FALL_SLOWEST = 4;
   var FALL_FASTEST = 13;
   var MOTE_SMALLEST = 0.4;
   var MOTE_LARGEST = 1.9;
   var MOTE_BIAS = 2.6;
-  var TOLERANCE = 0.25;
+  var TOLERANCE2 = 0.25;
   var DEPTH_SIZE3 = 0.75;
-  var DEPTH_NEAR3 = 1;
-  var DEPTH_FAR3 = 0.08;
+  var DEPTH_NEAR4 = 1;
+  var DEPTH_FAR4 = 0.08;
   var RISE_SLOWEST = 38;
   var RISE_FASTEST = 66;
   var BUBBLE_SMALLEST = 1.1;
@@ -1443,18 +2064,18 @@ var __ornament = (() => {
   var VENT_REST_SPAN = 14;
   var VENT_GAP_LEAST = 0.07;
   var VENT_GAP_SPAN = 0.5;
-  var MIN_SPAN3 = 1;
+  var MIN_SPAN4 = 1;
   function createDrift(options) {
     var _a, _b, _c;
     const noise = makeNoise2(options.seed ^ 7487);
     const random = makeRandom(options.seed ^ 31265);
-    let width = Math.max(MIN_SPAN3, options.width);
-    let height = Math.max(MIN_SPAN3, options.height);
+    let width = Math.max(MIN_SPAN4, options.width);
+    let height = Math.max(MIN_SPAN4, options.height);
     let slide = 0;
     const floor = (_a = options.floor) != null ? _a : (() => height);
-    const tolerance = Math.max(0, (_b = options.tolerance) != null ? _b : TOLERANCE);
+    const tolerance = Math.max(0, (_b = options.tolerance) != null ? _b : TOLERANCE2);
     const mote = () => {
-      const depth = DEPTH_FAR3 + random() * (DEPTH_NEAR3 - DEPTH_FAR3);
+      const depth = DEPTH_FAR4 + random() * (DEPTH_NEAR4 - DEPTH_FAR4);
       const shrink = 1 - DEPTH_SIZE3 + DEPTH_SIZE3 * depth;
       return {
         cut: 0,
@@ -1495,7 +2116,7 @@ var __ornament = (() => {
     const vents = Array.from({ length: Math.max(0, (_c = options.vents) != null ? _c : 0) }, vent);
     const bubbles = [];
     function release(from) {
-      const depth = DEPTH_FAR3 + random() * (DEPTH_NEAR3 - DEPTH_FAR3);
+      const depth = DEPTH_FAR4 + random() * (DEPTH_NEAR4 - DEPTH_FAR4);
       bubbles.push({
         depth,
         lane: random() * 200,
@@ -1509,10 +2130,10 @@ var __ornament = (() => {
       bubbles,
       motes,
       resize(nextWidth, nextHeight, count) {
-        const scaleX = Math.max(MIN_SPAN3, nextWidth) / width;
-        const scaleY = Math.max(MIN_SPAN3, nextHeight) / height;
-        width = Math.max(MIN_SPAN3, nextWidth);
-        height = Math.max(MIN_SPAN3, nextHeight);
+        const scaleX = Math.max(MIN_SPAN4, nextWidth) / width;
+        const scaleY = Math.max(MIN_SPAN4, nextHeight) / height;
+        width = Math.max(MIN_SPAN4, nextWidth);
+        height = Math.max(MIN_SPAN4, nextHeight);
         for (let at = 0; at < motes.length; at++) {
           const one = motes[at];
           if (!one) continue;
@@ -1533,8 +2154,8 @@ var __ornament = (() => {
       },
       step(seconds) {
         const dt = Math.min(Math.max(seconds, 0), 0.1);
-        slide += DRIFT2 * dt;
-        const scale = FIELD_CELLS2 / width;
+        slide += DRIFT3 * dt;
+        const scale = FIELD_CELLS3 / width;
         for (let at = 0; at < motes.length; at++) {
           const one = motes[at];
           const was = held[at];
@@ -1568,7 +2189,7 @@ var __ornament = (() => {
           const climb = (RISE_SLOWEST + one.depth * (RISE_FASTEST - RISE_SLOWEST)) * one.depth;
           one.rose += dt;
           one.y -= climb * dt;
-          one.r += one.r * SWELL * (climb / Math.max(height, MIN_SPAN3)) * dt;
+          one.r += one.r * SWELL * (climb / Math.max(height, MIN_SPAN4)) * dt;
           one.x += Math.cos(one.rose * WOBBLE_RATE + one.lane) * WOBBLE2 * dt;
           if (one.y + one.r < 0) bubbles.splice(at, 1);
         }
@@ -1588,7 +2209,7 @@ var __ornament = (() => {
   var half = (t) => 24 * t * (1 - t) + WRIST * (1 - t);
   var WRIST = 1.4;
   var STATIONS = 20;
-  var SWEEP2 = 0.2;
+  var SWEEP3 = 0.2;
   var WAVES = 0.85;
   var TWIST = 2 * Math.PI * WAVES;
   var envelope = (u) => 0.2 - 0.8 * u + 1.6 * u * u;
@@ -1612,8 +2233,8 @@ var __ornament = (() => {
     return high - low;
   }
   function fitted() {
-    let amp = SWEEP2 * SPAN;
-    for (let pass = 0; pass < 8; pass++) amp *= SWEEP2 * SPAN / reach(amp);
+    let amp = SWEEP3 * SPAN;
+    for (let pass = 0; pass < 8; pass++) amp *= SWEEP3 * SPAN / reach(amp);
     return amp;
   }
   var AMP = fitted();
@@ -1681,13 +2302,13 @@ var __ornament = (() => {
       carry([FLUKE_BACK, -FLUKE_SPREAD])
     ]);
   }
-  var STEPS = 48;
-  var drawn = new Array(STEPS);
+  var STEPS2 = 48;
+  var drawn = new Array(STEPS2);
   var EYE_R = 1.5;
   var EYE_X = 22;
   var EYE_LIFT = 2;
   function build(at) {
-    const phase = at / STEPS * 2 * Math.PI;
+    const phase = at / STEPS2 * 2 * Math.PI;
     const [x, y] = above(EYE_X, EYE_LIFT, phase);
     const d = rounded(outline(phase)) + tail(phase) + dorsal(phase);
     return {
@@ -1715,617 +2336,12 @@ var __ornament = (() => {
   var BILL_GIRTH = 1.1;
   var BILL_ROOT = 3;
   function frameAt(phase) {
-    const at = (Math.round(phase / (2 * Math.PI) * STEPS) % STEPS + STEPS) % STEPS;
+    const at = (Math.round(phase / (2 * Math.PI) * STEPS2) % STEPS2 + STEPS2) % STEPS2;
     const had = drawn[at];
     if (had) return had;
     const made = build(at);
     drawn[at] = made;
     return made;
-  }
-
-  // ../../codincodv2/assets/js/ornament/flora.ts
-  var CORAL = [
-    { d: "M0 0 C-2 -14 -10 -18 -16 -26", width: 5 },
-    { d: "M0 0 C0 -16 2 -24 0 -34", width: 6 },
-    { d: "M0 0 C2 -12 10 -16 18 -22", width: 4.5 },
-    { d: "M-8 -14 C-12 -20 -16 -22 -22 -24", width: 3 },
-    { d: "M8 -12 C12 -18 18 -20 24 -20", width: 3 }
-  ];
-  var BUSH = [
-    { d: "M0 0 C-4 -8 -14 -10 -24 -12", width: 4 },
-    { d: "M0 0 C-2 -10 -6 -15 -10 -22", width: 4.5 },
-    { d: "M0 0 C1 -9 3 -14 4 -20", width: 5 },
-    { d: "M0 0 C4 -8 12 -11 22 -14", width: 4 },
-    { d: "M-12 -9 C-16 -14 -18 -16 -20 -22", width: 2.5 },
-    { d: "M10 -10 C14 -14 18 -15 22 -20", width: 2.5 }
-  ];
-  var STAGHORN = [
-    { d: "M0 0 C0 -12 -2 -22 -6 -34", width: 5.5 },
-    { d: "M0 0 C3 -10 6 -18 8 -30", width: 4.5 },
-    { d: "M-3 -20 C-8 -26 -12 -28 -16 -36", width: 3 },
-    { d: "M6 -20 C10 -26 14 -27 18 -32", width: 3 },
-    { d: "M0 -6 C-6 -10 -10 -12 -14 -14", width: 2.5 }
-  ];
-  var BOULDER = [
-    { d: "M0 0 C-9 -4 -13 -9 -12 -15", width: 7 },
-    { d: "M0 0 C-4 -6 -5 -12 -4 -18", width: 7 },
-    { d: "M0 0 C3 -6 5 -12 5 -17", width: 7 },
-    { d: "M0 0 C9 -4 13 -9 11 -15", width: 7 }
-  ];
-  var REEF = [BOULDER, BOULDER, BUSH, BUSH, CORAL, STAGHORN];
-  var FIELD_CELLS3 = 3.6;
-  var DRIFT3 = 0.06;
-  var KELP_LEAST = 0.22;
-  var KELP_SPAN = 0.3;
-  var GRASS_LEAST = 0.05;
-  var GRASS_SPAN = 0.085;
-  var TUFT_CROWDED = 46;
-  var TUFT_FEWEST = 2;
-  var TUFT_LEAST = 3;
-  var TUFT_MOST = 7;
-  var TUFT_SPLAY = 0.34;
-  var TUFT_ROOT = 0.16;
-  var GRASS_RUNT = 0.5;
-  var KELP_GIRTH = 5.2;
-  var GRASS_GIRTH = 2;
-  var KELP_STEPS = 12;
-  var GRASS_STEPS = 6;
-  var KELP_LEAN = 0.34;
-  var GRASS_LEAN = 0.14;
-  var SWAY_SLOWEST = 0.22;
-  var SWAY_FASTEST = 0.44;
-  var CURRENT_SHARE = 0.68;
-  var FRILL = {
-    blades: 7,
-    flare: 0.3,
-    forks: [],
-    girth: 1,
-    seat: 0.14,
-    span: 0.44,
-    stature: 1,
-    taper: 0.45,
-    trail: 0.95
-  };
-  var STRAP = {
-    blades: 4,
-    flare: 0.42,
-    forks: [],
-    girth: 1.35,
-    seat: 0.55,
-    span: 0.95,
-    stature: 0.74,
-    taper: 0.08,
-    trail: 0.8
-  };
-  var WRACK = {
-    blades: 24,
-    flare: 0.28,
-    forks: [0.3, 0.48, 0.66],
-    girth: 0.8,
-    seat: 0.2,
-    span: 0.34,
-    stature: 0.78,
-    taper: 0.3,
-    trail: 0.85
-  };
-  var LETTUCE = {
-    blades: 15,
-    flare: 0.95,
-    forks: [],
-    girth: 0.62,
-    seat: 0.06,
-    span: 0.33,
-    stature: 0.44,
-    taper: 0.05,
-    trail: 0.2
-  };
-  var WEEDS = [FRILL, FRILL, LETTUCE, STRAP, WRACK];
-  var LEAF_CROWDED = 210;
-  var LEAF_FEWEST = 3;
-  var BLADE_STEPS = 5;
-  var STEP_SPAN = 8;
-  var FEWEST_STEPS = 2;
-  function cuts(most, drawn2) {
-    return Math.max(FEWEST_STEPS, Math.min(most, Math.round(drawn2 / STEP_SPAN)));
-  }
-  function crowded(most, fewest, drawn2, roomy) {
-    const room = Math.min(1, Math.max(0, drawn2 / roomy));
-    return Math.max(Math.min(most, fewest), Math.round(most * room));
-  }
-  var FORK_REACH = 0.58;
-  var FORK_SPLAY = 0.5;
-  var CORAL_SMALLEST = 0.9;
-  var CORAL_LARGEST = 2.4;
-  var ANEMONE_LEAST = 0.03;
-  var ANEMONE_SPAN = 0.028;
-  var ANEMONE_GIRTH = 0.15;
-  var ANEMONE_LEAN = 0.08;
-  var ANEMONE_STEPS = 3;
-  var CROWN_LEAST = 12;
-  var CROWN_MOST = 20;
-  var CROWN_OPEN = 0.92;
-  var CROWN_CURL = 0.36;
-  var CROWN_REACH = 0.95;
-  var CROWN_WAVE = 0.22;
-  var CROWN_WAVES = 2.2;
-  var CROWN_STEPS = 5;
-  var CROWN_CROWDED = 30;
-  var CROWN_FEWEST = 6;
-  var CROWN_MINDS = 2.4;
-  var CROWN_NOTICE = 0.9;
-  var CROWN_PULL = 0.62;
-  var COLUMN_SQUAT = 0.22;
-  var PULL_FADE = 6;
-  var FAN_LEAST = 0.055;
-  var FAN_SPAN = 0.05;
-  var FAN_GIRTH = 0.07;
-  var FAN_STEM = 0.34;
-  var FAN_LEAN = 0.06;
-  var FAN_STEPS = 4;
-  var RIB_GIVE = 0.5;
-  var RIB_LEAST = 6;
-  var RIB_MOST = 10;
-  var RIB_CROWDED = 44;
-  var RIB_FEWEST = 3;
-  var RIB_TWIGGED = 14;
-  var RIB_OPEN = 1.25;
-  var RIB_SEAT = 0.12;
-  var RIB_REACH = 0.95;
-  var RIB_TWIG = 0.38;
-  var RIB_SPLAY = 1.35;
-  var MEADOW_EVERY = 620;
-  var MEADOW_SPREAD = 0.13;
-  var MEADOW_DEEP = 0.16;
-  var MEADOW_STRAY = 0.14;
-  var DEPTH_FAR4 = 0.12;
-  var DEPTH_NEAR4 = 1;
-  var CROWN_BACK = 1.7;
-  var MIN_SPAN4 = 1;
-  var LEANS = {
-    anemone: ANEMONE_LEAN,
-    coral: 0,
-    fan: FAN_LEAN,
-    grass: GRASS_LEAN,
-    kelp: KELP_LEAN
-  };
-  var STEMS = {
-    anemone: 1,
-    coral: 0,
-    fan: FAN_STEM,
-    grass: 1,
-    kelp: 1
-  };
-  var TOLERANCE2 = 0.25;
-  var SWING = {
-    anemone: 2,
-    coral: 0,
-    fan: 2,
-    grass: 2,
-    kelp: 2
-  };
-  var SWEEP3 = {
-    anemone: 0.25,
-    coral: 0,
-    fan: 0,
-    grass: 0,
-    kelp: 0
-  };
-  var STEPS2 = {
-    anemone: ANEMONE_STEPS,
-    coral: 0,
-    fan: FAN_STEPS,
-    grass: GRASS_STEPS,
-    kelp: KELP_STEPS
-  };
-  function girthOf(kind, weed, span, depth) {
-    var _a;
-    if (kind === "anemone") return span * ANEMONE_GIRTH;
-    if (kind === "fan") return span * FAN_GIRTH;
-    if (kind === "kelp") return KELP_GIRTH * ((_a = weed == null ? void 0 : weed.girth) != null ? _a : 1) * depth;
-    return GRASS_GIRTH * depth;
-  }
-  function feeler(x, y, span, open, phase, steps) {
-    const points = [{ x, y }];
-    const pace = span / steps;
-    let atX = x;
-    let atY = y;
-    for (let step = 1; step <= steps; step++) {
-      const u = step / steps;
-      const heading = open * (1 + CROWN_CURL * u) + Math.sin(phase + u * CROWN_WAVES) * CROWN_WAVE * u;
-      atX += pace * Math.sin(heading);
-      atY -= pace * Math.cos(heading);
-      points.push({ x: atX, y: atY });
-    }
-    return points;
-  }
-  function crown(seed, drawn2) {
-    const random = makeRandom(seed);
-    const most = CROWN_LEAST + Math.floor(random() * (CROWN_MOST - CROWN_LEAST + 1));
-    const count = crowded(most, CROWN_FEWEST, drawn2, CROWN_CROWDED);
-    const tentacles = [];
-    for (let made = 0; made < count; made++) {
-      const across = count < 2 ? 0 : made / (count - 1) * 2 - 1;
-      const span = CROWN_REACH * (0.75 + random() * 0.55);
-      tentacles.push({
-        beat: 0.7 + random() * 0.7,
-        own: random() * Math.PI * 2,
-        shift: across * ANEMONE_GIRTH * 0.5,
-        slant: across * CROWN_OPEN * (0.72 + random() * 0.56),
-        span,
-        steps: cuts(CROWN_STEPS, span * drawn2)
-      });
-    }
-    return tentacles;
-  }
-  function crownSwept(span, turned) {
-    return span * SWEEP3.anemone * turned;
-  }
-  function crownAt(mouth, tentacles, span, phase) {
-    return tentacles.map(
-      (one) => feeler(
-        mouth.x + one.shift * span,
-        mouth.y,
-        one.span * span,
-        one.slant,
-        phase * one.beat + one.own,
-        one.steps
-      )
-    );
-  }
-  function createFlora(options) {
-    var _a;
-    const noise = makeNoise2(options.seed ^ 20240);
-    const random = makeRandom(options.seed ^ 27452);
-    let width = Math.max(MIN_SPAN4, options.width);
-    let height = Math.max(MIN_SPAN4, options.height);
-    let floor = options.floor;
-    let drift = 0;
-    const plants = [];
-    const sways = [];
-    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE2);
-    const drawn2 = [];
-    const beds = [];
-    const heights = /* @__PURE__ */ new Map();
-    function plant(kind) {
-      var _a2, _b;
-      const { depth, x } = where(kind);
-      if (kind === "coral") {
-        plants.push({
-          blades: [],
-          cut: 0,
-          depth,
-          girth: 0,
-          kind,
-          points: [],
-          scale: (CORAL_SMALLEST + random() * (CORAL_LARGEST - CORAL_SMALLEST)) * depth,
-          twigs: (_a2 = REEF[Math.floor(random() * REEF.length)]) != null ? _a2 : CORAL,
-          x,
-          y: floor(x, depth)
-        });
-        sways.push({
-          fright: 0,
-          lean: 0,
-          mates: [],
-          own: random() * Math.PI * 2,
-          rate: 0,
-          steps: 0,
-          tentacles: [],
-          weed: null
-        });
-        drawn2.push(null);
-        return;
-      }
-      const weed = kind === "kelp" ? (_b = WEEDS[Math.floor(random() * WEEDS.length)]) != null ? _b : FRILL : null;
-      const span = height * stature(kind, weed) * depth;
-      plants.push({
-        blades: [],
-        cut: 0,
-        depth,
-        girth: girthOf(kind, weed, span, depth),
-        kind,
-        points: [],
-        scale: 1,
-        twigs: [],
-        x,
-        y: floor(x, depth)
-      });
-      sways.push({
-        fright: 0,
-        lean: span * LEANS[kind],
-        mates: crop(kind, span),
-        own: random() * Math.PI * 2,
-        rate: SWAY_SLOWEST + random() * (SWAY_FASTEST - SWAY_SLOWEST),
-        steps: cuts(STEPS2[kind], span * STEMS[kind]),
-        tentacles: kind === "anemone" ? crown(random() * 65535 | 0, span) : [],
-        weed
-      });
-      drawn2.push(null);
-      heights.set(plants.length - 1, span);
-    }
-    function stature(kind, weed) {
-      var _a2;
-      if (kind === "anemone") return ANEMONE_LEAST + random() * ANEMONE_SPAN;
-      if (kind === "fan") return FAN_LEAST + random() * FAN_SPAN;
-      if (kind === "kelp") return (KELP_LEAST + random() * KELP_SPAN) * ((_a2 = weed == null ? void 0 : weed.stature) != null ? _a2 : 1);
-      return GRASS_LEAST + random() * GRASS_SPAN;
-    }
-    function crop(kind, span) {
-      if (kind === "fan") return ribs(span);
-      if (kind === "grass") return clump(span);
-      return [];
-    }
-    function where(kind) {
-      if (kind === "anemone") {
-        return {
-          depth: DEPTH_FAR4 + random() ** CROWN_BACK * (DEPTH_NEAR4 - DEPTH_FAR4),
-          x: random() * width
-        };
-      }
-      return kind === "grass" ? sprig() : anywhere();
-    }
-    function anywhere() {
-      return { depth: DEPTH_FAR4 + random() * (DEPTH_NEAR4 - DEPTH_FAR4), x: random() * width };
-    }
-    function sprig() {
-      const bed = beds[Math.floor(random() * beds.length)];
-      if (!bed || random() < MEADOW_STRAY) return anywhere();
-      const depth = bed.depth + (random() + random() - 1) * MEADOW_DEEP;
-      return {
-        depth: Math.min(DEPTH_NEAR4, Math.max(DEPTH_FAR4, depth)),
-        x: bed.x + (random() + random() - 1) * MEADOW_SPREAD * width
-      };
-    }
-    function clump(span) {
-      const mates = [];
-      const most = TUFT_LEAST + Math.floor(random() * (TUFT_MOST - TUFT_LEAST + 1));
-      const count = crowded(most, TUFT_FEWEST, span, TUFT_CROWDED);
-      for (let made = 0; made < count; made++) {
-        const side = made % 2 === 0 ? 1 : -1;
-        const out = (Math.floor(made / 2) + 1) / Math.ceil(count / 2);
-        mates.push({
-          beat: 0.82 + random() * 0.4,
-          own: random() * Math.PI * 2,
-          seat: 0,
-          shift: side * out * span * TUFT_ROOT * (0.4 + random() * 0.6),
-          slant: side * out * TUFT_SPLAY * (0.5 + random() * 0.5),
-          span: span * (GRASS_RUNT + random() * (1 - GRASS_RUNT))
-        });
-      }
-      return mates;
-    }
-    function ribs(span) {
-      const mates = [];
-      const most = RIB_LEAST + Math.floor(random() * (RIB_MOST - RIB_LEAST + 1));
-      const count = crowded(most, RIB_FEWEST, span, RIB_CROWDED);
-      for (let made = 0; made < count; made++) {
-        const side = made % 2 === 0 ? 1 : -1;
-        const up = (Math.floor(made / 2) + 1) / Math.ceil(count / 2);
-        mates.push({
-          beat: 0.9 + random() * 0.25,
-          own: random() * Math.PI * 2,
-          seat: Math.min(1, RIB_SEAT + up * (1 - RIB_SEAT) * (0.75 + random() * 0.35)),
-          shift: 0,
-          slant: side * RIB_OPEN * (1 - up * 0.55),
-          span: span * RIB_REACH * (1 - up * 0.18)
-        });
-      }
-      return mates;
-    }
-    function sow() {
-      var _a2, _b, _c, _d, _e;
-      plants.length = 0;
-      sways.length = 0;
-      beds.length = 0;
-      drawn2.length = 0;
-      heights.clear();
-      for (let made = 0; made < Math.max(1, Math.round(width / MEADOW_EVERY)); made++) {
-        beds.push(anywhere());
-      }
-      for (let made = 0; made < Math.max(0, (_a2 = options.anemones) != null ? _a2 : 0); made++) plant("anemone");
-      for (let made = 0; made < Math.max(0, (_b = options.corals) != null ? _b : 0); made++) plant("coral");
-      for (let made = 0; made < Math.max(0, (_c = options.fans) != null ? _c : 0); made++) plant("fan");
-      for (let made = 0; made < Math.max(0, (_d = options.grasses) != null ? _d : 0); made++) plant("grass");
-      for (let made = 0; made < Math.max(0, (_e = options.kelps) != null ? _e : 0); made++) plant("kelp");
-    }
-    function bend2(at, field) {
-      const one = plants[at];
-      const sway = sways[at];
-      const span = heights.get(at);
-      if (!one || !sway || span == null || one.kind === "coral") return;
-      const current = field(one.x / width * FIELD_CELLS3 + drift, drift);
-      const own = Math.sin(sway.own);
-      const amp = sway.lean * (current * CURRENT_SHARE + own * (1 - CURRENT_SHARE));
-      const shy2 = one.kind === "anemone" ? 1 - sway.fright * COLUMN_SQUAT : 1;
-      const stem = span * STEMS[one.kind] * shy2;
-      const was = drawn2[at];
-      if (was && stir2(one.kind, span, was, amp, sway.fright, sway.own, stem) < tolerance) return;
-      drawn2[at] = { amp, fright: sway.fright, own: sway.own, stem };
-      one.cut++;
-      const points = strand(one.x, one.y, stem, sway.own, amp, 0, sway.steps);
-      one.points = points;
-      if (one.kind === "anemone") {
-        const mouth = points[points.length - 1];
-        const out = span * (1 - sway.fright * CROWN_PULL);
-        one.blades = mouth ? crownAt(mouth, sway.tentacles, out, sway.own) : [];
-        return;
-      }
-      if (one.kind === "fan") {
-        one.blades = ribsOf(sway, amp, points);
-        return;
-      }
-      if (one.kind === "grass") {
-        one.blades = sway.mates.map(
-          (mate) => strand(
-            one.x + mate.shift,
-            one.y,
-            mate.span,
-            sway.own * mate.beat + mate.own,
-            amp,
-            mate.slant,
-            cuts(sway.steps, mate.span)
-          )
-        );
-        return;
-      }
-      one.blades = leaves(sway, span, amp, points);
-    }
-    function leaves(sway, span, amp, points) {
-      var _a2;
-      const weed = (_a2 = sway.weed) != null ? _a2 : FRILL;
-      const limbs = [points];
-      weed.forks.forEach((up, made) => {
-        const on = points[Math.min(points.length - 1, Math.round(up * sway.steps))];
-        if (!on) return;
-        limbs.push(
-          strand(
-            on.x,
-            on.y,
-            span * (1 - up) * FORK_REACH,
-            sway.own + up * Math.PI,
-            amp * (1 - up),
-            (made % 2 === 0 ? 1 : -1) * FORK_SPLAY,
-            Math.max(2, Math.round(sway.steps * (1 - up)))
-          )
-        );
-      });
-      const blades = limbs.slice(1);
-      const leafy = crowded(weed.blades, LEAF_FEWEST, span, LEAF_CROWDED);
-      const each = Math.max(1, Math.round(leafy / limbs.length));
-      const bends = cuts(BLADE_STEPS, span * weed.span);
-      for (const limb of limbs) {
-        const foot = limb[0];
-        const tip = limb[limb.length - 1];
-        if (!foot || !tip) continue;
-        const reach2 = Math.hypot(tip.x - foot.x, tip.y - foot.y);
-        for (let made = 0; made < each; made++) {
-          const seat = weed.seat + made / each * (1 - weed.seat);
-          const up = Math.round(seat * (limb.length - 1));
-          const on = limb[Math.min(limb.length - 1, up)];
-          const under = limb[Math.max(0, up - 1)];
-          if (!on || !under) continue;
-          const runX = on.x - under.x;
-          const runY = on.y - under.y;
-          const run = Math.hypot(runX, runY) || 1;
-          const side = made % 2 === 0 ? 1 : -1;
-          const long = reach2 * weed.span * (1 - weed.taper * seat);
-          const trailX = -runX / run;
-          const trailY = -runY / run;
-          const flareX = -runY / run * side;
-          const flareY = runX / run * side;
-          const blade2 = [];
-          for (let step = 0; step <= bends; step++) {
-            const u = step / bends;
-            const out = Math.sin(u * Math.PI * 0.62) * (1 - u * 0.72) * weed.flare;
-            const down = u * weed.trail;
-            blade2.push({
-              x: on.x + (trailX * down + flareX * out) * long,
-              y: on.y + (trailY * down + flareY * out) * long
-            });
-          }
-          blades.push(blade2);
-        }
-      }
-      return blades;
-    }
-    function ribsOf(sway, amp, points) {
-      const blades = [];
-      for (const mate of sway.mates) {
-        const on = points[Math.min(points.length - 1, Math.round(mate.seat * sway.steps))];
-        if (!on) continue;
-        const rib = strand(
-          on.x,
-          on.y,
-          mate.span,
-          sway.own * mate.beat + mate.own,
-          amp * RIB_GIVE,
-          mate.slant,
-          cuts(FAN_STEPS, mate.span)
-        );
-        blades.push(rib);
-        const half2 = rib[Math.floor(rib.length / 2)];
-        if (!half2 || mate.span < RIB_TWIGGED) continue;
-        blades.push(
-          strand(
-            half2.x,
-            half2.y,
-            mate.span * RIB_TWIG,
-            sway.own + mate.own,
-            amp * RIB_GIVE,
-            mate.slant * RIB_SPLAY,
-            2
-          )
-        );
-      }
-      return blades;
-    }
-    function strand(x, y, span, phase, amp, slant, steps) {
-      const lean = Math.sin(slant);
-      const rise = Math.cos(slant);
-      const points = [];
-      for (let step = 0; step <= steps; step++) {
-        const t = step / steps;
-        points.push({
-          x: x + span * t * lean + amp * Math.sin(phase + t * 2.4) * t,
-          y: y - span * t * rise
-        });
-      }
-      return points;
-    }
-    function scared(one, span, water) {
-      let worst = 0;
-      for (const thing of water) {
-        if (thing.size < span * CROWN_MINDS) continue;
-        const reach2 = thing.size * CROWN_NOTICE;
-        const away2 = Math.hypot(one.x - thing.x, one.y - thing.y);
-        if (away2 >= reach2) continue;
-        worst = Math.max(worst, (1 - away2 / reach2) * abreast(one.depth, thing.depth));
-      }
-      return worst;
-    }
-    function carry(seconds, water) {
-      var _a2;
-      drift += DRIFT3 * seconds;
-      for (let at = 0; at < sways.length; at++) {
-        const sway = sways[at];
-        const one = plants[at];
-        if (!sway || !one) continue;
-        const shy2 = one.kind === "anemone" ? scared(one, (_a2 = heights.get(at)) != null ? _a2 : 0, water) : 0;
-        const fright = Math.max(0, Math.max(sway.fright - seconds / PULL_FADE, shy2));
-        if (sway.rate > 0 || fright !== sway.fright) {
-          sways[at] = __spreadProps(__spreadValues({}, sway), { fright, own: sway.own + sway.rate * seconds });
-        }
-      }
-    }
-    function stir2(kind, span, was, amp, fright, own, stem) {
-      const reach2 = Math.max(Math.abs(amp), Math.abs(was.amp));
-      const turned = Math.abs(own - was.own);
-      return (Math.abs(amp - was.amp) + reach2 * turned) * SWING[kind] + span * SWEEP3[kind] * turned + Math.abs(stem - was.stem) + Math.abs(fright - was.fright) * span * CROWN_PULL;
-    }
-    function recut() {
-      for (let at = 0; at < plants.length; at++) bend2(at, noise);
-    }
-    function advance2(seconds) {
-      var _a2, _b;
-      carry(Math.min(Math.max(seconds, 0), 0.1), (_b = (_a2 = options.about) == null ? void 0 : _a2.call(options)) != null ? _b : []);
-      recut();
-    }
-    sow();
-    advance2(0);
-    return {
-      plants,
-      resize(nextWidth, nextHeight, nextFloor) {
-        width = Math.max(MIN_SPAN4, nextWidth);
-        height = Math.max(MIN_SPAN4, nextHeight);
-        floor = nextFloor;
-        sow();
-        advance2(0);
-      },
-      step: advance2,
-      wind(seconds) {
-        carry(Math.max(seconds, 0), []);
-        recut();
-      }
-    };
   }
 
   // ../../codincodv2/assets/js/ornament/nemos.ts
@@ -3120,7 +3136,7 @@ var __ornament = (() => {
           points: tentacles ? [ROOT2, MOUTH] : [],
           scale,
           span,
-          twigs: SHAPES[kind],
+          twigs: gathered(SHAPES[kind]),
           x,
           y
         };
@@ -3389,7 +3405,7 @@ var __ornament = (() => {
   ];
 
   // ../../codincodv2/assets/js/ornament/seabed.ts
-  var FLOOR_SEAT = 0.1;
+  var FLOOR_SEAT = 0.01;
   var FLOOR_ROLL = 0.085;
   var HORIZON_SEAT = 0.36;
   var HORIZON_ROLL = 0.12;
@@ -3415,14 +3431,20 @@ var __ornament = (() => {
   var CLIFF_RISE_SPAN = 0.16;
   var CLIFF_SPAN_LEAST = 0.12;
   var CLIFF_SPAN_SPAN = 0.26;
-  var CLIFF_STEPS = 150;
+  var CLIFF_STEPS = 280;
+  var FRINGE_RISE = 0.038;
+  var FRINGE_PATCHES = 3.4;
+  var FRINGE_BARE = 0.12;
   var CLIFF_DEEP = 0.05;
   var CLIFF_NEAR = 0.16;
   var CLIFF_RANGES = 3;
+  var STRAND_SPAN = 26;
   var MIN_SPAN9 = 1;
   var mix = (far, near, at) => far + (near - far) * at;
   function createSeabed(options) {
     var _a, _b;
+    const colonies = makeNoise2(options.seed ^ 49168);
+    const sprigs = makeNoise2(options.seed ^ 20887);
     const swell = makeNoise2(options.seed ^ 24235);
     const lumps = makeNoise2(options.seed ^ 4293);
     const random = makeRandom(options.seed ^ 11534);
@@ -3454,6 +3476,14 @@ var __ornament = (() => {
       }
       return bands;
     }
+    function fringe(x, depth, at) {
+      if (at % 2 === 0) return 0;
+      const patch = colonies(x / width * FRINGE_PATCHES, depth * 7.3);
+      if (patch < FRINGE_BARE) return 0;
+      const thick = (patch - FRINGE_BARE) / (1 - FRINGE_BARE);
+      const stand = Math.abs(sprigs(x / STRAND_SPAN, depth * 11.7));
+      return height * FRINGE_RISE * thick * (0.4 + stand * 0.6);
+    }
     function raise(depth, peaks) {
       const domes = Array.from({ length: Math.max(1, peaks) }, () => {
         const bulk = random();
@@ -3474,7 +3504,7 @@ var __ornament = (() => {
           const swell2 = (1 - Math.cos(t * Math.PI * 2)) / 2;
           lift = Math.max(lift, dome.rise * swell2 * (1 + dome.rough(t * 3.1, 0) * 0.34));
         }
-        ridge2.push({ x, y: floorAt(x, depth) - lift });
+        ridge2.push({ x, y: floorAt(x, depth) - lift - fringe(x, depth, at) });
       }
       return { depth, ridge: ridge2 };
     }
