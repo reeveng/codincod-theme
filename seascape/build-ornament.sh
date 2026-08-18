@@ -38,7 +38,7 @@ WANTED=(
   "rays SPREAD createRays"
   "relics BLOCK_CARD BLOCK_LINES CHEST_BANDS CHEST_BODY CHEST_LOCK LAPTOP_BASE LAPTOP_LINES LAPTOP_SCREEN SMOKER SMOKER_LIP WRECK WRECK_SPAR createRelics"
   "seabed createSeabed"
-  "shoal SPECIES WILD createShoal freshSeed"
+  "shoal SPECIES WILD createShoal daySeed freshSeed"
   "sun sunNow"
 )
 

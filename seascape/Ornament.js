@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.KILCIn6xSE/entry.ts
+  // ../../../../../../tmp/tmp.mtmWY1AzQR/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -77,6 +77,7 @@ var __ornament = (() => {
     createRelics: () => createRelics,
     createSeabed: () => createSeabed,
     createShoal: () => createShoal,
+    daySeed: () => daySeed,
     frameAt: () => frameAt,
     freshSeed: () => freshSeed,
     octopusArms: () => octopusArms,
@@ -278,7 +279,14 @@ var __ornament = (() => {
   var SHORTEST = 34;
   var LONGEST = 58;
   function freshSeed(from = 0) {
-    let seed = (Date.now() ^ from) >>> 0;
+    return stir(Date.now() ^ from);
+  }
+  function daySeed(now = /* @__PURE__ */ new Date(), from = 0) {
+    const day = now.getFullYear() * 1e4 + (now.getMonth() + 1) * 100 + now.getDate();
+    return stir(day ^ from) | 0;
+  }
+  function stir(from) {
+    let seed = from >>> 0;
     seed = Math.imul(seed ^ seed >>> 16, 73244475) >>> 0;
     return (seed ^ seed >>> 16) >>> 0;
   }
@@ -1944,6 +1952,7 @@ var createSeabed = __ornament.createSeabed
 var SPECIES = __ornament.SPECIES
 var WILD = __ornament.WILD
 var createShoal = __ornament.createShoal
+var daySeed = __ornament.daySeed
 var freshSeed = __ornament.freshSeed
 var sunNow = __ornament.sunNow
 

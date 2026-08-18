@@ -149,8 +149,19 @@ Item {
   /** How far down the box the shaft has faded out, as a share of the height. */
   property real discReach: 0.62
 
-  /** Salt. The same seed gives the same water twice. */
+  /**
+   * Salt. The same seed gives the same water twice.
+   *
+   * Everything that does not move is a pure function of it: the bed, the hills,
+   * the cliffs, every stone, where each plant is rooted, and which relics the
+   * floor happens to hold. So handing over a new one is not a setting being
+   * changed, it is a different place. See `adopt` for when that is allowed to
+   * happen.
+   */
   property int seed: 1956
+
+  /** The seed the water currently on show was built from; see `adopt`. */
+  property int sown: 0
 
   /**
    * Skip the wait before the first boat and the first ping, and open the water
@@ -692,6 +703,7 @@ Item {
     cutGround()
     publish()
     fitted = Qt.size(width, height)
+    sown = seed
     report()
   }
 
@@ -1004,6 +1016,27 @@ Item {
     crossing = going
   }
 
+  /**
+   * Take up a new seed, once there is nobody it could take it from.
+   *
+   * A seed is a place, so adopting one is the seabed rearranging itself, and a
+   * seabed that rearranged itself under somebody's eyes would be the one moment
+   * this whole scene admitted to being a program. `running` is already the
+   * answer to whether anybody can see this: whoever mounts it sets it false
+   * when the wallpaper is covered. So the day's water is taken up the next time
+   * a window is opened over yesterday's, which on a desktop is within minutes
+   * of the day turning and is never once witnessed.
+   *
+   * A machine left staring at an empty workspace keeps the sea it has, and that
+   * is the right way round: the alternative is the ground moving in front of
+   * the only person in a position to watch it.
+   */
+  function adopt() {
+    if (shoal && !running && seed !== sown) build()
+  }
+
+  onSeedChanged: adopt()
+  onRunningChanged: adopt()
   onWidthChanged: refit()
   onHeightChanged: refit()
   Component.onCompleted: build()

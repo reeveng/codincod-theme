@@ -54,16 +54,38 @@ Item {
   property var sun: ({ arc: 0.8, march: 0.5 })
   property var moon: ({ arc: 0.8, march: 0.5 })
 
+  /**
+   * Which sea today is.
+   *
+   * `Ornament.daySeed`, which is the same `assets/js/ornament/shoal.ts` the
+   * fish come out of: the local calendar day, stirred. A day is the unit
+   * because both of the obvious ones are wrong for a wallpaper. One fixed seed
+   * and the floor never changes, so whatever that number happens to hold is all
+   * anybody ever sees; a fresh one per boot and there is no place to come back
+   * to at all.
+   *
+   * On `root` for the same reason the sun is: there is one date and there may
+   * be three monitors, and two screens showing two different seabeds would be
+   * two seas rather than one house.
+   *
+   * A `Seascape` does not take this up the moment it changes. It waits until it
+   * is covered; see `Seascape.adopt`.
+   */
+  property int today: 1956
+
   function readSun() {
     var sky = Ornament.sunNow()
     root.daylight = sky.daylight
     root.dusk = sky.dusk
     root.moon = sky.moon
     root.sun = sky.sun
+    root.today = Ornament.daySeed()
   }
 
   // Five minutes, the same tick the site runs. Finer than the eye can follow
-  // the light change, and the whole tick is two dozen multiplications.
+  // the light change, and the whole tick is two dozen multiplications. It is
+  // also how long after midnight a new day's water is offered, which nobody
+  // can be awake enough to measure.
   Timer {
     interval: 5 * 60 * 1000
     repeat: true
@@ -361,6 +383,7 @@ Item {
         dusk: root.dusk
         ink: Color.accent
         moon: root.moon
+        seed: root.today
         sun: root.sun
         surface: Color.background
 

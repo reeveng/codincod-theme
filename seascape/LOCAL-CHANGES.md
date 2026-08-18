@@ -41,9 +41,10 @@ workspace you are on, and that is what lets the same component be a desktop
 background and an offscreen preview.
 
 - `import "Ornament.js" as Ornament`, and `Quickshell.Hyprland` for the gate.
-- `daylight` and `dusk` on the root item, and a five-minute timer that reads
-  them off `Ornament.sunNow`. They live on the root rather than on each
-  `Seascape` because there is one sun and there may be three monitors.
+- `daylight`, `dusk` and `today` on the root item, and a five-minute timer that
+  reads them off `Ornament.sunNow` and `Ornament.daySeed`. They live on the root
+  rather than on each `Seascape` because there is one sun, one date, and there
+  may be three monitors.
 - A `Seascape` inside the panel, anchored to the panel rather than to either
   wallpaper image, so changing the background wipes across underneath the fish
   and they swim on through it without a break.
@@ -55,10 +56,10 @@ background and an offscreen preview.
 ### Why it does not open on the same picture every time
 
 The bed and everything rooted in it is a pure function of the seed, so the place
-is the same place at every login, which is what a place is for. The life in it
-is not: `Seascape.opening` puts the water at the hour of the actual clock,
-wrapped at `cycle`, so a machine that has been off for ten minutes comes back to
-water that carried on rather than to water that has been rewound.
+is the same place all day, which is what a place is for. The life in it is not:
+`Seascape.opening` puts the water at the hour of the actual clock, wrapped at
+`cycle`, so a machine that has been off for ten minutes comes back to water that
+carried on rather than to water that has been rewound.
 
 It wraps because the only way to know where a fish is after an hour of swimming
 is to swim it, at a step per tenth of a second of that hour. `cycle` is set
@@ -66,6 +67,22 @@ where the wait at login is the one this scene always had, and a couple of
 minutes is long enough that the water is rearranged past recognition anyway.
 Nothing is written to disk and nothing is read back: a clock is a clock on every
 machine, so two screens open on the same moment of the same water for free.
+
+### Why the sea is different tomorrow
+
+`root.today` is `Ornament.daySeed`, the local calendar day stirred into a seed,
+and everything that does not move comes out of it: the bed, the hills, the
+cliffs, the stones, where each plant is rooted and which relics the floor
+happens to hold. One fixed seed meant the floor never changed, so whatever that
+number held was all anybody ever saw, and the chest with the laptop on its lid
+falls to about one sea in ten. A fresh seed per boot is the opposite failure:
+nowhere to come back to.
+
+A `Seascape` is offered the new day but does not take it while it is on show.
+`Seascape.adopt` waits for `running` to go false, which is the mounter saying
+the wallpaper is covered, so the ground rearranges itself behind a window and
+never under anybody's eyes. A machine left staring at an empty workspace keeps
+the sea it has.
 
 ### Why it costs nothing while you work
 

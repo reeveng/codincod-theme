@@ -52,6 +52,15 @@ slower and darker on a real desktop, which is the point of it.
 
 It is optional, and the theme is complete without it.
 
+### A different sea every day
+
+The seabed is the calendar day's: the same place from one midnight to the next,
+and somewhere else tomorrow. Which stones, which plants, whether there is a
+wreck on the floor and whether the chest with the laptop open on its lid is on
+it are all that one number's doing. A screen takes the new day up the next time
+a window covers it, so the ground never rearranges itself while you are looking
+at it.
+
 ### It runs on the website's own simulation
 
 The shoal is not reimplemented here. `Ornament.js` is built by

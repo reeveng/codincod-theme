@@ -92,7 +92,11 @@ the one thing that surface may not be.
   agree about which way the water is moving. That agreement is what makes it a
   sea rather than several animations sharing a rectangle.
 - Everything is seeded. The same seed gives the same water twice, which is why
-  the place is the same place at every login and the life in it is not.
+  the place is the same place all day and the life in it is not.
+- The desktop's seed is the calendar day, so tomorrow is somewhere else: a fixed
+  one meant whatever that number held was all anybody ever saw, and the chest
+  falls to about one sea in ten. A screen takes the new day up only once it is
+  covered, so the ground never moves while somebody is looking at it.
 - The scene opens at the hour of the actual clock, wound forward and wrapped, so
   a machine that has been off comes back to water that carried on rather than to
   water that has been rewound.
