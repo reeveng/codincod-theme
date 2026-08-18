@@ -3937,7 +3937,7 @@ var __ornament = (() => {
       takeSpan: 18
     },
     turtle: {
-      beat: 0.55,
+      beat: 0.24,
       farLeast: 0.45,
       farSpan: 0.5,
       heft: 0.3,
@@ -4075,7 +4075,7 @@ var __ornament = (() => {
         for (let at = crossing.length - 1; at >= 0; at--) {
           const one = crossing[at];
           if (!one) continue;
-          one.along += dt / Math.max(take, 1e-3);
+          one.along += dt * driven(one.kind, one.stroke) / Math.max(take, 1e-3);
           if (one.along >= 1) {
             crossing.splice(at, 1);
             continue;
@@ -4255,11 +4255,29 @@ var __ornament = (() => {
   var sharkBody = (stroke) => swimmer("shark", SHARK, stroke * Math.PI * 2, sharkFins);
   var dolphinBody = (stroke) => swimmer("dolphin", DOLPHIN, stroke * Math.PI * 2, dolphinFins);
   var TURTLE_SEAT = 0.35;
+  var TURTLE_PULL = 0.3;
+  function turtleBeat(cycle) {
+    const at = cycle - Math.floor(cycle);
+    const ease3 = (part) => (1 - Math.cos(Math.PI * part)) / 2;
+    if (at < TURTLE_PULL) {
+      const through = at / TURTLE_PULL;
+      return { phase: Math.PI * ease3(through), thrust: Math.sin(Math.PI * through) };
+    }
+    const back = (at - TURTLE_PULL) / (1 - TURTLE_PULL);
+    return { phase: Math.PI + Math.PI * ease3(back), thrust: 0 };
+  }
+  var TURTLE_SURGE = 0.55;
+  function driven(kind, cycle) {
+    if (kind !== "turtle") return 1;
+    const held = 2 * TURTLE_PULL / Math.PI;
+    return 1 + TURTLE_SURGE * (turtleBeat(cycle).thrust - held);
+  }
   var TURTLE_SWING = 1.2;
   var TURTLE_REAR = 0.18;
   var TURTLE_FEATHER = 0.22;
   function turtleBody(stroke) {
-    const beat = stroke * Math.PI * 2;
+    const near = turtleBeat(stroke).phase;
+    const far = turtleBeat(stroke + 0.5).phase;
     const oar = (root, phase, reach2, wide) => {
       const feather = Math.cos(phase);
       const turned = 1 - TURTLE_FEATHER * feather;
@@ -4275,7 +4293,7 @@ var __ornament = (() => {
       // The far pair first, so the near pair is drawn over them. They are the
       // same limbs half a beat behind, which is the whole of what tells a reader
       // they are on the other side of the animal.
-      oar([0.3, 0.02], beat + Math.PI, 0.74, 0.09) + blade([-0.6, 0.06], 2.5 + TURTLE_REAR * Math.sin(beat + Math.PI), 0.26, 0.06, 0.02) + rounded2([
+      oar([0.3, 0.02], far, 0.74, 0.09) + blade([-0.6, 0.06], 2.5 + TURTLE_REAR * Math.sin(far), 0.26, 0.06, 0.02) + rounded2([
         [0.45, -0.1],
         [0.2, -0.28],
         [-0.15, -0.32],
@@ -4294,7 +4312,7 @@ var __ornament = (() => {
         [0.86, 0.12],
         [0.62, 0.12],
         [0.44, 0.1]
-      ]) + oar([0.38, 0.07], beat, 0.84, 0.115) + blade([-0.62, 0.11], 2.5 + TURTLE_REAR * Math.sin(beat), 0.3, 0.07, 0.02)
+      ]) + oar([0.38, 0.07], near, 0.84, 0.115) + blade([-0.62, 0.11], 2.5 + TURTLE_REAR * Math.sin(near), 0.3, 0.07, 0.02)
     );
   }
   var MANTA_SPAN = 1.95;
