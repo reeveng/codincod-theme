@@ -1260,6 +1260,7 @@ Item {
       heads: reefHeads,
       height: height,
       seed: seed,
+      tolerance: tolerance,
       width: width,
     })
 
@@ -1360,6 +1361,7 @@ Item {
     reef.resize(width, height, seabed.floorAt)
     nemos.resettle()
     growth = []
+    heads = []
     motes = []
     walking = []
     cutGround()
@@ -1797,25 +1799,44 @@ Item {
     // it carries is its own business rather than this loop's: a stencil hands
     // over twigs and an animal hands over a stalk and whatever it has grown on
     // the end of it. See `Head.blades`.
-    var standing = []
-    for (var h = 0; h < reef.heads.length; h++) {
-      var head = reef.heads[h]
+    // The bed's bargain again, and here it is nearly the whole layer: most of
+    // what grows on a reef is a skeleton, and a skeleton is drawn once and then
+    // stands there. `reef.ts` says which heads the swell has moved far enough
+    // to be worth another drawing, and these stand in for the rest. Everything
+    // a head is dealt at birth is written once, since only the bend and the
+    // crown ever change.
+    if (heads.length !== reef.heads.length) {
+      var standing = []
+      for (var h = 0; h < reef.heads.length; h++) {
+        var grown = reef.heads[h]
+        standing.push({
+          bend: grown.bend,
+          blades: [],
+          cut: -1,
+          depth: grown.depth,
+          girth: grown.girth,
+          lean: grown.lean,
+          points: polygon(grown.points, false),
+          scale: grown.scale,
+          twigs: grown.twigs,
+          x: grown.x,
+          y: grown.y,
+        })
+      }
+      heads = standing
+    }
+
+    for (var g = 0; g < reef.heads.length; g++) {
+      var head = reef.heads[g]
+      var standing_one = heads[g]
+      if (!standing_one || standing_one.cut === head.cut) continue
+
       var fronds = []
       for (var hb = 0; hb < head.blades.length; hb++) fronds.push(polygon(head.blades[hb], false))
-      standing.push({
-        bend: head.bend,
-        blades: fronds,
-        depth: head.depth,
-        girth: head.girth,
-        lean: head.lean,
-        points: polygon(head.points, false),
-        scale: head.scale,
-        twigs: head.twigs,
-        x: head.x,
-        y: head.y,
-      })
+      standing_one.bend = head.bend
+      standing_one.blades = fronds
+      standing_one.cut = head.cut
     }
-    heads = standing
 
     var homed = []
     for (var c = 0; c < nemos.nemos.length; c++) {
@@ -3432,6 +3453,11 @@ Item {
       readonly property var one: root.heads[index] || null
       readonly property real weight: one ? root.farInk(root.floraInk, one.depth) : 0
 
+      // The gate, as the bed has it. See `root.pulse`. Nearly everything a head
+      // is sits outside it: where it grew, how big, how it leans and what it is
+      // a drawing of are all dealt once and never touched again.
+      readonly property int rev: { root.pulse; return one ? one.cut : -1 }
+
       anchors.fill: parent
       visible: one !== null
       z: one ? -3 + one.depth : 0
@@ -3456,7 +3482,7 @@ Item {
       }
 
       Repeater {
-        model: head.one ? head.one.blades.length : 0
+        model: { head.rev; return head.one ? head.one.blades.length : 0 }
 
         delegate: Shape {
           id: arm
@@ -3471,7 +3497,12 @@ Item {
             strokeColor: root.afloat(head.one ? head.one.y : 0, head.weight)
             strokeWidth: head.one ? head.one.girth * root.bladeGirth : 0
 
-            PathPolyline { path: head.one ? head.one.blades[arm.index] : [] }
+            PathPolyline {
+              path: {
+                head.rev
+                return head.one ? head.one.blades[arm.index] : []
+              }
+            }
           }
         }
       }
@@ -3486,7 +3517,10 @@ Item {
         y: head.one ? head.one.y : 0
 
         transform: Rotation {
-          angle: head.one ? (head.one.lean + head.one.bend) * 180 / Math.PI : 0
+          angle: {
+            head.rev
+            return head.one ? (head.one.lean + head.one.bend) * 180 / Math.PI : 0
+          }
         }
 
         Repeater {

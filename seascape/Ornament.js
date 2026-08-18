@@ -1940,6 +1940,9 @@ var __ornament = (() => {
     }
     return tentacles;
   }
+  function crownSwept(span, turned) {
+    return span * SWEEP3.anemone * turned;
+  }
   function crownAt(mouth, tentacles, span, phase) {
     return tentacles.map(
       (one) => feeler(
@@ -3012,8 +3015,26 @@ var __ornament = (() => {
   var SWELL_SHARE = 0.6;
   var ROOT2 = { x: 0, y: 0 };
   var MOUTH = { x: 0, y: -COLUMN };
+  var TOLERANCE3 = 0.25;
+  var REACHES2 = (() => {
+    const reaches = {};
+    for (const kind of KINDS) reaches[kind] = furthest(SHAPES[kind]);
+    return reaches;
+  })();
+  function furthest(twigs) {
+    var _a;
+    let worst = 0;
+    for (const twig of twigs) {
+      const numbers = (_a = twig.d.match(/-?\d+(?:\.\d+)?/g)) != null ? _a : [];
+      for (let at = 0; at + 1 < numbers.length; at += 2) {
+        worst = Math.max(worst, Math.hypot(Number(numbers[at]), Number(numbers[at + 1])));
+      }
+    }
+    return worst;
+  }
   var MIN_SPAN7 = 1;
   function createReef(options) {
+    var _a;
     const noise = makeNoise2(options.seed ^ 11153);
     const gust = makeNoise2(options.seed ^ 23779);
     let width = Math.max(MIN_SPAN7, options.width);
@@ -3026,6 +3047,9 @@ var __ornament = (() => {
     let depth = DEPTH_FAR5;
     const heads = [];
     const crowns = [];
+    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE3);
+    const reaches = [];
+    const held = [];
     let bounds = [0, 0];
     let health = 0;
     function climb(t) {
@@ -3065,6 +3089,7 @@ var __ornament = (() => {
         const head = {
           bend: 0,
           blades: [],
+          cut: 0,
           depth: stand,
           girth: tentacles ? COLUMN * GIRTH : 0,
           kind,
@@ -3079,6 +3104,10 @@ var __ornament = (() => {
         };
         heads.push(head);
         crowns.push(tentacles);
+        held.push(null);
+        reaches.push(
+          tentacles ? COLUMN * scale * (1 + Math.max(...tentacles.map((one) => one.span))) : REACHES2[kind] * scale
+        );
         return head;
       }
       return null;
@@ -3092,7 +3121,7 @@ var __ornament = (() => {
       return true;
     }
     function raise() {
-      var _a, _b;
+      var _a2, _b;
       const roll = makeRandom(options.seed ^ 37295);
       middle = width * (SEAT_LEAST + roll() * SEAT_SPAN);
       half2 = width * (HALF_LEAST + roll() * HALF_SPAN);
@@ -3100,6 +3129,8 @@ var __ornament = (() => {
       depth = DEPTH_FAR5 + roll() * (DEPTH_NEAR5 - DEPTH_FAR5);
       heads.length = 0;
       crowns.length = 0;
+      held.length = 0;
+      reaches.length = 0;
       crest.length = 0;
       bounds = [middle - half2, middle + half2];
       for (let step = 0; step <= CREST_STEPS; step++) {
@@ -3108,7 +3139,7 @@ var __ornament = (() => {
       }
       for (const kind of dealt(roll)) grow(kind, roll);
       const rest = spread();
-      for (let made = 0; made < Math.max(0, (_a = options.heads) != null ? _a : HEADS); made++) {
+      for (let made = 0; made < Math.max(0, (_a2 = options.heads) != null ? _a2 : HEADS); made++) {
         grow((_b = rest[Math.floor(roll() * rest.length)]) != null ? _b : "brain", roll);
       }
       health = new Set(heads.map((one) => one.kind)).size / KINDS.length;
@@ -3117,9 +3148,9 @@ var __ornament = (() => {
       const order = [...KINDS];
       for (let at = order.length - 1; at > 0; at--) {
         const swap = Math.floor(roll() * (at + 1));
-        const held = order[at];
+        const held2 = order[at];
         order[at] = order[swap];
-        order[swap] = held;
+        order[swap] = held2;
       }
       return order;
     }
@@ -3140,11 +3171,23 @@ var __ornament = (() => {
       const own = Math.sin(clock * Math.PI * 2 * SWELL_RATE + one.lane);
       return sway * (passing * SWELL_SHARE + own * (1 - SWELL_SHARE));
     }
+    function wander(at, bend2, phase) {
+      var _a2;
+      const one = heads[at];
+      const was = held[at];
+      if (!one || !was) return Number.POSITIVE_INFINITY;
+      return ((_a2 = reaches[at]) != null ? _a2 : 0) * Math.abs(bend2 - was.bend) + crownSwept(COLUMN * one.scale, Math.abs(phase - was.phase));
+    }
     function breathe() {
       for (const [at, one] of heads.entries()) {
-        one.bend = lean(one);
         const tentacles = crowns[at];
-        if (tentacles) one.blades = crownAt(MOUTH, tentacles, COLUMN, clock * CROWN_RATE + one.lane);
+        const bend2 = lean(one);
+        const phase = tentacles ? clock * CROWN_RATE + one.lane : 0;
+        if (wander(at, bend2, phase) < tolerance) continue;
+        one.bend = bend2;
+        if (tentacles) one.blades = crownAt(MOUTH, tentacles, COLUMN, phase);
+        one.cut++;
+        held[at] = { bend: bend2, phase };
       }
     }
     const crest = [];
@@ -4289,7 +4332,7 @@ var __ornament = (() => {
   var STRIDE3 = 0.1;
   var LIFT = 0.06;
   var GAIT2 = Math.PI * 4;
-  var TOLERANCE3 = 0.25;
+  var TOLERANCE4 = 0.25;
   var GAIT_REACH = Math.hypot(STRIDE3, LIFT);
   var ARM_TIP = 0.5;
   var ARMS = 5;
@@ -4370,7 +4413,7 @@ var __ornament = (() => {
     let floor = options.floor;
     const walkers = [];
     const doings = [];
-    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE3);
+    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE4);
     const held = [];
     function born(kind) {
       var _a2, _b;
