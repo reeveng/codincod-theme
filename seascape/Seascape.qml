@@ -678,7 +678,7 @@ Item {
     })
 
     passers = Ornament.createPassers({
-      eager: rushed ? 1 : 0,
+      eager: rushed,
       height: height,
       seed: seed,
       width: width,
@@ -810,6 +810,12 @@ Item {
    * one recut at the end; see `Flora.wind`. What it cost before was two hundred
    * plants recut at every intermediate moment, all of them pictures of a past
    * nobody was ever going to see.
+   *
+   * The passers are the other exception, and for the opposite reason. They keep
+   * appointments on the wall clock rather than a stopwatch, and each of them
+   * happens at most once in a day; winding them here would spend the day's boat
+   * on the two minutes of water that exist to be skipped. So they are left
+   * where they are, which is waiting.
    */
   function windOn(seconds) {
     var steps = Math.round(Math.max(0, seconds) / windStep)
@@ -820,7 +826,10 @@ Item {
       light.step(windStep)
       inklings.step(windStep)
       wreckage.step(windStep)
-      passers.step(windStep)
+
+      // The preview harness only. It exists to catch the rare things and it is
+      // the one caller allowed to spend them; see the note above.
+      if (rushed) passers.step(windStep)
     }
 
     flora.wind(steps * windStep)
@@ -2008,6 +2017,40 @@ Item {
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SCREWS }
+          }
+        }
+      }
+
+      // A submarine, seen from the side because it is down here in the water
+      // rather than on top of it. One fill for the whole silhouette, wound
+      // rather than odd-even: the sail sits on the hull, and under odd-even an
+      // overlap is a hole.
+      Item {
+        visible: passer.one !== null && passer.one.kind === "submarine"
+        x: passer.one ? passer.one.x : 0
+        y: passer.one ? passer.one.y : 0
+
+        transform: Scale {
+          xScale: passer.one ? passer.one.scale * passer.one.facing : 1
+          yScale: passer.one ? passer.one.scale : 1
+        }
+
+        Shape {
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            fillColor: root.tint(root.hullInk * (passer.one ? passer.one.weight : 0))
+            fillRule: ShapePath.WindingFill
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.SUBMARINE }
+          }
+
+          ShapePath {
+            fillColor: root.tint(root.hullInk * (passer.one ? passer.one.weight : 0))
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.SUB_SCREW }
           }
         }
       }

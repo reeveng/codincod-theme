@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.mtmWY1AzQR/entry.ts
+  // ../../../../../../tmp/tmp.Ap3pF4iEnU/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -65,6 +65,8 @@ var __ornament = (() => {
     SPECIES: () => SPECIES,
     SPREAD: () => SPREAD,
     STEPS: () => STEPS,
+    SUBMARINE: () => SUBMARINE,
+    SUB_SCREW: () => SUB_SCREW,
     WAKE: () => WAKE,
     WILD: () => WILD,
     WRECK: () => WRECK,
@@ -99,6 +101,11 @@ var __ornament = (() => {
       state ^= state << 5;
       return (state >>> 0) / 4294967296;
     };
+  }
+  function stir(from) {
+    let seed = from >>> 0;
+    seed = Math.imul(seed ^ seed >>> 16, 73244475) >>> 0;
+    return (seed ^ seed >>> 16) >>> 0;
   }
   function makeNoise2(seed) {
     const random = makeRandom(seed);
@@ -284,11 +291,6 @@ var __ornament = (() => {
   function daySeed(now = /* @__PURE__ */ new Date(), from = 0) {
     const day = now.getFullYear() * 1e4 + (now.getMonth() + 1) * 100 + now.getDate();
     return stir(day ^ from) | 0;
-  }
-  function stir(from) {
-    let seed = from >>> 0;
-    seed = Math.imul(seed ^ seed >>> 16, 73244475) >>> 0;
-    return (seed ^ seed >>> 16) >>> 0;
   }
   function createShoal(options) {
     var _a, _b, _c;
@@ -1390,55 +1392,77 @@ var __ornament = (() => {
   }
 
   // ../../../../Documents/projects/codincodv2/assets/js/ornament/passers.ts
+  var FADE = 0.16;
+  var WATERLINE = 0.035;
+  var OFFING = 0.2;
+  var PING_EDGE = 0.18;
   var HABITS = {
     boat: {
-      restLeast: 380,
-      restSpan: 520,
+      chance: 1,
+      deepLeast: WATERLINE,
+      deepSpan: 0,
       sizeLeast: 0.04,
       sizeSpan: 0.03,
       takeLeast: 26,
       takeSpan: 18
     },
     sonar: {
-      restLeast: 95,
-      restSpan: 190,
+      chance: 1,
+      deepLeast: 0.12,
+      deepSpan: 0.43,
       sizeLeast: 0.4,
       sizeSpan: 0.3,
       takeLeast: 4.5,
       takeSpan: 2.5
+    },
+    submarine: {
+      chance: 0.15,
+      deepLeast: 0.17,
+      deepSpan: 0.19,
+      sizeLeast: 0.036,
+      sizeSpan: 0.022,
+      takeLeast: 38,
+      takeSpan: 22
     }
   };
-  var FADE = 0.16;
-  var WATERLINE = 0.035;
-  var OFFING = 0.2;
-  var PING_HIGH = 0.12;
-  var PING_LOW = 0.55;
-  var PING_EDGE = 0.18;
+  var DAY = 24 * 60 * 60;
+  var WAIT_LEAST = 35;
+  var WAIT_SPAN = 130;
+  var APART = 90;
   var MIN_SPAN4 = 1;
   function createPassers(options) {
     var _a, _b;
     const random = makeRandom(options.seed ^ 12471);
-    const kinds = (_a = options.kinds) != null ? _a : ["boat", "sonar"];
-    const eager = Math.min(Math.max((_b = options.eager) != null ? _b : 0, 0), 1);
+    const kinds = (_a = options.kinds) != null ? _a : ["boat", "sonar", "submarine"];
+    const eager = (_b = options.eager) != null ? _b : false;
     let width = Math.max(MIN_SPAN4, options.width);
     let height = Math.max(MIN_SPAN4, options.height);
     const passing = [];
-    const waits = /* @__PURE__ */ new Map();
     const takes = /* @__PURE__ */ new Map();
-    for (const kind of kinds) {
-      const habit = HABITS[kind];
-      waits.set(kind, (habit.restLeast + random() * habit.restSpan) * (1 - eager));
+    let planned = 0;
+    const due = /* @__PURE__ */ new Map();
+    const waits = /* @__PURE__ */ new Map();
+    const gone2 = /* @__PURE__ */ new Set();
+    let apart = APART;
+    function plan(day) {
+      planned = day;
+      gone2.clear();
+      const dice = makeRandom(stir(options.seed ^ day ^ 20973) | 0);
+      for (const kind of kinds) {
+        const happens = dice() < HABITS[kind].chance;
+        const at = Math.floor(dice() * DAY);
+        due.set(kind, happens ? at : null);
+        waits.set(kind, WAIT_LEAST + dice() * WAIT_SPAN);
+      }
     }
     function launch(kind) {
       const habit = HABITS[kind];
       const facing = random() < 0.5 ? -1 : 1;
       const scale = width * (habit.sizeLeast + random() * habit.sizeSpan);
+      const deep = habit.deepLeast + random() * habit.deepSpan;
       takes.set(kind, habit.takeLeast + random() * habit.takeSpan);
-      if (kind === "boat") {
-        passing.push({ along: 0, facing, kind, scale, weight: 0, x: 0, y: height * WATERLINE });
-        return;
-      }
-      const side = facing > 0 ? 1 - PING_EDGE : PING_EDGE;
+      gone2.add(kind);
+      const side = kind === "sonar" ? facing > 0 ? 1 - PING_EDGE : PING_EDGE : 0;
       passing.push({
         along: 0,
         facing,
@@ -1446,8 +1470,25 @@ var __ornament = (() => {
         scale,
         weight: 0,
         x: width * side,
-        y: height * (PING_HIGH + random() * (PING_LOW - PING_HIGH))
+        y: height * deep
       });
+    }
+    function owed(dt, clock) {
+      var _a2;
+      if (passing.length > 0 || apart > 0) return null;
+      let next = null;
+      let oldest = Number.POSITIVE_INFINITY;
+      for (const kind of kinds) {
+        if (gone2.has(kind)) continue;
+        const at = due.get(kind);
+        if (at == null || clock < at || at >= oldest) continue;
+        oldest = at;
+        next = kind;
+      }
+      if (!next) return null;
+      const left = ((_a2 = waits.get(next)) != null ? _a2 : 0) - dt;
+      waits.set(next, left);
+      return left <= 0 ? next : null;
     }
     return {
       passing,
@@ -1456,17 +1497,20 @@ var __ornament = (() => {
         height = Math.max(MIN_SPAN4, nextHeight);
         passing.length = 0;
       },
-      step(seconds) {
+      step(seconds, now = /* @__PURE__ */ new Date()) {
         var _a2, _b2;
         const dt = Math.min(Math.max(seconds, 0), 0.1);
-        for (const kind of kinds) {
-          if (passing.some((one) => one.kind === kind)) continue;
-          const left = ((_a2 = waits.get(kind)) != null ? _a2 : 0) - dt;
-          waits.set(kind, left);
-          if (left > 0) continue;
-          const habit = HABITS[kind];
-          waits.set(kind, habit.restLeast + random() * habit.restSpan);
-          launch(kind);
+        const day = now.getFullYear() * 1e4 + (now.getMonth() + 1) * 100 + now.getDate();
+        if (day !== planned) plan(day);
+        apart = Math.max(0, apart - dt);
+        if (eager) {
+          if (passing.length === 0) {
+            gone2.clear();
+            launch((_a2 = kinds[Math.floor(random() * kinds.length)]) != null ? _a2 : "boat");
+          }
+        } else {
+          const next = owed(dt, now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds());
+          if (next) launch(next);
         }
         for (let at = passing.length - 1; at >= 0; at--) {
           const one = passing[at];
@@ -1474,10 +1518,11 @@ var __ornament = (() => {
           one.along += dt / Math.max((_b2 = takes.get(one.kind)) != null ? _b2 : 1, 1e-3);
           if (one.along >= 1) {
             passing.splice(at, 1);
+            apart = APART;
             continue;
           }
           one.weight = Math.min(1, one.along / FADE, (1 - one.along) / FADE);
-          if (one.kind !== "boat") continue;
+          if (one.kind === "sonar") continue;
           const from = -OFFING * width;
           const to = width * (1 + OFFING);
           one.x = one.facing > 0 ? from + one.along * (to - from) : to - one.along * (to - from);
@@ -1491,6 +1536,8 @@ var __ornament = (() => {
     { from: [-0.94, 0.12], to: [-2.6, -0.34] },
     { from: [-0.94, 0.22], to: [-2.6, 0.62] }
   ];
+  var SUBMARINE = "M-0.92 -0.15 L0.4 -0.17 Q0.86 -0.16 1 0 Q0.86 0.16 0.4 0.17 L-0.92 0.15 Q-1 0.1 -1 0 Q-1 -0.1 -0.92 -0.15 Z M0.02 -0.16 L0.08 -0.44 L0.3 -0.44 L0.34 -0.16 Z M0.16 -0.44 L0.16 -0.62 L0.2 -0.62 L0.2 -0.44 Z M-0.02 -0.38 L0.42 -0.38 L0.42 -0.33 L-0.02 -0.33 Z M-0.74 -0.14 L-0.96 -0.4 L-0.84 -0.4 L-0.62 -0.14 Z M-0.62 0.14 L-0.84 0.4 L-0.96 0.4 L-0.74 0.14 Z";
+  var SUB_SCREW = "M-1 -0.02 L-1.14 -0.14 L-1.18 -0.06 L-1.04 0 L-1.18 0.06 L-1.14 0.14 L-1 0.02 Z";
   var PING_RINGS = [0, 0.16, 0.32];
   function ringAt(along2, offset) {
     const t = (along2 - offset) / (1 - offset);
@@ -1929,10 +1976,12 @@ var CORAL = __ornament.CORAL
 var createFlora = __ornament.createFlora
 var HULL = __ornament.HULL
 var PING_RINGS = __ornament.PING_RINGS
-var ringAt = __ornament.ringAt
 var SCREWS = __ornament.SCREWS
+var SUBMARINE = __ornament.SUBMARINE
+var SUB_SCREW = __ornament.SUB_SCREW
 var WAKE = __ornament.WAKE
 var createPassers = __ornament.createPassers
+var ringAt = __ornament.ringAt
 var SPREAD = __ornament.SPREAD
 var createRays = __ornament.createRays
 var BLOCK_CARD = __ornament.BLOCK_CARD

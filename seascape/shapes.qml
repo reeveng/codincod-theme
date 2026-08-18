@@ -286,6 +286,37 @@ Window {
       }
     }
 
+    // --------------------------------------------------------- the submarine
+    Plate {
+      label: "submarine, from the side"
+
+      Item {
+        x: parent.width / 2
+        y: parent.height / 2
+
+        transform: Scale { xScale: 100; yScale: 100 }
+
+        Shape {
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            fillColor: win.ink
+            fillRule: ShapePath.WindingFill
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.SUBMARINE }
+          }
+
+          ShapePath {
+            fillColor: win.ink
+            strokeColor: "transparent"
+
+            PathSvg { path: Ornament.SUB_SCREW }
+          }
+        }
+      }
+    }
+
     // ------------------------------------------------- a squid, jet and fill
     Plate {
       label: "squid, filling"

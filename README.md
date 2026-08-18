@@ -52,6 +52,15 @@ slower and darker on a real desktop, which is the point of it.
 
 It is optional, and the theme is complete without it.
 
+### And almost nothing happens in it
+
+A boat crosses the surface, sonar goes off somewhere out there, and once in a
+while a submarine passes at your own depth. Each of them at most once a day, at
+an hour the day decides, and the submarine only on about one day in seven. They
+wait for somebody: the water advances only while the wallpaper is uncovered, so
+a crossing that was owed at four in the morning happens the next time you are
+actually looking at the sea.
+
 ### A different sea every day
 
 The seabed is the calendar day's: the same place from one midnight to the next,
@@ -74,7 +83,7 @@ repository, and nothing in that directory is edited on the way through:
 | `cephalopods.ts` | squid in the water, octopuses on the stones |
 | `seabed.ts`, `flora.ts` | the ground at every distance, and what grows out of it |
 | `relics.ts` | what lies on the floor, and the plume off the vent |
-| `passers.ts` | the boat overhead, and the sonar |
+| `passers.ts` | the boat overhead, the sonar, and the submarine |
 | `drift.ts`, `rays.ts` | the snow, the bubbles, the light |
 | `sun.ts` | which hour it is, from the sun's real altitude |
 | `perlin.ts` | the field they all read |

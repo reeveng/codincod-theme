@@ -53,10 +53,16 @@ renders them. Both the website and the desktop get all of it.
 ## Once in a great while
 
 - [x] **Shipwrecks**, lying on the floor in the murk. `relics.ts`
-- [x] **A diving boat** crossing the surface, once in a very long time, with a
-      wake astern. `passers.ts`
+- [x] **A diving boat** crossing the surface with a wake astern. `passers.ts`
 - [x] **Sonar blips**, three rings staggered, never from the middle of the
       picture. `passers.ts`
+- [x] **A submarine**, seen from the side because it is at your own depth
+      rather than on the surface, on about one day in seven. `passers.ts`
+- [x] **Appointments rather than intervals.** Each of the three happens at most
+      once in a day, at a moment the day's plan decides, and then waits for
+      somebody to be there: the water only advances while the wallpaper is
+      uncovered, so a thing that is rare per minute of that is a thing you see
+      every time you clear a workspace. `passers.ts`
 
 ## Easter eggs
 

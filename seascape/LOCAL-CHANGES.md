@@ -17,7 +17,7 @@ repository, and nothing in that directory is edited on the way through:
 | `cephalopods.ts` | squid in the water, octopuses on the stones |
 | `seabed.ts`, `flora.ts` | the ground at every distance, and what grows out of it |
 | `relics.ts` | what lies on the floor, and the plume off the vent |
-| `passers.ts` | the boat overhead, and the sonar |
+| `passers.ts` | the boat overhead, the sonar, and the submarine |
 | `drift.ts`, `rays.ts` | the snow, the bubbles, the light |
 | `sun.ts` | which hour it is, from the sun's real altitude |
 | `perlin.ts` | the field they all wander through |
@@ -67,6 +67,23 @@ where the wait at login is the one this scene always had, and a couple of
 minutes is long enough that the water is rearranged past recognition anyway.
 Nothing is written to disk and nothing is read back: a clock is a clock on every
 machine, so two screens open on the same moment of the same water for free.
+
+### Why almost nothing happens
+
+The boat, the sonar and the submarine keep appointments rather than counting
+seconds. Each is due at most once a day, at a moment the day's plan decides, and
+the submarine is only due on about one day in seven. Once the clock is past that
+moment the crossing is owed: it happens the next time the wallpaper is uncovered
+for long enough, so a machine that was off at four in the morning still gets its
+boat, and a machine nobody looks at all day gets one crossing rather than the
+nine it was owed.
+
+That is a change of clock, not of numbers. The scene advances only while the
+wallpaper is visible, so a passer that was rare per minute of scene time was a
+passer you saw nearly every time you cleared a workspace. Rarity anybody can
+feel is rarity in the day. Nothing is written to disk, so restarting the shell
+forgets what has already crossed and a day with a restart in it can hold a
+second boat.
 
 ### Why the sea is different tomorrow
 
