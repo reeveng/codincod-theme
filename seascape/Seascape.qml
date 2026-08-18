@@ -3614,38 +3614,43 @@ Item {
    * differently. So each is a stroke turned by its own tilt, and the mass is
    * everything.
    *
+   * A rounded rectangle rather than a stroked path, and it is the same drawing:
+   * a round-capped line is a stadium, which is what a rectangle with a radius of
+   * half its height already is. The difference is what draws it. A `Shape` on
+   * the curve renderer costs geometry built and uploaded for every speck that
+   * moved, and a flock is the thing in this water that never stops moving, so
+   * the whole pool was re-cut on every frame: two fifths of the scene's entire
+   * render, for a straight line. A rectangle is a node the scene graph already
+   * knows how to move. Removing the flock outright changes 146 pixels of a
+   * still; drawing it this way changes 7 of them, so the picture is the same
+   * picture and `bench.sh` reports the layer at nothing.
+   *
    * Behind the near rock and in among the fish by depth, because the whole
    * point of one going over is that it goes over something.
    */
   Repeater {
     model: root.speckPool
 
-    delegate: Shape {
+    delegate: Rectangle {
       id: fleck
       required property int index
 
       readonly property var one: root.specks[index] || null
+      readonly property real girth: one ? Math.max(0.7, one.size * 0.42) : 1
       readonly property real weight: one
         ? root.speckInk * (1 - root.depthInk + root.depthInk * one.depth) * root.flockWeight
         : 0
 
-      preferredRendererType: Shape.CurveRenderer
-      visible: one !== null && weight > 0.002
-      x: one ? one.x : 0
-      y: one ? one.y : 0
+      antialiasing: true
+      color: root.afloat(one ? one.y : 0, fleck.weight)
+      height: fleck.girth
+      radius: fleck.girth / 2
+      rotation: one ? one.tilt * 180 / Math.PI : 0
+      visible: one !== null && fleck.weight > 0.002
+      width: (one ? one.size : 0) + fleck.girth
+      x: one ? one.x - fleck.width / 2 : 0
+      y: one ? one.y - fleck.height / 2 : 0
       z: one ? one.depth : 0
-
-      transform: Rotation { angle: fleck.one ? fleck.one.tilt * 180 / Math.PI : 0 }
-
-      ShapePath {
-        capStyle: ShapePath.RoundCap
-        fillColor: "transparent"
-        strokeColor: root.afloat(fleck.one ? fleck.one.y : 0, fleck.weight)
-        strokeWidth: fleck.one ? Math.max(0.7, fleck.one.size * 0.42) : 1
-
-        PathMove { x: fleck.one ? -fleck.one.size / 2 : 0; y: 0 }
-        PathLine { x: fleck.one ? fleck.one.size / 2 : 0; y: 0 }
-      }
     }
   }
 
