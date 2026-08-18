@@ -253,7 +253,7 @@ Item {
    * of bands with findable seams across the water and down every shaft of light.
    * Grain puts a value either side of the one a band wanted and the seams go.
    */
-  property real grainInk: 0.05
+  property real grainInk: 0.03
   property real grainSpan: 1.6
 
   /**
