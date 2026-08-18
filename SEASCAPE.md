@@ -250,3 +250,100 @@ the frame 20ms worse, repeatably, on a quiet machine: a `PathSvg` rebuilt every
 frame costs more than the nodes it saves. It was tried, measured and taken out.
 Rounding the numbers written into those paths costs more than the digits it
 saves, too.
+
+### Where a frame went, and where it goes now
+
+At 2560x1440, on an AMD 780M, with the water `rushed` so a flock is crossing it
+and a boat is overhead.
+
+| | before | now |
+| --- | --- | --- |
+| `advance` | 15ms | 5ms |
+| `publish` | 44ms | 19ms |
+| polish and sync | 26ms | 8ms |
+| render | 86ms | 19ms |
+| swap | 5ms | 4ms |
+| **a frame** | **150ms, or 6.6 a second** | **54ms, or 19 a second** |
+
+Three changes account for nearly all of it, and none of them cost a quality
+argument. A speck became a rectangle, because a round-capped line is a stadium
+and the flock was two fifths of the entire render for a straight line. A plant's
+leaves became one path, because the curve renderer charges by the path and they
+are all one weight in one ink. And a plant is now cut as finely as it is seen and
+no finer, which is the level of detail the bed always wanted.
+
+The first two are the same picture to the pixel. The third is a different bed of
+the same density, because thinning a count changes what the seed spends its
+draws on.
+
+### What the bench cannot see
+
+The render loop is forced to `basic`, so a frame is stepped, synced, rendered and
+reported in that order on one thread. A desktop runs the threaded loop, which
+overlaps this frame's render with the next frame's JavaScript. So the real
+background is somewhere between the sum reported here and the larger of its two
+halves, and the numbers above are the pessimistic end of that. Nobody has
+measured the optimistic end, because measuring it means taking somebody's screen
+away for as long as it takes.
+
+Every number here is also one machine's. The per-shape cost is a driver's and a
+GPU's as much as Qt's.
+
+### The ceiling
+
+The JavaScript is 24ms of the 54, and it is not going to fall much further.
+`advance` is 5ms and is the simulation actually simulating. `publish` is 19ms, of
+which 11 is spent with the tolerance set to infinity: that is, with nothing
+recut and no simulation work at all. It is the cost of handing arrays across the
+JavaScript and QML boundary, and a boundary does not get cheaper by making one
+side of it faster.
+
+Which is the answer to every version of "run it in something quicker". QML's
+JavaScript engine is Qt's V4 and cannot be swapped while the code stays JS.
+WebAssembly is not an option at all: `WebAssembly` is undefined in that engine,
+as is `Worker`. Hosting either means a compiled QML plugin embedding a runtime,
+which is the same shipping problem as writing the thing in Rust or C++ outright,
+and it would still be copying values out of linear memory for QML to read.
+
+A compiled type that hands the scene graph its geometry directly would break the
+boundary properly. It also ends the arrangement where the site and the desktop
+run the same TypeScript, and it is the case decision 27 in the CodinCod
+repository says would reverse its whole design. It is not off the table. It is a
+different project.
+
+So a frame of this scene at this size will not go under about 25ms, and 200
+frames a second is 5ms. The number worth aiming at is the tick, which is 33ms.
+
+### Two things that sound right and are not
+
+**One giant SVG.** Measured, on three thousand lines: 39ms as a path each, 13ms
+as fifty paths of sixty, 22ms as one path holding all of them. Past about a
+hundred lines the cost per path turns back upwards. A single path would also
+force every plant in it to share one stroke width and one colour, which is the
+objection decision 27 already makes to batching the bed.
+
+**One giant image.** Caching the scene into a texture, with `layer.enabled` and
+multisampling on the scene root, costs 8ms of render and makes the picture worse:
+the sway then resamples a texture instead of the geometry, and the distance from
+the reference goes from 46.6dB to 41.1dB. The bed genuinely changes every frame
+as well, so the texture would be rebuilt anyway.
+
+### The renderer is the rest of it
+
+Everything above leaves the curve renderer where it is. It is now the whole of
+what the scene graph costs: 19ms of render and 6ms of polish, against 3ms and
+2ms for the geometry renderer drawing the same scene. Qt's own documentation is
+where this stops being a surprise. The curve renderer "performs a certain amount
+of preprocessing of the input path on the CPU during the polishing phase, and
+this is potentially expensive", and the geometry renderer "does not support
+antialiasing, so you will typically want to enable multi-sampling".
+
+Both halves of that were measured here. The geometry renderer alone takes the
+frame to 31ms and breaks the fine grass into dashes, which is visible at 1:1 and
+would shimmer as the bed sways. With `QSG_SAMPLES=4` it takes the frame to 28ms
+and the dashes go: over the bed alone, the geometry renderer differs from the
+curve reference in 1702 px and the geometry renderer with multisampling in 733.
+
+What it wants is an environment variable on the shell rather than a line in this
+repository, which is why it is a decision and not a commit. Todo 531 in the
+CodinCod repository holds it.
