@@ -1844,12 +1844,12 @@ Item {
         var grown = reef.heads[h]
         standing.push({
           bend: grown.bend,
-          blades: [],
+          blades: "",
           cut: -1,
           depth: grown.depth,
           girth: grown.girth,
           lean: grown.lean,
-          points: polygon(grown.points, false),
+          points: stroke(grown.points),
           scale: grown.scale,
           twigs: grown.twigs,
           x: grown.x,
@@ -1864,10 +1864,8 @@ Item {
       var standing_one = heads[g]
       if (!standing_one || standing_one.cut === head.cut) continue
 
-      var fronds = []
-      for (var hb = 0; hb < head.blades.length; hb++) fronds.push(polygon(head.blades[hb], false))
       standing_one.bend = head.bend
-      standing_one.blades = fronds
+      standing_one.blades = strokes(head.blades)
       standing_one.cut = head.cut
     }
 
@@ -3496,7 +3494,7 @@ Item {
       Shape {
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
-        visible: head.one !== null && head.one.blades.length > 0
+        visible: head.one !== null && head.one.blades !== ""
 
         ShapePath {
           capStyle: ShapePath.RoundCap
@@ -3504,31 +3502,26 @@ Item {
           strokeColor: root.afloat(head.one ? head.one.y : 0, head.weight)
           strokeWidth: head.one ? head.one.girth : 0
 
-          PathPolyline { path: head.one ? head.one.points : [] }
+          PathSvg { path: head.one ? head.one.points : "" }
         }
       }
 
-      Repeater {
-        model: { head.rev; return head.one ? head.one.blades.length : 0 }
+      // Every blade in one path, as the bed has it. See `strokes`.
+      Shape {
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
+        visible: head.one !== null && head.one.blades !== ""
 
-        delegate: Shape {
-          id: arm
-          required property int index
+        ShapePath {
+          capStyle: ShapePath.RoundCap
+          fillColor: "transparent"
+          strokeColor: root.afloat(head.one ? head.one.y : 0, head.weight)
+          strokeWidth: head.one ? head.one.girth * root.bladeGirth : 0
 
-          anchors.fill: parent
-          preferredRendererType: Shape.CurveRenderer
-
-          ShapePath {
-            capStyle: ShapePath.RoundCap
-            fillColor: "transparent"
-            strokeColor: root.afloat(head.one ? head.one.y : 0, head.weight)
-            strokeWidth: head.one ? head.one.girth * root.bladeGirth : 0
-
-            PathPolyline {
-              path: {
-                head.rev
-                return head.one ? head.one.blades[arm.index] : []
-              }
+          PathSvg {
+            path: {
+              head.rev
+              return head.one ? head.one.blades : ""
             }
           }
         }

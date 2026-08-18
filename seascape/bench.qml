@@ -67,6 +67,15 @@ Window {
    */
   readonly property string zero: win.arg("zero", "")
 
+  /**
+   * How dense to sow the bed, as a share of what it sows itself.
+   *
+   * The bed is nearly every `Shape` in the scene, so this is the knob that says
+   * whether a frame costs what it draws or how much of it there is. `dense=0.5`
+   * is the same water with half the plants in it.
+   */
+  readonly property real dense: Number(win.arg("dense", "1"))
+
   /** A grab is finished by the render loop, so `Qt.exit` is not immediate. */
   property bool done: false
 
@@ -100,25 +109,63 @@ Window {
   }
 
   readonly property var pools: ({
-    bubbles: "bubblePool",
-    froth: "frothSlots",
-    herd: "herd",
-    motes: "flurry",
-    plume: "plumeSlots",
-    relics: "relicSlots",
-    shafts: "beams",
-    specks: "speckPool",
-    visitors: "visitorSlots",
+    blur: ["farBlur", "nearBlur"],
+    bubbles: ["bubblePool"],
+    anemones: ["anemonesPerK"],
+    cliffs: ["cliffsPerK"],
+    corals: ["coralsPerK"],
+    fans: ["fansPerK"],
+    grass: ["grassesPerK"],
+    kelp: ["kelpsPerK"],
+    flora: ["anemonesPerK", "coralsPerK", "fansPerK", "grassesPerK", "kelpsPerK"],
+    froth: ["frothSlots"],
+    glow: ["bloomInk"],
+    herd: ["herd"],
+    inklings: ["octopuses", "squids"],
+    lens: ["grainInk", "vignetteInk"],
+    motes: ["flurry"],
+    plume: ["plumeSlots"],
+    reef: ["reefHeads"],
+    relics: ["relicSlots"],
+    shafts: ["beams"],
+    specks: ["speckPool"],
+    stones: ["stonesPerK"],
+    visitors: ["visitorSlots"],
+    walkers: ["crabsPerK", "starfishPerK"],
   })
 
-  function empty() {
-    if (!win.zero) return
+  /**
+   * Some of these are read when the water is sown and some when it is drawn, and
+   * the bench cannot know which. So they are set, the water is sown again, and
+   * they are set a second time: `build` recomputes the two counts that come off
+   * the size of the box, and a layer asked for nothing must stay at nothing.
+   */
+  readonly property var sown: ["anemonesPerK", "coralsPerK", "fansPerK", "grassesPerK", "kelpsPerK"]
 
+  function thin() {
+    if (win.dense === 1) return
+
+    for (var i = 0; i < win.sown.length; i++) sea[win.sown[i]] = sea[win.sown[i]] * win.dense
+  }
+
+  function empty() {
+    win.thin()
+    if (!win.zero) return sea.build()
+
+    win.set()
+    sea.build()
+    win.set()
+  }
+
+  function set() {
     var names = win.zero.split(",")
     for (var i = 0; i < names.length; i++) {
       var pool = win.pools[names[i].trim()]
-      if (pool) sea[pool] = 0
-      else console.log("bench: no layer called " + names[i])
+      if (!pool) {
+        console.log("bench: no layer called " + names[i])
+        continue
+      }
+      for (var p = 0; p < pool.length; p++) sea[pool[p]] = 0
     }
   }
 
@@ -128,6 +175,38 @@ Window {
    * that waited for those is worth a third of the mean over a hundred. What is
    * wanted is the frame this scene costs when it is the thing running.
    */
+  /**
+   * How many items are in the scene and how many of them are `Shape`s, by kind.
+   *
+   * Qt says what a frame cost and the leave-one-out says what a layer cost, and
+   * between the two there is still no answer to the question that decides where
+   * to look: how much of this picture is built out of the expensive thing. So
+   * the tree is walked once and the delegates are counted by the type name Qt
+   * gives them, which is the QML type they were declared as.
+   */
+  function census(item, tally) {
+    var kids = item.children
+    for (var i = 0; i < kids.length; i++) {
+      var kid = kids[i]
+      var name = String(kid).replace(/[_(].*$/, "")
+      tally[name] = (tally[name] || 0) + 1
+      win.census(kid, tally)
+    }
+    return tally
+  }
+
+  function counted() {
+    var tally = win.census(sea, {})
+    var names = Object.keys(tally).sort()
+    var line = []
+    var all = 0
+    for (var i = 0; i < names.length; i++) {
+      line.push(names[i] + " " + tally[names[i]])
+      all += tally[names[i]]
+    }
+    return all + " items: " + line.join(", ")
+  }
+
   function quantile(values, at) {
     if (values.length === 0) return 0
     var sorted = values.slice().sort(function (a, b) { return a - b })
@@ -147,6 +226,7 @@ Window {
     console.log("  scene  " + sea.specks.length + " specks at weight " + win.fixed(sea.flockWeight, 2) +
                 ", " + sea.growth.length + " plants, " + sea.heads.length + " heads, " +
                 sea.fishes.length + " fish, " + sea.motes.length + " motes")
+    console.log("  tree   " + win.counted())
     console.log("  js     advance " + win.fixed(win.quantile(win.advanceMs, 0.5), 0) + "ms" +
                 "  publish " + win.fixed(win.quantile(win.publishMs, 0.5), 0) + "ms")
     Qt.exit(0)
