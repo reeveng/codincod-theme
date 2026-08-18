@@ -276,6 +276,47 @@ The first two are the same picture to the pixel. The third is a different bed of
 the same density, because thinning a count changes what the seed spends its
 draws on.
 
+### What the bed costs now
+
+The bed above was measured before it was thickened and before the front of the
+picture reached the bottom edge of the box. It stopped a tenth of the way up it,
+which is where the nearest rooted thing stood, so the bottom of the screen was
+the face of the sand seen from above with nothing on it and nothing able to be on
+it. Both ends of the ground read as bare: the front because nothing could stand
+there, the back because a plant scaled by distance outright is a hair the haze
+takes first. So there is more ground to fill now as well as more in every square
+of it.
+
+At 2560x1440, on the same machine, at the density above and at the one the scene
+sows now:
+
+| | the bed as it was | as it is now |
+| --- | --- | --- |
+| plants | 317 | 622 |
+| `publish` | 26ms | 43ms |
+| render | 20ms | 43ms |
+| **a frame** | **65ms** | **121ms** |
+
+Two things were bought back on the way, and both are the rule the bed already had
+about how finely a line is cut, applied to what a line costs.
+
+A leaf stroked a fifth finer than a strand two px wide is a leaf four tenths of a
+px finer, and nothing sees that. Under `bladeSplit` those leaves go in the
+strand's own path and the plant costs one path rather than two, which is worth
+about a fifth of the frame: the curve renderer charges by the path and the bed is
+most of the paths in the scene. A near kelp is over the line and keeps its finer
+leaf.
+
+And a drawing made of tapering strokes wants stroking once per width in it rather
+than once per stroke. `gathered` in `flora.ts` puts every stroke of one width
+into one `d`, which draws identically, so a boulder coral is one path instead of
+four. A handful of tables serve every coral in the bed, every reef head and every
+sprig on a wall, and each is gathered once and held.
+
+What is left is the frame itself. It is over the tick and it was over the tick
+before this; the renderer is still the whole of what is left to win, and that
+argument is above.
+
 ### What the bench cannot see
 
 The render loop is forced to `basic`, so a frame is stepped, synced, rendered and
