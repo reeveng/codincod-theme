@@ -426,14 +426,21 @@ Item {
   //
   // What the water sits on, and what grows out of it.
   //
-  // Per thousand px of width rather than outright. A floor is a line and not an
-  // area, so its width is what decides how much of it there is to fill, and a
-  // flat count is a count tuned for one screen: nine kelp across a laptop is a
-  // bed, and the same nine across a wall is a bed with most of it missing. The
-  // numbers are what looked right at 1600 wide, over 1.6.
+  // Per thousand px of width rather than outright. A wide screen is a wider
+  // stretch of coast rather than the same one magnified, and a flat count is a
+  // count tuned for one screen: nine kelp across a laptop is a bed, and the same
+  // nine across a wall is a bed with most of it missing.
+  //
+  // The numbers are what looked right at 1600 wide. They were about half of this
+  // when the ground was one line at the front of the picture with bare sand
+  // below it and a hair of a plant on the hills behind: a bed sown for the strip
+  // it could actually be seen in. The ground reaches the bottom of the box now
+  // and a plant far back is drawn at a size that survives the haze, so the bed
+  // is filling a picture rather than a band across the middle of one.
   //
   // The ceilings are what keep a place from becoming a texture. One kelp too
   // many turns a seabed into a lawn, and that is still true on a big screen.
+  // What a fuller bed costs is measured in `SEASCAPE.md`, and it is not nothing.
 
   /** How thick a blade is drawn against the strand it belongs to. */
   property real bladeGirth: 0.8
@@ -452,26 +459,26 @@ Item {
    */
   property real bladeSplit: 0.5
 
-  property real anemonesPerK: 18
+  property real anemonesPerK: 34
   property real cliffsPerK: 5.5
-  property real coralsPerK: 22
-  property real crabsPerK: 7
-  property real fansPerK: 9
-  property real grassesPerK: 62
-  property real kelpsPerK: 12
-  property real starfishPerK: 5
-  property real stonesPerK: 25
+  property real coralsPerK: 46
+  property real crabsPerK: 11
+  property real fansPerK: 19
+  property real grassesPerK: 124
+  property real kelpsPerK: 24
+  property real starfishPerK: 9
+  property real stonesPerK: 40
 
   property int leastOfEach: 2
-  property int mostAnemones: 46
+  property int mostAnemones: 92
   property int mostCliffs: 16
-  property int mostCorals: 52
-  property int mostCrabs: 18
-  property int mostFans: 24
-  property int mostGrasses: 155
-  property int mostKelps: 38
-  property int mostStarfish: 14
-  property int mostStones: 64
+  property int mostCorals: 108
+  property int mostCrabs: 28
+  property int mostFans: 50
+  property int mostGrasses: 320
+  property int mostKelps: 74
+  property int mostStarfish: 24
+  property int mostStones: 108
 
   /**
    * How many bands of ground stand between the sand and the horizon.
