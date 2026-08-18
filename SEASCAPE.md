@@ -97,8 +97,16 @@ finished frame. `Lens.qml`, and `lens.frag` beside it.
       darkening in this scene that may not be a wash of the theme: washed in the
       surface, the near rock at the edge of the frame, the darkest thing in the
       picture, came out as the lightest thing in it.
-- [ ] **Bloom** on the two brightest things there are, which is the disc above
-      the water and the white water off a hull.
+- [x] **Bloom** on the disc above the water, which is the only thing in the
+      picture bright enough to have any: a veil out past the halo where the light
+      scattered in the glass instead of landing where it was aimed, and a streak
+      across it, which is what a lens does with a light it cannot quite hold. All
+      three are the same `Glow.qml` with different amounts left in them, and one
+      of them is the halo that was already there. Drawn as gradients rather than
+      as a blur of the frame, which is the only version of bloom a wallpaper can
+      afford. The white water off a hull is brighter still and gets none: it is a
+      dozen puffs at once, each of which would want a gradient of its own, for a
+      crossing that happens once a day.
 - [ ] **Depth of field**: the far wall soft, the near rock softer, the middle
       sharp. Both of those groups stand still, so a blur of them is paid for once
       rather than every frame, which is the only reason it is affordable here.

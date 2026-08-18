@@ -140,6 +140,41 @@ Item {
 
   property real haloReach: 4.2
 
+  /**
+   * The veil of bloom past the halo, and how fast it gives out.
+   *
+   * What a bright thing does to a lens rather than to the water: light that
+   * scattered on the way through the glass instead of landing where it was aimed,
+   * spread over a reach the halo has no business at. Almost nothing per pixel and
+   * a great deal of pixels, which is the whole of what bloom is, and the reason
+   * it is drawn as one more glow rather than as a blur of the frame is that a
+   * blur would want the frame read back and this wants a gradient.
+   *
+   * It falls off faster than the halo. A veil that thinned as slowly as the light
+   * it came from is a fog over the top third of the picture.
+   */
+  property real bloomInk: 0.016
+  property real bloomFall: 2.4
+  property real bloomReach: 13
+
+  /**
+   * The streak across it: how wide, how thin, and how heavy.
+   *
+   * The one thing in this scene that admits to being seen through something. A
+   * lens holding a light this much brighter than everything around it draws it
+   * out sideways, and a picture with one of those in it reads as filmed where the
+   * same picture without one reads as drawn.
+   *
+   * Sideways rather than up and down because that is the way the glass is
+   * ground, and thin enough to be a line of light rather than an eye: at much
+   * over a fifth it stops being a streak and becomes a lens flare, which is a
+   * different and much louder thing.
+   */
+  property real streakInk: 0.06
+  property real streakFall: 2.1
+  property real streakReach: 12
+  property real streakThin: 0.1
+
   property real haloInk: 0.07
 
   property real discInk: 0.012
@@ -2171,54 +2206,27 @@ Item {
       visible: opacity > 0.004
       z: -1.2
 
-      // The glow around it, which is most of the light there is.
-      Shape {
+      // The light off it, three of the same glow with different amounts left in
+      // them: the veil of bloom out past everything, the halo that is most of the
+      // light there is, and the streak a lens gives a bright thing it cannot
+      // quite hold. Widest first, so the faintest is underneath.
+      Glow {
         anchors.fill: parent
-        preferredRendererType: Shape.CurveRenderer
+        cx: sky.cx
+        cy: sky.cy
+        fall: root.bloomFall
+        hue: sky.hue
+        ink: root.bloomInk
+        reach: sky.r * root.bloomReach
+      }
 
-        ShapePath {
-          fillGradient: RadialGradient {
-            centerX: sky.cx
-            centerY: sky.cy
-            centerRadius: sky.r * root.haloReach
-            focalX: sky.cx
-            focalY: sky.cy
-
-            GradientStop {
-              position: 0
-              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk)
-            }
-            GradientStop {
-              position: 0.22
-              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk * 0.72)
-            }
-            GradientStop {
-              position: 0.42
-              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk * 0.42)
-            }
-            GradientStop {
-              position: 0.64
-              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk * 0.18)
-            }
-            GradientStop {
-              position: 0.82
-              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, root.haloInk * 0.06)
-            }
-            GradientStop {
-              position: 1
-              color: Qt.rgba(sky.hue.r, sky.hue.g, sky.hue.b, 0)
-            }
-          }
-          strokeColor: "transparent"
-
-          PathSvg {
-            path: "M " + (sky.cx - sky.r * root.haloReach) + " " + sky.cy +
-              " a " + sky.r * root.haloReach + " " + sky.r * root.haloReach +
-              " 0 1 0 " + sky.r * root.haloReach * 2 + " 0" +
-              " a " + sky.r * root.haloReach + " " + sky.r * root.haloReach +
-              " 0 1 0 " + -sky.r * root.haloReach * 2 + " 0"
-          }
-        }
+      Glow {
+        anchors.fill: parent
+        cx: sky.cx
+        cy: sky.cy
+        hue: sky.hue
+        ink: root.haloInk
+        reach: sky.r * root.haloReach
       }
 
       // The shaft, its mouth the disc's own diameter at the disc's own centre.
@@ -2265,6 +2273,17 @@ Item {
             y: root.height
           }
         }
+      }
+
+      Glow {
+        anchors.fill: parent
+        cx: sky.cx
+        cy: sky.cy
+        fall: root.streakFall
+        hue: sky.hue
+        ink: root.streakInk
+        reach: sky.r * root.streakReach
+        thin: root.streakThin
       }
 
       Rectangle {
