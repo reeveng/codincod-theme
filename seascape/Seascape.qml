@@ -469,6 +469,13 @@ Item {
   property real cragInk: 0.94
   property real isleInk: 0.88
 
+  /** How many corals a reef tries to grow, once every kind has had its one. */
+  property int reefHeads: 34
+
+  /** What the mound itself is worth, and how far back it stands. */
+  property real reefDepth: 0
+  property real reefWeight: 0
+
   /** px per unit of a perch's drawing, before its own size is applied. */
   property real perchScale: 1.15
 
@@ -628,6 +635,8 @@ Item {
    * water. Nothing else changes anywhere.
    */
   property var water: null
+  property var reef: null
+  property var nemos: null
 
   property int herd: 0
   property int flurry: 0
@@ -693,6 +702,10 @@ Item {
   property var rocks: []
   property var masonry: []
   property var island: null
+  property var mound: []
+  /** The corals, republished every tick, because they lean. */
+  property var heads: []
+  property var clowns: []
   /** The plants, republished every tick, because they lean. */
   property var growth: []
 
@@ -1034,6 +1047,16 @@ Item {
       width: width,
     })
 
+    reef = Ornament.createReef({
+      floor: seabed.floorAt,
+      heads: reefHeads,
+      height: height,
+      seed: seed,
+      width: width,
+    })
+
+    nemos = Ornament.createNemos({ about: water.about, reef: reef, seed: seed })
+
     crags = Ornament.createCrags({
       floor: seabed.floorAt,
       height: height,
@@ -1125,6 +1148,8 @@ Item {
     crags.resize(width, height, seabed.floorAt)
     visitors.resize(width, height)
     flock.resize(width, height, speckPool)
+    reef.resize(width, height, seabed.floorAt)
+    nemos.resettle()
     cutGround()
     publish()
     report()
@@ -1160,6 +1185,8 @@ Item {
     flora.step(dt)
     inklings.step(dt, passers.startle)
     walkers.step(dt)
+    reef.step(dt)
+    nemos.step(dt)
     wreckage.step(dt)
   }
 
@@ -1220,10 +1247,12 @@ Item {
       light.step(windStep)
       inklings.step(windStep, rushed ? passers.startle : null)
       walkers.step(windStep)
+      nemos.step(windStep)
       wreckage.step(windStep)
     }
 
     flora.wind(steps * windStep)
+    reef.wind(steps * windStep)
   }
 
   /**
@@ -1317,6 +1346,10 @@ Item {
       })
     }
     masonry = near
+
+    mound = polygon(reef.crest, true)
+    reefDepth = reef.depth
+    reefWeight = farInk(stoneInk, reef.depth)
 
     island = crags.isle
       ? { depth: crags.isle.depth, points: polygon(crags.isle.outline, true) }
@@ -1487,6 +1520,46 @@ Item {
       })
     }
     crossing = going
+
+    // A head is drawn the way a plant is, and which of the two kinds of drawing
+    // it carries is its own business rather than this loop's: a stencil hands
+    // over twigs and an animal hands over a stalk and whatever it has grown on
+    // the end of it. See `Head.blades`.
+    var standing = []
+    for (var h = 0; h < reef.heads.length; h++) {
+      var head = reef.heads[h]
+      var fronds = []
+      for (var hb = 0; hb < head.blades.length; hb++) fronds.push(polygon(head.blades[hb], false))
+      standing.push({
+        bend: head.bend,
+        blades: fronds,
+        depth: head.depth,
+        girth: head.girth,
+        lean: head.lean,
+        points: polygon(head.points, false),
+        scale: head.scale,
+        twigs: head.twigs,
+        x: head.x,
+        y: head.y,
+      })
+    }
+    heads = standing
+
+    var homed = []
+    for (var c = 0; c < nemos.nemos.length; c++) {
+      var nemo = nemos.nemos[c]
+      homed.push({
+        beat: nemo.beat,
+        cover: nemo.cover,
+        depth: nemo.host.depth,
+        face: nemo.face,
+        length: nemo.length,
+        tilt: nemo.tilt,
+        x: nemo.x,
+        y: nemo.y,
+      })
+    }
+    clowns = homed
 
     var visited = []
     for (var t = 0; t < visitors.crossing.length && t < visitorSlots; t++) {
@@ -2936,6 +3009,195 @@ Item {
                    root.nightInk * (1 - root.daylight))
     visible: root.daylight < 1
     z: 3.1
+  }
+
+  /**
+   * The reef: one mound of rock, and everything that took a place on it.
+   *
+   * The rock first and every head over it, back to front, because a head is not
+   * a thing on a skyline. The mound has a face that falls towards the glass and
+   * corals stand on that as well as on the crest, so painting the skyline and
+   * then stamping the corals along it would give a rock with a hedge on top.
+   *
+   * All of it sorts into the bands of ground rather than into the water, at the
+   * same `-3 + depth` they use. It is ground: it stands at one distance, the
+   * near sand is in front of it, and the hills further back than it are behind.
+   * Drawn into the water instead it came out over the sand, which is a mound
+   * closed off under the whole box and therefore a wash of murk across
+   * everything nearer than it.
+   */
+  Shape {
+    anchors.fill: parent
+    preferredRendererType: Shape.CurveRenderer
+    visible: root.mound.length > 0
+    z: -3 + root.reefDepth
+
+    ShapePath {
+      fillGradient: LinearGradient {
+        x1: 0
+        y1: 0
+        x2: 0
+        y2: root.height
+
+        GradientStop { position: 0; color: root.ground(0, root.reefWeight) }
+        GradientStop { position: 0.5; color: root.ground(0.5, root.reefWeight) }
+        GradientStop { position: 0.72; color: root.ground(0.72, root.reefWeight) }
+        GradientStop { position: 0.86; color: root.ground(0.86, root.reefWeight) }
+        GradientStop { position: 1; color: root.ground(1, root.reefWeight) }
+      }
+      strokeColor: "transparent"
+
+      PathPolyline { path: root.mound }
+    }
+  }
+
+  Repeater {
+    model: root.heads.length
+
+    delegate: Item {
+      id: head
+      required property int index
+
+      readonly property var one: root.heads[index] || null
+      readonly property real weight: one ? root.farInk(root.floraInk, one.depth) : 0
+
+      anchors.fill: parent
+      visible: one !== null
+      z: one ? -3 + one.depth : 0
+
+      // The stalk and whatever it has grown on the end of it, for a head that
+      // is an animal. Stroked in the box's own coordinates, exactly as a plant
+      // is, because it is one: the anemone on a reef and the anemone on the bed
+      // are the same cut, which is the whole reason there is only one of them.
+      Shape {
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
+        visible: head.one !== null && head.one.blades.length > 0
+
+        ShapePath {
+          capStyle: ShapePath.RoundCap
+          fillColor: "transparent"
+          strokeColor: root.afloat(head.one ? head.one.y : 0, head.weight)
+          strokeWidth: head.one ? head.one.girth : 0
+
+          PathPolyline { path: head.one ? head.one.points : [] }
+        }
+      }
+
+      Repeater {
+        model: head.one ? head.one.blades.length : 0
+
+        delegate: Shape {
+          id: arm
+          required property int index
+
+          anchors.fill: parent
+          preferredRendererType: Shape.CurveRenderer
+
+          ShapePath {
+            capStyle: ShapePath.RoundCap
+            fillColor: "transparent"
+            strokeColor: root.afloat(head.one ? head.one.y : 0, head.weight)
+            strokeWidth: head.one ? head.one.girth * root.bladeGirth : 0
+
+            PathPolyline { path: head.one ? head.one.blades[arm.index] : [] }
+          }
+        }
+      }
+
+      // A stencil: the same drawing every frame, leaned where it grew and bent
+      // by the swell it is standing in. Coral does not move under its own
+      // steam, and with everything else on this rock moving it is what the
+      // movement is measured against.
+      Item {
+        visible: head.one !== null && head.one.twigs.length > 0
+        x: head.one ? head.one.x : 0
+        y: head.one ? head.one.y : 0
+
+        transform: Rotation {
+          angle: head.one ? (head.one.lean + head.one.bend) * 180 / Math.PI : 0
+        }
+
+        Repeater {
+          model: head.one ? head.one.twigs.length : 0
+
+          delegate: Shape {
+            id: stem
+            required property int index
+
+            readonly property var twig: head.one.twigs[index]
+
+            preferredRendererType: Shape.CurveRenderer
+            transform: Scale {
+              xScale: head.one ? head.one.scale : 1
+              yScale: head.one ? head.one.scale : 1
+            }
+
+            ShapePath {
+              capStyle: ShapePath.RoundCap
+              fillColor: "transparent"
+              strokeColor: root.afloat(head.one ? head.one.y : 0, head.weight)
+              strokeWidth: stem.twig.width
+
+              PathSvg { path: stem.twig.d }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * The clownfish, each in the anemone it lives in.
+   *
+   * The one animal in this water that turns round, and the only reason it is
+   * allowed to is that it never gets anywhere: it comes out, hovers, and comes
+   * about while it is stopped. `face` is the drawn width and its sign is the
+   * mirror, so the fish squeezes to nothing and opens out the other way, which
+   * is what a fish that has stopped actually does. Everything else here holds
+   * its heading because everything else here is going somewhere.
+   *
+   * `cover` is how far into the tentacles it has gone, and a fish that is all
+   * the way in is not drawn at all rather than drawn faintly. It has not become
+   * hard to see; it is behind something.
+   */
+  Repeater {
+    model: root.clowns.length
+
+    delegate: Item {
+      id: nemo
+      required property int index
+
+      readonly property var one: root.clowns[index] || null
+      readonly property var frame: one ? Ornament.frameAt(one.beat) : null
+      readonly property real span: one ? one.length / Ornament.SPAN : 1
+
+      readonly property real weight: one
+        ? root.openWater * (1 - root.depthInk + root.depthInk * one.depth) * (1 - one.cover)
+        : 0
+
+      visible: one !== null && weight > 0.002
+      x: one ? one.x : 0
+      y: one ? one.y : 0
+      z: one ? -3 + one.depth : 0
+
+      transform: [
+        Scale { xScale: nemo.span * (nemo.one ? nemo.one.face : 1); yScale: nemo.span },
+        Rotation { angle: nemo.one ? nemo.one.tilt * 180 / Math.PI : 0 },
+      ]
+
+      Shape {
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+          fillColor: root.afloat(nemo.one ? nemo.one.y : 0, nemo.weight)
+          fillRule: ShapePath.WindingFill
+          strokeColor: "transparent"
+
+          PathSvg { path: nemo.frame ? nemo.frame.d : "" }
+        }
+      }
+    }
   }
 
   /**

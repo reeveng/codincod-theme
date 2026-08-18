@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.zyT7OvlK8P/entry.ts
+  // ../../../../../../tmp/tmp.87j0NGe3hH/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -224,17 +224,28 @@ var __ornament = (() => {
       deep: 0.58,
       girth: 0.42,
       hold: 0.3,
+      nerve: 1.7,
       pace: 1.5,
       pitch: 1.4,
       stride: 0.58,
       verve: 1
     },
-    /** Long, slow and far back, crossing the murk on one heading. */
+    /**
+     * Long, slow and far back, crossing the murk on one heading.
+     *
+     * The one that does nothing about anything. It is already the largest thing
+     * in this water and it is already at the back of it, and an animal that size
+     * has no business hurrying out of the way of a shape, so a shark goes through
+     * and the drifter carries on exactly as it was. It is the most useful animal
+     * in the shoal for that: without it every crossing makes the whole picture
+     * flinch at once, which is a picture of one animal rather than of a sea.
+     */
     drifter: {
       bill: 0,
       deep: 0.2,
       girth: 2.1,
       hold: 4.5,
+      nerve: 0,
       pace: 0.6,
       pitch: 0.45,
       stride: 1.7,
@@ -246,6 +257,7 @@ var __ornament = (() => {
       deep: 0.62,
       girth: 0.72,
       hold: 1.4,
+      nerve: 1.25,
       pace: 1.1,
       pitch: 0.9,
       stride: 0.85,
@@ -265,6 +277,7 @@ var __ornament = (() => {
       deep: 0.72,
       girth: 1.85,
       hold: 3.2,
+      nerve: 0.25,
       pace: 1.55,
       pitch: 0.55,
       stride: 1.5,
@@ -284,6 +297,8 @@ var __ornament = (() => {
   var CRUISE = 1.05;
   var STRIDE = 0.7;
   var DART = 3.4;
+  var WARY = 0.9;
+  var WARY_REACH = 6;
   var TURN = 0.85;
   var TURN_STARTLED = 3.4;
   var HASTE = 2.2;
@@ -410,7 +425,9 @@ var __ornament = (() => {
         pair(fish);
       },
       step(seconds, pointer, startle = null) {
+        var _a2, _b2;
         const dt = Math.min(Math.max(seconds, 0), 0.1);
+        const water = (_b2 = (_a2 = options.about) == null ? void 0 : _a2.call(options)) != null ? _b2 : [];
         drift += DRIFT * dt;
         sank += DEPTH_DRIFT * dt;
         still = pointer && !pointer.moving ? still + dt : 0;
@@ -471,7 +488,8 @@ var __ornament = (() => {
           const hovering = one === attentive && pointer && away(one, pointer) < STANDOFF;
           const gear = burst(one, sort, dt);
           const own = cruise * one.pace * one.size * gear;
-          const wants = station(one, own) * (startled ? DART : hovering ? HOVER : 1);
+          const quick = 1 + wary(one, water) * sort.nerve * WARY;
+          const wants = station(one, own) * quick * (startled ? DART : hovering ? HOVER : 1);
           one.speed = ease(one.speed, wants, HASTE * dt);
           one.tail += 2 * Math.PI * one.speed / (STRIDE * sort.stride * one.size) * dt;
           const stroke = one.speed * (1 + SURGE * Math.cos(2 * one.tail));
@@ -653,6 +671,19 @@ var __ornament = (() => {
     const x = one.x - to.x;
     const y = one.y - to.y;
     return [x, y, Math.hypot(x, y)];
+  }
+  function wary(one, water) {
+    var _a;
+    let worst = 0;
+    for (const thing of water) {
+      const menace = (_a = thing.menace) != null ? _a : 0;
+      if (menace <= 0) continue;
+      const reach2 = thing.size * WARY_REACH;
+      const distance = Math.hypot(one.x - thing.x, one.y - thing.y);
+      if (distance >= reach2) continue;
+      worst = Math.max(worst, (1 - distance / reach2) * menace * abreast(one.depth, thing.depth));
+    }
+    return worst;
   }
   function decide(one, random, height, sort) {
     const roll = random() * 2 - 1;
@@ -3898,7 +3929,7 @@ var __ornament = (() => {
         for (const one of crossing) {
           const force = FELT * HABITS2[one.kind].heft * one.weight;
           if (force <= 0 || felt2 && felt2.force >= force) continue;
-          felt2 = { force, reach: one.size * FELT_REACH, x: one.x, y: one.y };
+          felt2 = { depth: one.depth, force, reach: one.size * FELT_REACH, x: one.x, y: one.y };
         }
       }
     };
