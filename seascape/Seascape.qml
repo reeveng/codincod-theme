@@ -379,41 +379,25 @@ Item {
    * would be a band nobody could find, and then the distance would be gone
    * again for the opposite reason.
    */
-  property real hazeInk: 0.016
+  property real hazeInk: 0.04
 
   /**
-   * The light along the top edge of ground, and how wide that edge is drawn.
+   * Why there is no lit crest along the top of anything any more.
    *
-   * The one line of every band that is not facing away from the surface. Fills
-   * alone gave four bands within a few hundredths of each other, which is what
-   * distance actually does to them and also what makes them one grey mass: the
-   * boundaries were there in the arithmetic and under the eye's own threshold.
-   * A lit crest puts the boundary back without brightening the mass behind it,
-   * and it is what a slope in water looks like from below anyway.
+   * There used to be, and the argument for it was sound: fills alone gave four
+   * bands within a few hundredths of each other, the boundaries were there in
+   * the arithmetic and under the eye's own threshold, and a lit edge put them
+   * back. What it actually put back was a drawing. Every ridge in the picture
+   * carried a bright line along it, the far ones read as a contour map and the
+   * cliffs read as cut paper laid on the bed, because an outline is the one
+   * thing nothing else in the water has.
    *
-   * It goes back with everything else, so the near sand has a bright lip and
-   * the furthest hills have almost none, which is the second time the same
-   * statement is made and the reason it reads at a glance.
+   * The fills carry it now. A shape on the bottom is a weight against the water
+   * at every height of itself rather than one colour picked for all of it, so
+   * two bands that meet are two different greens where they meet, which is what
+   * a boundary is; see `ground`.
    */
-  property real crestInk: 0.2
 
-  /**
-   * What a cliff's own edge is worth, however far back it stands.
-   *
-   * A cliff is drawn where there is no light left to model it with: its fill
-   * goes to the haze with everything else, and a mass the colour of the water
-   * it is in is not a mountain, it is nothing. So its edge is held above the
-   * haze and the shape comes back as an outline, which is all a silhouette
-   * ever was.
-   *
-   * The ground bands are deliberately not given this. They are stacked a few
-   * dozen px apart across the whole width, and a line along the top of each is
-   * a contour map rather than a country: what tells two of them apart is that
-   * one is in front of the other, and that is a mass and not an edge.
-   */
-  property real hazeCrest: 0.085
-
-  property real crestWidth: 1.5
 
   /**
    * How dark what is lying on the bottom may be, and what is coming off it.
@@ -573,8 +557,6 @@ Item {
 
   /** The ground, published once when it is cut rather than every tick. */
   property var sand: []
-  /** The height the sand's own edge sits at; see `seatOf`. */
-  property real shore: 0
   property var hills: []
   property var scarp: []
   property var rocks: []
@@ -652,6 +634,34 @@ Item {
   }
 
   /**
+   * What ground is worth a share of the way down the box, which is the one
+   * question the bottom of this picture turns on.
+   *
+   * Every shape down there is a weight against the water, and it has to be:
+   * against the surface colour instead, the far bands come out the same green
+   * as the water they stand in and the hills behind them are a mountain range
+   * nobody can find. But a shape is not at one height. A cliff runs from the
+   * horizon to a peak a third of the way up the box, a band is closed off under
+   * the whole box, and the water is a different colour along all of it.
+   *
+   * Given one colour apiece, taken at the shape's own average height, they
+   * stopped agreeing where it matters. A cliff averages high, where the water
+   * is lit, so it was mixed from a bright water; a band in front of it averages
+   * low, where the water is nearly black, so it was mixed from a dark one. The
+   * two meet at a height they share, and there the near thing came out darker
+   * than the far one. The mountains sat on the bed like cut paper, which is
+   * exactly what somebody said they looked like.
+   *
+   * So the ground is filled with a gradient that runs down the box the way the
+   * water does, and every shape gets the same treatment. At any height at all,
+   * the nearer thing carries the larger weight and is therefore the brighter,
+   * whatever either of them is doing anywhere else.
+   */
+  function ground(at, weight) {
+    return afloat(at * height, weight)
+  }
+
+  /**
    * A weight against the water at a height, rather than against the surface.
    *
    * What anything in the water is drawn in, and it is a different question from
@@ -692,9 +702,8 @@ Item {
    * distance, because an animal that faded into the murk as far as the ground
    * does would be an animal the eye loses in the middle of a stroke.
    */
-  function farInk(full, depth, floor) {
-    var low = floor === undefined ? hazeInk : floor
-    return low + (full - low) * Math.max(0, Math.min(1, depth))
+  function farInk(full, depth) {
+    return hazeInk + (full - hazeInk) * Math.max(0, Math.min(1, depth))
   }
 
   /** A per-thousand-px-of-width density as a count this box can hold. */
@@ -939,48 +948,22 @@ Item {
    * are published when they change rather than every tick. A seabed republished
    * at thirty frames a second is thirty rebuilds of a shape that did not move.
    */
-  /**
-   * The height a band of ground is seen at, which is the height of its own top
-   * edge.
-   *
-   * A band is closed off under the box, so most of it is behind the bands in
-   * front of it and the only part anybody sees is the strip between its crest
-   * and the next crest along. That strip is where its colour has to work, so
-   * that is the water it is weighed against; see `afloat`.
-   */
-  function seatOf(ridge) {
-    if (!ridge.length) return height
-
-    var sum = 0
-    for (var i = 0; i < ridge.length; i++) sum += ridge[i].y
-    return sum / ridge.length
-  }
-
   function cutGround() {
     if (!seabed) return
 
     sand = polygon(seabed.ridge, true)
-    shore = seatOf(seabed.ridge)
 
     var country = []
     for (var b = 0; b < seabed.ranges.length; b++) {
       var band = seabed.ranges[b]
-      country.push({
-        depth: band.depth,
-        points: polygon(band.ridge, true),
-        seat: seatOf(band.ridge),
-      })
+      country.push({ depth: band.depth, points: polygon(band.ridge, true) })
     }
     hills = country
 
     var walls = []
     for (var c = 0; c < seabed.cliffs.length; c++) {
       var cliff = seabed.cliffs[c]
-      walls.push({
-        depth: cliff.depth,
-        points: polygon(cliff.ridge, true),
-        seat: seatOf(cliff.ridge),
-      })
+      walls.push({ depth: cliff.depth, points: polygon(cliff.ridge, true) })
     }
     scarp = walls
 
@@ -1211,6 +1194,7 @@ Item {
       required property int index
 
       readonly property var cliff: root.scarp[index] || null
+      readonly property real weight: root.farInk(root.sandInk, cliff ? cliff.depth : 0)
 
       anchors.fill: parent
       preferredRendererType: Shape.CurveRenderer
@@ -1218,12 +1202,22 @@ Item {
       z: cliff ? -3.4 + cliff.depth : -3.4
 
       ShapePath {
-        fillColor: root.afloat(wall.cliff ? wall.cliff.seat : 0,
-                               root.farInk(root.sandInk, wall.cliff ? wall.cliff.depth : 0))
-        strokeColor: root.afloat(wall.cliff ? wall.cliff.seat : 0,
-                                 root.farInk(root.crestInk, wall.cliff ? wall.cliff.depth : 0,
-                                             root.hazeCrest))
-        strokeWidth: root.crestWidth
+        fillGradient: LinearGradient {
+          x1: 0
+          y1: 0
+          x2: 0
+          y2: root.height
+
+          GradientStop { position: 0; color: root.ground(0, wall.weight) }
+          GradientStop { position: 0.35; color: root.ground(0.35, wall.weight) }
+          GradientStop { position: 0.5; color: root.ground(0.5, wall.weight) }
+          GradientStop { position: 0.62; color: root.ground(0.62, wall.weight) }
+          GradientStop { position: 0.72; color: root.ground(0.72, wall.weight) }
+          GradientStop { position: 0.82; color: root.ground(0.82, wall.weight) }
+          GradientStop { position: 0.91; color: root.ground(0.91, wall.weight) }
+          GradientStop { position: 1; color: root.ground(1, wall.weight) }
+        }
+        strokeColor: "transparent"
 
         PathPolyline { path: wall.cliff ? wall.cliff.points : [] }
       }
@@ -1248,6 +1242,7 @@ Item {
       required property int index
 
       readonly property var band: root.hills[index] || null
+      readonly property real weight: root.farInk(root.sandInk, band ? band.depth : 0)
 
       anchors.fill: parent
       preferredRendererType: Shape.CurveRenderer
@@ -1255,11 +1250,22 @@ Item {
       z: band ? -3 + band.depth : -3
 
       ShapePath {
-        fillColor: root.afloat(bank.band ? bank.band.seat : 0,
-                               root.farInk(root.sandInk, bank.band ? bank.band.depth : 0))
-        strokeColor: root.afloat(bank.band ? bank.band.seat : 0,
-                                 root.farInk(root.crestInk, bank.band ? bank.band.depth : 0))
-        strokeWidth: root.crestWidth
+        fillGradient: LinearGradient {
+          x1: 0
+          y1: 0
+          x2: 0
+          y2: root.height
+
+          GradientStop { position: 0; color: root.ground(0, bank.weight) }
+          GradientStop { position: 0.35; color: root.ground(0.35, bank.weight) }
+          GradientStop { position: 0.5; color: root.ground(0.5, bank.weight) }
+          GradientStop { position: 0.62; color: root.ground(0.62, bank.weight) }
+          GradientStop { position: 0.72; color: root.ground(0.72, bank.weight) }
+          GradientStop { position: 0.82; color: root.ground(0.82, bank.weight) }
+          GradientStop { position: 0.91; color: root.ground(0.91, bank.weight) }
+          GradientStop { position: 1; color: root.ground(1, bank.weight) }
+        }
+        strokeColor: "transparent"
 
         PathPolyline { path: bank.band ? bank.band.points : [] }
       }
@@ -1274,9 +1280,22 @@ Item {
     z: -2
 
     ShapePath {
-      fillColor: root.afloat(root.shore, root.sandInk)
-      strokeColor: root.afloat(root.shore, root.crestInk)
-      strokeWidth: root.crestWidth
+      fillGradient: LinearGradient {
+        x1: 0
+        y1: 0
+        x2: 0
+        y2: root.height
+
+        GradientStop { position: 0; color: root.ground(0, root.sandInk) }
+        GradientStop { position: 0.35; color: root.ground(0.35, root.sandInk) }
+        GradientStop { position: 0.5; color: root.ground(0.5, root.sandInk) }
+        GradientStop { position: 0.62; color: root.ground(0.62, root.sandInk) }
+        GradientStop { position: 0.72; color: root.ground(0.72, root.sandInk) }
+        GradientStop { position: 0.82; color: root.ground(0.82, root.sandInk) }
+        GradientStop { position: 0.91; color: root.ground(0.91, root.sandInk) }
+        GradientStop { position: 1; color: root.ground(1, root.sandInk) }
+      }
+      strokeColor: "transparent"
 
       PathPolyline { path: root.sand }
     }
