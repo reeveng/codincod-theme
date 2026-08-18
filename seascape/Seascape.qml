@@ -949,6 +949,29 @@ Item {
     return hazeInk + (full - hazeInk) * Math.max(0, Math.min(1, depth))
   }
 
+  /**
+   * The size to draw a unit drawing at, as a scale on the path itself.
+   *
+   * Everything the ornament hands over is written about a unit across, and it
+   * used to be blown up to the size it is seen by a transform on the Item
+   * holding it. Qt tessellates a `ShapePath` in the coordinates the path is
+   * written in, with tolerances that know nothing about what is above it, so
+   * an animal two units long shown four hundred px long was cut apart at the
+   * size it was finally seen: facets along every curve, slivers dropped where
+   * a fin met a body, and a hairline crack down the seam wherever two subpaths
+   * overlapped. Written at the size it is seen, the same animal comes out
+   * clean.
+   *
+   * So the magnitude lives here, on the path, and what is left above it is the
+   * mirror and the turn, which are worth one apiece and cost nothing.
+   *
+   * A stroke width is in the path's own coordinates and this does not touch
+   * it, so anything drawn as a line multiplies its width by the same number.
+   */
+  function drawn(unit) {
+    return Qt.size(unit, unit)
+  }
+
   /** A per-thousand-px-of-width density as a count this box can hold. */
   function spread(perThousand, most) {
     return Math.max(leastOfEach, Math.min(most, Math.round(width * perThousand / 1000)))
@@ -1000,6 +1023,7 @@ Item {
       floor: seabed.floorAt,
       seed: seed,
       starfish: spread(starfishPerK, mostStarfish),
+      tolerance: tolerance,
       width: width,
     })
 
@@ -1185,6 +1209,7 @@ Item {
     reef.resize(width, height, seabed.floorAt)
     nemos.resettle()
     growth = []
+    walking = []
     cutGround()
     publish()
     report()
@@ -1524,23 +1549,43 @@ Item {
     // read off together here for the reason the octopus's are: split across
     // bindings, the animal would be walking on one frame's legs under another
     // frame's back.
-    var afoot = []
-    for (var k = 0; k < walkers.walkers.length; k++) {
-      var walker = walkers.walkers[k]
+    // The bed's bargain again, on the animals standing on it. A crab spends
+    // most of its day not going anywhere and a starfish moves like a minute
+    // hand, so `walkers.ts` says which of them have travelled far enough to be
+    // worth another drawing and these stand in for the rest.
+    if (walking.length !== walkers.walkers.length) {
+      var afoot = []
+      for (var k = 0; k < walkers.walkers.length; k++) {
+        var made = walkers.walkers[k]
+        afoot.push({
+          body: "",
+          cut: -1,
+          depth: made.depth,
+          facing: made.facing,
+          feet: [],
+          kind: made.kind,
+          size: made.size,
+          x: made.x,
+          y: made.y,
+        })
+      }
+      walking = afoot
+    }
+
+    for (var w = 0; w < walkers.walkers.length; w++) {
+      var walker = walkers.walkers[w]
+      var afoot_one = walking[w]
+      if (!afoot_one || afoot_one.cut === walker.cut) continue
+
       var feet = []
       for (var l = 0; l < walker.legs.length; l++) feet.push(polygon(walker.legs[l], false))
-      afoot.push({
-        body: walker.body,
-        depth: walker.depth,
-        facing: walker.facing,
-        feet: feet,
-        kind: walker.kind,
-        size: walker.size,
-        x: walker.x,
-        y: walker.y,
-      })
+      afoot_one.body = walker.body
+      afoot_one.cut = walker.cut
+      afoot_one.facing = walker.facing
+      afoot_one.feet = feet
+      afoot_one.x = walker.x
+      afoot_one.y = walker.y
     }
-    walking = afoot
 
     var lying = []
     for (var w = 0; w < wreckage.relics.length && w < relicSlots; w++) {
@@ -1947,18 +1992,16 @@ Item {
             required property int index
 
             readonly property var twig: sprout.one.twigs[index]
+            readonly property real unit: sprout.one ? sprout.one.scale : 1
 
             preferredRendererType: Shape.CurveRenderer
-            transform: Scale {
-              xScale: sprout.one ? sprout.one.scale : 1
-              yScale: sprout.one ? sprout.one.scale : 1
-            }
 
             ShapePath {
               capStyle: ShapePath.RoundCap
               fillColor: "transparent"
+              scale: root.drawn(branch.unit)
               strokeColor: root.afloat(sprout.one ? sprout.one.y : 0, sprout.weight)
-              strokeWidth: branch.twig.width
+              strokeWidth: branch.twig.width * branch.unit
 
               PathSvg { path: branch.twig.d }
             }
@@ -2363,7 +2406,7 @@ Item {
       z: fish ? fish.depth : 0
 
       transform: [
-        Scale { xScale: swimmer.span * (swimmer.fish ? swimmer.fish.facing : 1); yScale: swimmer.span },
+        Scale { xScale: swimmer.fish ? swimmer.fish.facing : 1; yScale: 1 },
         Rotation { angle: swimmer.pitch },
       ]
 
@@ -2379,6 +2422,7 @@ Item {
           // otherwise, which cancels every overlap and leaves the animal
           // looking unstitched.
           fillRule: ShapePath.WindingFill
+          scale: root.drawn(swimmer.span)
           strokeColor: "transparent"
 
           // The billed kinds are a whole drawing of their own rather than this
@@ -2398,12 +2442,12 @@ Item {
       // instead of a sticker on it.
       Rectangle {
         color: root.afloat(swimmer.fish ? swimmer.fish.y : 0, swimmer.weight * root.cutShade)
-        height: swimmer.frame ? swimmer.frame.eye.r * 2 : 0
+        height: swimmer.frame ? swimmer.frame.eye.r * 2 * swimmer.span : 0
         radius: height / 2
         visible: swimmer.frame !== null
         width: height
-        x: swimmer.frame ? swimmer.frame.eye.x - swimmer.frame.eye.r : 0
-        y: swimmer.frame ? swimmer.frame.eye.y - swimmer.frame.eye.r : 0
+        x: swimmer.frame ? (swimmer.frame.eye.x - swimmer.frame.eye.r) * swimmer.span : 0
+        y: swimmer.frame ? (swimmer.frame.eye.y - swimmer.frame.eye.r) * swimmer.span : 0
       }
     }
   }
@@ -2420,6 +2464,7 @@ Item {
       required property int index
 
       readonly property var one: root.sunken[index] || null
+      readonly property real unit: one ? one.scale : 1
       readonly property real weight: one ? root.relicInk * one.depth : 0
 
       rotation: one ? one.lean * 180 / Math.PI : 0
@@ -2440,11 +2485,6 @@ Item {
       // others further off, by arithmetic rather than by where anything was.
       z: one ? -3 + one.depth : 0
 
-      transform: Scale {
-        xScale: relic.one ? relic.one.scale : 1
-        yScale: relic.one ? relic.one.scale : 1
-      }
-
       Shape {
         preferredRendererType: Shape.CurveRenderer
 
@@ -2454,6 +2494,7 @@ Item {
         ShapePath {
           fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight)
           fillRule: ShapePath.WindingFill
+          scale: root.drawn(relic.unit)
           strokeColor: "transparent"
 
           PathSvg {
@@ -2470,9 +2511,10 @@ Item {
         ShapePath {
           capStyle: ShapePath.RoundCap
           fillColor: "transparent"
+          scale: root.drawn(relic.unit)
           strokeColor: root.afloat(relic.one ? relic.one.y : 0,
                                      relic.one && relic.one.kind === "wreck" ? relic.weight : 0)
-          strokeWidth: 0.03
+          strokeWidth: 0.03 * relic.unit
 
           PathPolyline {
             path: relic.one && relic.one.kind === "wreck"
@@ -2497,6 +2539,7 @@ Item {
 
           ShapePath {
             fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight * root.cutShade)
+            scale: root.drawn(relic.unit)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.BLOCK_LINES[line.index] }
@@ -2521,6 +2564,7 @@ Item {
 
             ShapePath {
               fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight * root.cutShade)
+              scale: root.drawn(relic.unit)
               strokeColor: "transparent"
 
               PathSvg { path: Ornament.CHEST_BANDS[band.index] }
@@ -2533,6 +2577,7 @@ Item {
 
           ShapePath {
             fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight * root.cutShade)
+            scale: root.drawn(relic.unit)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.CHEST_LOCK }
@@ -2540,6 +2585,7 @@ Item {
 
           ShapePath {
             fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight)
+            scale: root.drawn(relic.unit)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.LAPTOP_BASE }
@@ -2547,6 +2593,7 @@ Item {
 
           ShapePath {
             fillColor: root.tint(root.screenInk)
+            scale: root.drawn(relic.unit)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.LAPTOP_SCREEN }
@@ -2565,6 +2612,7 @@ Item {
 
             ShapePath {
               fillColor: root.surface
+              scale: root.drawn(relic.unit)
               strokeColor: "transparent"
 
               PathSvg { path: Ornament.LAPTOP_LINES[row.index] }
@@ -2641,6 +2689,7 @@ Item {
       required property int index
 
       readonly property var one: root.jetters[index] || null
+      readonly property real unit: one ? one.size : 1
       readonly property real weight: one
         ? root.openWater * (1 - root.depthInk + root.depthInk * one.depth)
         : 0
@@ -2654,7 +2703,7 @@ Item {
       z: one ? one.depth : 0
 
       transform: [
-        Scale { xScale: (cuttle.one ? cuttle.one.size * cuttle.one.facing : 1); yScale: cuttle.one ? cuttle.one.size : 1 },
+        Scale { xScale: cuttle.one ? cuttle.one.facing : 1; yScale: 1 },
         Rotation { angle: cuttle.pitch },
       ]
 
@@ -2664,6 +2713,7 @@ Item {
         ShapePath {
           fillColor: root.afloat(cuttle.one ? cuttle.one.y : 0, cuttle.weight)
           fillRule: ShapePath.WindingFill
+          scale: root.drawn(cuttle.unit)
           strokeColor: "transparent"
 
           PathSvg { path: cuttle.one ? cuttle.one.body : "" }
@@ -2682,8 +2732,9 @@ Item {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
+            scale: root.drawn(cuttle.unit)
             strokeColor: root.afloat(cuttle.one ? cuttle.one.y : 0, cuttle.weight)
-            strokeWidth: 0.035
+            strokeWidth: 0.035 * cuttle.unit
 
             PathPolyline { path: cuttle.one ? cuttle.one.arms[tentacle.index] : [] }
           }
@@ -2705,6 +2756,7 @@ Item {
       required property int index
 
       readonly property var one: root.crawlers[index] || null
+      readonly property real unit: one ? one.size : 1
 
       /**
        * How far out of the bed's own murk it is: 0 flat on the sand, 1 clear of
@@ -2755,11 +2807,6 @@ Item {
       y: one ? one.y : 0
       z: one ? one.depth : 0
 
-      transform: Scale {
-        xScale: pus.one ? pus.one.size : 1
-        yScale: pus.one ? pus.one.size : 1
-      }
-
       // The head, which is a dome rather than a drawing: at this weight what
       // says octopus is the arms leaving one blob, and the blob's own outline
       // is the least of it. It ventilates, which is small enough that nobody
@@ -2770,6 +2817,7 @@ Item {
 
         ShapePath {
           fillColor: root.afloat(pus.one ? pus.one.y : 0, pus.weight)
+          scale: root.drawn(pus.unit)
           strokeColor: "transparent"
 
           PathSvg { path: pus.one ? pus.one.head : Ornament.OCTOPUS_HEAD }
@@ -2788,8 +2836,9 @@ Item {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
+            scale: root.drawn(pus.unit)
             strokeColor: root.afloat(pus.one ? pus.one.y : 0, pus.weight)
-            strokeWidth: 0.075
+            strokeWidth: 0.075 * pus.unit
 
             PathPolyline { path: pus.one ? pus.one.arms[limb.index] : [] }
           }
@@ -2814,22 +2863,24 @@ Item {
       required property int index
 
       readonly property var one: root.walking[index] || null
+      readonly property real unit: one ? one.size : 1
       readonly property real weight: one ? root.farInk(root.crawlerInk, one.depth) : 0
 
-      visible: one !== null && weight > 0.002
-      x: one ? one.x : 0
-      y: one ? one.y : 0
-      z: one ? one.depth : 0
+      // The gate, as the bed has it. See `root.pulse`.
+      readonly property int rev: { root.pulse; return one ? one.cut : -1 }
 
-      transform: Scale {
-        xScale: crawl.one ? crawl.one.size : 1
-        yScale: crawl.one ? crawl.one.size : 1
-      }
+      visible: one !== null && weight > 0.002
+      x: { crawl.rev; return crawl.one ? crawl.one.x : 0 }
+      y: { crawl.rev; return crawl.one ? crawl.one.y : 0 }
+      z: one ? one.depth : 0
 
       // The legs first and the body over them, so a claw folded across the
       // shell reads as a claw in front of a shell rather than a crack in it.
       Repeater {
-        model: crawl.one ? crawl.one.feet.length : 0
+        model: {
+          crawl.rev
+          return crawl.one ? crawl.one.feet.length : 0
+        }
 
         delegate: Shape {
           id: leg
@@ -2840,10 +2891,16 @@ Item {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
-            strokeColor: root.afloat(crawl.one ? crawl.one.y : 0, crawl.weight)
-            strokeWidth: 0.075
+            scale: root.drawn(crawl.unit)
+            strokeColor: root.afloat(crawl.y, crawl.weight)
+            strokeWidth: 0.075 * crawl.unit
 
-            PathPolyline { path: crawl.one ? crawl.one.feet[leg.index] : [] }
+            PathPolyline {
+              path: {
+                crawl.rev
+                return crawl.one ? crawl.one.feet[leg.index] : []
+              }
+            }
           }
         }
       }
@@ -2852,11 +2909,17 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-          fillColor: root.afloat(crawl.one ? crawl.one.y : 0, crawl.weight)
+          fillColor: root.afloat(crawl.y, crawl.weight)
           fillRule: ShapePath.WindingFill
+          scale: root.drawn(crawl.unit)
           strokeColor: "transparent"
 
-          PathSvg { path: crawl.one ? crawl.one.body : "" }
+          PathSvg {
+            path: {
+              crawl.rev
+              return crawl.one ? crawl.one.body : ""
+            }
+          }
         }
       }
     }
@@ -2873,6 +2936,7 @@ Item {
       required property int index
 
       readonly property var one: root.crossing[index] || null
+      readonly property real unit: one ? one.scale : 1
 
       visible: one !== null
       z: 1.2
@@ -2885,8 +2949,8 @@ Item {
         y: passer.one ? passer.one.y : 0
 
         transform: Scale {
-          xScale: passer.one ? passer.one.scale * passer.one.facing : 1
-          yScale: passer.one ? passer.one.scale : 1
+          xScale: passer.one ? passer.one.facing : 1
+          yScale: 1
         }
 
         Shape {
@@ -2895,6 +2959,7 @@ Item {
           ShapePath {
             fillColor: root.afloat(passer.one ? passer.one.y : 0,
                                    root.hullInk * (passer.one ? passer.one.weight : 0))
+            scale: root.drawn(passer.unit)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.HULL }
@@ -2903,6 +2968,7 @@ Item {
           ShapePath {
             fillColor: root.afloat(passer.one ? passer.one.y : 0,
                                    root.hullInk * (passer.one ? passer.one.weight : 0))
+            scale: root.drawn(passer.unit)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SCREWS }
@@ -2920,8 +2986,8 @@ Item {
         y: passer.one ? passer.one.y : 0
 
         transform: Scale {
-          xScale: passer.one ? passer.one.scale * passer.one.facing : 1
-          yScale: passer.one ? passer.one.scale : 1
+          xScale: passer.one ? passer.one.facing : 1
+          yScale: 1
         }
 
         Shape {
@@ -2931,6 +2997,7 @@ Item {
             fillColor: root.afloat(passer.one ? passer.one.y : 0,
                                    root.hullInk * (passer.one ? passer.one.weight : 0))
             fillRule: ShapePath.WindingFill
+            scale: root.drawn(passer.unit)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SUBMARINE }
@@ -2939,6 +3006,7 @@ Item {
           ShapePath {
             fillColor: root.afloat(passer.one ? passer.one.y : 0,
                                    root.hullInk * (passer.one ? passer.one.weight : 0))
+            scale: root.drawn(passer.unit)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SUB_SCREW }
@@ -3206,18 +3274,16 @@ Item {
             required property int index
 
             readonly property var twig: head.one.twigs[index]
+            readonly property real unit: head.one ? head.one.scale : 1
 
             preferredRendererType: Shape.CurveRenderer
-            transform: Scale {
-              xScale: head.one ? head.one.scale : 1
-              yScale: head.one ? head.one.scale : 1
-            }
 
             ShapePath {
               capStyle: ShapePath.RoundCap
               fillColor: "transparent"
+              scale: root.drawn(stem.unit)
               strokeColor: root.afloat(head.one ? head.one.y : 0, head.weight)
-              strokeWidth: stem.twig.width
+              strokeWidth: stem.twig.width * stem.unit
 
               PathSvg { path: stem.twig.d }
             }
@@ -3262,7 +3328,7 @@ Item {
       z: one ? -3 + one.depth : 0
 
       transform: [
-        Scale { xScale: nemo.span * (nemo.one ? nemo.one.face : 1); yScale: nemo.span },
+        Scale { xScale: nemo.one ? nemo.one.face : 1; yScale: 1 },
         Rotation { angle: nemo.one ? nemo.one.tilt * 180 / Math.PI : 0 },
       ]
 
@@ -3272,6 +3338,7 @@ Item {
         ShapePath {
           fillColor: root.afloat(nemo.one ? nemo.one.y : 0, nemo.weight)
           fillRule: ShapePath.WindingFill
+          scale: root.drawn(nemo.span)
           strokeColor: "transparent"
 
           PathSvg { path: nemo.frame ? nemo.frame.d : "" }
@@ -3359,7 +3426,7 @@ Item {
       z: one ? one.depth : 0
 
       transform: [
-        Scale { xScale: guest.span * (guest.one ? guest.one.facing : 1); yScale: guest.span },
+        Scale { xScale: guest.one ? guest.one.facing : 1; yScale: 1 },
         Rotation { angle: guest.one ? guest.one.tilt * 180 / Math.PI : 0 },
       ]
 
@@ -3372,6 +3439,7 @@ Item {
           // it. Counting crossings instead cancels every overlap and hands
           // back an animal with holes where its fins are.
           fillRule: ShapePath.WindingFill
+          scale: root.drawn(guest.span)
           strokeColor: "transparent"
 
           PathSvg { path: guest.one ? guest.one.body : "" }
@@ -3445,22 +3513,18 @@ Item {
 
           readonly property var it: crag.one.perches[index]
 
+          // Its own size, and its rock's distance. A perch carries no depth of
+          // its own: it is on the rock, so how big it is drawn is how far back
+          // the rock is, and without that a fan on the mass at the back came
+          // out the size of one at the front.
+          readonly property real unit: it.size * root.perchScale * crag.one.depth
+
           x: it.x
           y: it.y
 
-          transform: [
-            // Its own size, and its rock's distance. A perch carries no depth
-            // of its own: it is on the rock, so how big it is drawn is how far
-            // back the rock is, and without that a fan on the mass at the back
-            // came out the size of one at the front.
-            Scale {
-              xScale: perch.it.size * root.perchScale * crag.one.depth
-              yScale: perch.it.size * root.perchScale * crag.one.depth
-            },
-            // The drawing grows up out of nothing; the perch says which way is
-            // out of the rock. A quarter turn is the difference between them.
-            Rotation { angle: perch.it.lean * 180 / Math.PI + 90 },
-          ]
+          // The drawing grows up out of nothing; the perch says which way is
+          // out of the rock. A quarter turn is the difference between them.
+          transform: Rotation { angle: perch.it.lean * 180 / Math.PI + 90 }
 
           Repeater {
             model: Ornament.SPRIGS[perch.it.kind].length
@@ -3476,8 +3540,9 @@ Item {
               ShapePath {
                 capStyle: ShapePath.RoundCap
                 fillColor: "transparent"
+                scale: root.drawn(perch.unit)
                 strokeColor: root.shadowed(perch.it.y, crag.weight * root.perchShade)
-                strokeWidth: sprig.twig.width
+                strokeWidth: sprig.twig.width * perch.unit
 
                 PathSvg { path: sprig.twig.d }
               }

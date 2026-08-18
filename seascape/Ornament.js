@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // seascape/.ornament-entry/entry.ts
+  // .ornament-entry/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -107,7 +107,7 @@ var __ornament = (() => {
     sunNow: () => sunNow
   });
 
-  // ../codincodv2/assets/js/ornament/biome.ts
+  // ../../codincodv2/assets/js/ornament/biome.ts
   var REACH = 0.36;
   function abreast(depth, other) {
     return Math.max(0, 1 - Math.abs(depth - other) / REACH);
@@ -132,7 +132,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/perlin.ts
+  // ../../codincodv2/assets/js/ornament/perlin.ts
   var SIZE = 256;
   var MASK = SIZE - 1;
   var NORMALISE = Math.SQRT2;
@@ -204,7 +204,7 @@ var __ornament = (() => {
     return a + t * (b - a);
   }
 
-  // ../codincodv2/assets/js/ornament/shoal.ts
+  // ../../codincodv2/assets/js/ornament/shoal.ts
   var SPECIES = {
     /** The one that was here first. Everything else is described against it. */
     cruiser: {
@@ -723,7 +723,7 @@ var __ornament = (() => {
   }
   var EDGE_HOLD = 8;
 
-  // ../codincodv2/assets/js/ornament/cephalopods.ts
+  // ../../codincodv2/assets/js/ornament/cephalopods.ts
   var CYCLE_SLOWEST = 3.4;
   var CYCLE_FASTEST = 6.8;
   var JET_SHARE = 0.16;
@@ -1131,7 +1131,7 @@ var __ornament = (() => {
     return arms;
   }
 
-  // ../codincodv2/assets/js/ornament/crags.ts
+  // ../../codincodv2/assets/js/ornament/crags.ts
   var FRAMINGS = {
     cave: 1,
     hills: 2,
@@ -1417,7 +1417,7 @@ var __ornament = (() => {
   }
   var isleAllowed = (framing) => framing === "hills" || framing === "open";
 
-  // ../codincodv2/assets/js/ornament/drift.ts
+  // ../../codincodv2/assets/js/ornament/drift.ts
   var FIELD_CELLS2 = 2.2;
   var DRIFT2 = 0.04;
   var SWAY = 13;
@@ -1553,7 +1553,7 @@ var __ornament = (() => {
     return value;
   }
 
-  // ../codincodv2/assets/js/ornament/fish_shape.ts
+  // ../../codincodv2/assets/js/ornament/fish_shape.ts
   var SPAN = 38;
   var NOSE = 29;
   var along = (t) => 21 * t * (1 - t) ** 2 + 63 * t ** 2 * (1 - t) + 29 * t ** 3;
@@ -1695,7 +1695,7 @@ var __ornament = (() => {
     return made;
   }
 
-  // ../codincodv2/assets/js/ornament/flora.ts
+  // ../../codincodv2/assets/js/ornament/flora.ts
   var CORAL = [
     { d: "M0 0 C-2 -14 -10 -18 -16 -26", width: 5 },
     { d: "M0 0 C0 -16 2 -24 0 -34", width: 6 },
@@ -2275,7 +2275,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/nemos.ts
+  // ../../codincodv2/assets/js/ornament/nemos.ts
   var GROUP_LEAST = 2;
   var GROUP_SPAN = 3;
   var RANK_STEP = 0.16;
@@ -2480,7 +2480,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/passers.ts
+  // ../../codincodv2/assets/js/ornament/passers.ts
   var FADE = 0.16;
   var WATERLINE = 0.035;
   var OFFING = 0.2;
@@ -2709,7 +2709,7 @@ var __ornament = (() => {
     return { reach: 1 - (1 - t) ** 2, weight: (1 - t) ** 1.6 };
   }
 
-  // ../codincodv2/assets/js/ornament/rays.ts
+  // ../../codincodv2/assets/js/ornament/rays.ts
   var SPREAD = 2.4;
   function fade(down) {
     const along2 = Math.min(Math.max(down, 0), 1);
@@ -2778,7 +2778,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/reef.ts
+  // ../../codincodv2/assets/js/ornament/reef.ts
   var SORTS = {
     /** Soft, sheltered, and the only thing here anything lives inside. */
     anemone: {
@@ -3159,7 +3159,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/relics.ts
+  // ../../codincodv2/assets/js/ornament/relics.ts
   var ODDS2 = {
     block: 0.34,
     chest: 0.1,
@@ -3295,7 +3295,7 @@ var __ornament = (() => {
     "M-0.3 -1.5 L-0.08 -1.53 L-0.08 -1.45 L-0.3 -1.42 Z"
   ];
 
-  // ../codincodv2/assets/js/ornament/seabed.ts
+  // ../../codincodv2/assets/js/ornament/seabed.ts
   var FLOOR_SEAT = 0.1;
   var FLOOR_ROLL = 0.085;
   var HORIZON_SEAT = 0.36;
@@ -3446,7 +3446,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/sun.ts
+  // ../../codincodv2/assets/js/ornament/sun.ts
   var RAD = Math.PI / 180;
   var J2000_OFFSET_DAYS = 10957.5;
   var DAY_MS = 864e5;
@@ -3533,7 +3533,7 @@ var __ornament = (() => {
     return Math.min(high, Math.max(low, value));
   }
 
-  // ../codincodv2/assets/js/ornament/swarm.ts
+  // ../../codincodv2/assets/js/ornament/swarm.ts
   var LAYOUTS = {
     ball: {
       churn: 0.05,
@@ -3763,7 +3763,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/visitors.ts
+  // ../../codincodv2/assets/js/ornament/visitors.ts
   var HABITS2 = {
     dolphin: {
       beat: 1.05,
@@ -4092,15 +4092,25 @@ var __ornament = (() => {
   }
   function dolphinFins(spine2) {
     const carry = hung(spine2);
-    return piece([spine2.clear(0.28, 0.13), spine2.clear(0.03, 0.34), spine2.clear(-0.08, 0.15)]) + blade(spine2.clear(0.46, -0.12), 2.4, 0.44, 0.06, 0.04) + piece([
-      carry([0.12, 0]),
-      carry([-0.08, -0.06]),
-      carry([-0.4, -0.23]),
-      carry([-0.34, -0.08]),
-      carry([-0.18, -0.01]),
-      carry([-0.34, 0.08]),
-      carry([-0.4, 0.23]),
-      carry([-0.08, 0.06])
+    return piece([spine2.clear(0.28, 0.13), spine2.clear(0.03, 0.34), spine2.clear(-0.08, 0.15)]) + blade(spine2.clear(0.46, -0.12), 2.4, 0.44, 0.06, 0.04) + rounded2([
+      carry([0.1, 0]),
+      carry([0.03, -0.07]),
+      carry([-0.09, -0.15]),
+      carry([-0.22, -0.21]),
+      carry([-0.33, -0.245]),
+      carry([-0.28, -0.19]),
+      carry([-0.22, -0.13]),
+      carry([-0.185, -0.07]),
+      carry([-0.16, -0.02]),
+      carry([-0.13, 0]),
+      carry([-0.16, 0.02]),
+      carry([-0.185, 0.07]),
+      carry([-0.22, 0.13]),
+      carry([-0.28, 0.19]),
+      carry([-0.33, 0.245]),
+      carry([-0.22, 0.21]),
+      carry([-0.09, 0.15]),
+      carry([0.03, 0.07])
     ]);
   }
   function blade(root, angle, reach2, wide, bow) {
@@ -4214,7 +4224,7 @@ var __ornament = (() => {
     turtle: turtleBody
   };
 
-  // ../codincodv2/assets/js/ornament/walkers.ts
+  // ../../codincodv2/assets/js/ornament/walkers.ts
   var CRAB_SMALLEST = 9;
   var CRAB_LARGEST = 17;
   var STARFISH_SMALLEST = 15;
@@ -4251,6 +4261,9 @@ var __ornament = (() => {
   var STRIDE3 = 0.1;
   var LIFT = 0.06;
   var GAIT2 = Math.PI * 4;
+  var TOLERANCE2 = 0.25;
+  var GAIT_REACH = Math.hypot(STRIDE3, LIFT);
+  var ARM_TIP = 0.5;
   var ARMS = 5;
   var WEB = 0.44;
   var RIM = 44;
@@ -4323,12 +4336,16 @@ var __ornament = (() => {
     return path.join(" ");
   }
   function createWalkers(options) {
+    var _a;
     const random = makeRandom(options.seed ^ 15434);
     let width = Math.max(MIN_SPAN12, options.width);
     let floor = options.floor;
     const walkers = [];
     const doings = [];
+    const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE2);
+    const held = [];
     function born(kind) {
+      var _a2, _b;
       const crab = kind === "crab";
       const back = crab ? random() : random() ** STAR_BACK;
       const depth = DEPTH_FAR7 + back * (DEPTH_NEAR7 - DEPTH_FAR7);
@@ -4347,10 +4364,15 @@ var __ornament = (() => {
       }
       const going = crab ? random() < 0.3 : true;
       const run = crab ? bout(going) : HOLD_LEAST3 + random() * HOLD_SPAN3;
+      let quickest = 0;
+      for (let at = 0; at < odd.length; at++) {
+        quickest = Math.max(quickest, ((_a2 = odd[at]) != null ? _a2 : 0) * ((_b = rates[at]) != null ? _b : 0) * ARM_REACH * ARM_TIP);
+      }
       doings.push({
         arms,
         at: random() * run,
         chased: 0,
+        creep: quickest,
         fright: 0,
         going,
         odd,
@@ -4361,6 +4383,7 @@ var __ornament = (() => {
       });
       walkers.push({
         body: "",
+        cut: 0,
         depth,
         facing: random() < 0.5 ? -1 : 1,
         kind,
@@ -4369,12 +4392,13 @@ var __ornament = (() => {
         x,
         y: floor(x, depth)
       });
+      held.push(null);
     }
     function bout(going) {
       return going ? GO_LEAST + random() * GO_SPAN : STAND_LEAST + random() * STAND_SPAN;
     }
     function minded(one, water) {
-      var _a;
+      var _a2;
       const seen = { chased: 0, from: one.x, near: 0 };
       for (const thing of water) {
         if (thing.size < one.size * MINDS2) continue;
@@ -4383,18 +4407,20 @@ var __ornament = (() => {
         if (away2 >= reach2) continue;
         const near = (1 - away2 / reach2) * abreast(one.depth, thing.depth);
         if (near <= seen.near) continue;
-        seen.chased = near * (BULK2 + ((_a = thing.menace) != null ? _a : 0) * (1 - BULK2));
+        seen.chased = near * (BULK2 + ((_a2 = thing.menace) != null ? _a2 : 0) * (1 - BULK2));
         seen.from = thing.x;
         seen.near = near;
       }
       return seen;
     }
     function carry(at, seconds, water) {
-      var _a, _b;
+      var _a2, _b;
       const one = walkers[at];
       const doing = doings[at];
       if (!one || !doing) return;
       doing.at += seconds;
+      const was = held[at];
+      if (was) was.since += seconds;
       if (one.kind === "crab") {
         const seen = minded(one, water);
         doing.fright = Math.max(0, Math.max(doing.fright - seconds / FRIGHT_FADE2, seen.near));
@@ -4430,7 +4456,7 @@ var __ornament = (() => {
         }
         one.x += doing.pace * seconds * one.facing;
         for (let arm = 0; arm < doing.arms.length; arm++) {
-          doing.arms[arm] = ((_a = doing.arms[arm]) != null ? _a : 0) + ((_b = doing.rates[arm]) != null ? _b : 0) * seconds;
+          doing.arms[arm] = ((_a2 = doing.arms[arm]) != null ? _a2 : 0) + ((_b = doing.rates[arm]) != null ? _b : 0) * seconds;
         }
       }
       settle(one);
@@ -4441,10 +4467,27 @@ var __ornament = (() => {
       if (one.x > width + past) one.x -= width + past * 2;
       one.y = floor(one.x, one.depth);
     }
+    function stir2(at) {
+      const one = walkers[at];
+      const doing = doings[at];
+      const was = held[at];
+      if (!one || !doing || !was) return Number.POSITIVE_INFINITY;
+      if (was.facing !== one.facing) return Number.POSITIVE_INFINITY;
+      const worked = GAIT_REACH * Math.abs(doing.stride - was.stride) + doing.creep * was.since;
+      return Math.hypot(one.x - was.x, one.y - was.y) + one.size * worked;
+    }
     function draw2(at) {
       const one = walkers[at];
       const doing = doings[at];
       if (!one || !doing) return;
+      held[at] = {
+        facing: one.facing,
+        since: 0,
+        stride: doing.stride,
+        x: one.x,
+        y: one.y
+      };
+      one.cut++;
       if (one.kind === "crab") {
         one.body = crabShell(doing.stride);
         one.legs = crabLegs({ facing: one.facing, stride: doing.stride });
@@ -4452,25 +4495,26 @@ var __ornament = (() => {
       }
       one.body = starfishBody(
         doing.odd.map((odd, arm) => {
-          var _a;
-          return odd * (1 + Math.sin((_a = doing.arms[arm]) != null ? _a : 0) * ARM_REACH);
+          var _a2;
+          return odd * (1 + Math.sin((_a2 = doing.arms[arm]) != null ? _a2 : 0) * ARM_REACH);
         })
       );
     }
     function stock() {
-      var _a, _b;
+      var _a2, _b;
       walkers.length = 0;
       doings.length = 0;
-      for (let made = 0; made < Math.max(0, (_a = options.crabs) != null ? _a : 0); made++) born("crab");
+      held.length = 0;
+      for (let made = 0; made < Math.max(0, (_a2 = options.crabs) != null ? _a2 : 0); made++) born("crab");
       for (let made = 0; made < Math.max(0, (_b = options.starfish) != null ? _b : 0); made++) born("starfish");
     }
     function advance2(seconds) {
-      var _a, _b;
+      var _a2, _b;
       const step = Math.min(Math.max(seconds, 0), 0.1);
-      const water = (_b = (_a = options.about) == null ? void 0 : _a.call(options)) != null ? _b : [];
+      const water = (_b = (_a2 = options.about) == null ? void 0 : _a2.call(options)) != null ? _b : [];
       for (let at = 0; at < walkers.length; at++) {
         carry(at, step, water);
-        draw2(at);
+        if (stir2(at) >= tolerance) draw2(at);
       }
     }
     stock();
@@ -4480,9 +4524,12 @@ var __ornament = (() => {
         const scale = Math.max(MIN_SPAN12, nextWidth) / width;
         width = Math.max(MIN_SPAN12, nextWidth);
         floor = nextFloor;
-        for (const one of walkers) {
+        for (let at = 0; at < walkers.length; at++) {
+          const one = walkers[at];
+          if (!one) continue;
           one.x *= scale;
           one.y = floor(one.x, one.depth);
+          draw2(at);
         }
       },
       step: advance2,
