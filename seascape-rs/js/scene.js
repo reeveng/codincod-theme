@@ -787,6 +787,17 @@ var Sea = (() => {
     };
   }
 
+  // ../../../codincodv2/assets/js/ornament/plenty.ts
+  var LEAN = 0.55;
+  var RANGE = 1.75;
+  var BIAS = 2;
+  function thriving(seed, at2 = 0) {
+    const random = makeRandom((seed ^ 24301) + at2 * 40503);
+    random();
+    random();
+    return LEAN + RANGE * random() ** BIAS;
+  }
+
   // ../../../codincodv2/assets/js/ornament/reef.ts
   var SORTS = {
     /** Soft, sheltered, and the only thing here anything lives inside. */
@@ -983,7 +994,7 @@ var Sea = (() => {
   var REACH2 = 0.34;
   var TIER = 0.55;
   var HEADROOM = 0.9;
-  var LEAN = 0.22;
+  var LEAN2 = 0.22;
   var GROWTH = 72e-4;
   var COLUMN = 16;
   var GIRTH = 0.15;
@@ -1070,7 +1081,7 @@ var Sea = (() => {
           girth: tentacles ? COLUMN * GIRTH : 0,
           kind,
           lane: roll() * Math.PI * 2,
-          lean: (roll() - 0.5) * LEAN * 2,
+          lean: (roll() - 0.5) * LEAN2 * 2,
           points: tentacles ? [ROOT, MOUTH] : [],
           scale,
           span,
@@ -1378,12 +1389,12 @@ var Sea = (() => {
     stones: 40
   };
   var MOST = {
-    anemones: 92,
+    anemones: 200,
     cliffs: 16,
-    corals: 108,
-    fans: 50,
-    grasses: 320,
-    kelps: 74,
+    corals: 500,
+    fans: 220,
+    grasses: 1400,
+    kelps: 280,
     stones: 108
   };
   var LEAST = 2;
@@ -1408,9 +1419,13 @@ var Sea = (() => {
   function spread(perThousand, most, width) {
     return Math.max(LEAST, Math.min(most, Math.round(width * perThousand / 1e3)));
   }
+  function lush(perThousand, most, width, day) {
+    return spread(perThousand * day, most, width);
+  }
   function build(width, height, seed, tolerance) {
     box = { height, width };
     handed.length = 0;
+    const day = thriving(seed);
     seabed = createSeabed({
       cliffs: spread(PER_K.cliffs, MOST.cliffs, width),
       height,
@@ -1428,16 +1443,16 @@ var Sea = (() => {
       width
     });
     flora = createFlora({
-      anemones: spread(PER_K.anemones, MOST.anemones, width),
-      corals: spread(PER_K.corals, MOST.corals, width),
+      anemones: lush(PER_K.anemones, MOST.anemones, width, day),
+      corals: lush(PER_K.corals, MOST.corals, width, day),
       // The crowns and nothing else. Everything the water only bends is handed
       // over as a shape once and swayed on the card; see `layout`.
       cutting: ["anemone"],
-      fans: spread(PER_K.fans, MOST.fans, width),
+      fans: lush(PER_K.fans, MOST.fans, width, day),
       floor: seabed.floorAt,
-      grasses: spread(PER_K.grasses, MOST.grasses, width),
+      grasses: lush(PER_K.grasses, MOST.grasses, width, day),
       height,
-      kelps: spread(PER_K.kelps, MOST.kelps, width),
+      kelps: lush(PER_K.kelps, MOST.kelps, width, day),
       seed,
       tolerance,
       width

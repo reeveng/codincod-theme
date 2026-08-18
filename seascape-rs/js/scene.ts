@@ -12,6 +12,7 @@
  * the plants stand and which way they are bending, and stops.
  */
 import { createFlora, type Plant } from "../../../codincodv2/assets/js/ornament/flora.ts"
+import { thriving } from "../../../codincodv2/assets/js/ornament/plenty.ts"
 import { createReef, type Reef } from "../../../codincodv2/assets/js/ornament/reef.ts"
 import { createSeabed, type Seabed } from "../../../codincodv2/assets/js/ornament/seabed.ts"
 
@@ -27,13 +28,24 @@ const PER_K = {
   stones: 40,
 } as const
 
+/**
+ * What this renderer will draw, which is not what the QML one will.
+ *
+ * The QML caps say what a processor can tessellate every frame. Here the bed
+ * goes over once and is bent on the card, so a plant costs a slot in a buffer
+ * and nothing per frame, and the ceilings are only high enough that a rich day
+ * is drawn rather than clipped.
+ *
+ * The anemone is the exception and keeps a cap near the QML one, because a
+ * crown is walked rather than cut and is still the one plant on the processor.
+ */
 const MOST = {
-  anemones: 92,
+  anemones: 200,
   cliffs: 16,
-  corals: 108,
-  fans: 50,
-  grasses: 320,
-  kelps: 74,
+  corals: 500,
+  fans: 220,
+  grasses: 1400,
+  kelps: 280,
   stones: 108,
 } as const
 
@@ -78,9 +90,16 @@ function spread(perThousand: number, most: number, width: number): number {
   return Math.max(LEAST, Math.min(most, Math.round((width * perThousand) / 1000)))
 }
 
+/** The same, for anything that grows, which is as thick as the day decided. */
+function lush(perThousand: number, most: number, width: number, day: number): number {
+  return spread(perThousand * day, most, width)
+}
+
 export function build(width: number, height: number, seed: number, tolerance: number): void {
   box = { height, width }
   handed.length = 0
+
+  const day = thriving(seed)
 
   seabed = createSeabed({
     cliffs: spread(PER_K.cliffs, MOST.cliffs, width),
@@ -101,16 +120,16 @@ export function build(width: number, height: number, seed: number, tolerance: nu
   })
 
   flora = createFlora({
-    anemones: spread(PER_K.anemones, MOST.anemones, width),
-    corals: spread(PER_K.corals, MOST.corals, width),
+    anemones: lush(PER_K.anemones, MOST.anemones, width, day),
+    corals: lush(PER_K.corals, MOST.corals, width, day),
     // The crowns and nothing else. Everything the water only bends is handed
     // over as a shape once and swayed on the card; see `layout`.
     cutting: ["anemone"],
-    fans: spread(PER_K.fans, MOST.fans, width),
+    fans: lush(PER_K.fans, MOST.fans, width, day),
     floor: seabed.floorAt,
-    grasses: spread(PER_K.grasses, MOST.grasses, width),
+    grasses: lush(PER_K.grasses, MOST.grasses, width, day),
     height,
-    kelps: spread(PER_K.kelps, MOST.kelps, width),
+    kelps: lush(PER_K.kelps, MOST.kelps, width, day),
     seed,
     tolerance,
     width,
