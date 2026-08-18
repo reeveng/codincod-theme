@@ -34,6 +34,34 @@ Window {
   readonly property real dusk: Number(win.arg("dusk", "0"))
   readonly property real march: Number(win.arg("march", "0.5"))
 
+  /**
+   * How heavy the film is, for a clip that has to be stored rather than watched.
+   *
+   * A string rather than a number, because "" is how this says nothing: left
+   * out, the scene keeps whatever grain it draws on a desktop.
+   *
+   * It is worth saying at all because the grain is re-rolled every frame, which
+   * is right on a screen and ruinous in a file: it changes most of the pixels in
+   * the picture between one frame and the next, so nothing can be carried over
+   * and every frame of a gif is stored whole. `gif.sh` turns it off for exactly
+   * that reason and lets the encoder's own dither do the anti-banding.
+   */
+  readonly property string grain: win.arg("grain", "")
+
+  /** How far a plant may drift from its drawing before it is cut again, in px. */
+  readonly property real tolerance: Number(win.arg("tolerance", "0.25"))
+
+  /**
+   * Whether the frame is bolted to the wall for this clip.
+   *
+   * The scene wanders a few px and leans a fraction of a degree, on the argument
+   * that nobody holds a camera still. It is the right argument on a screen and
+   * the wrong one in a file: a frame that has moved is a frame in which every
+   * pixel has changed, so a clip of a still sea costs as much to store as a clip
+   * of a storm. `gif.sh` takes the tripod; the water goes on moving without it.
+   */
+  readonly property bool tripod: win.arg("tripod", "0") !== "0"
+
   property int made: 0
 
   Rectangle {
@@ -57,6 +85,17 @@ Window {
     settle: Number(win.arg("settle", "40"))
     sun: ({ arc: Math.sin(win.march * Math.PI), march: win.march })
     surface: win.surface
+    tolerance: win.tolerance
+
+    // Assigned rather than bound, because a binding that says "whatever it was
+    // unless somebody said otherwise" is a binding that names itself.
+    Component.onCompleted: {
+      if (win.grain !== "") sea.grainInk = Number(win.grain)
+      if (win.tripod) {
+        sea.swayReach = 0
+        sea.swayRoll = 0
+      }
+    }
   }
 
   function pad(n) {
