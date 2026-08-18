@@ -94,8 +94,8 @@ second boat.
 and everything that does not move comes out of it: the bed, the hills, the
 cliffs, the stones, where each plant is rooted and which relics the floor
 happens to hold. One fixed seed meant the floor never changed, so whatever that
-number held was all anybody ever saw, and the chest with the laptop on its lid
-falls to about one sea in ten. A fresh seed per boot is the opposite failure:
+number held was all anybody ever saw, and the rarest thing down there falls to
+about one sea in ten. A fresh seed per boot is the opposite failure:
 nowhere to come back to.
 
 A `Seascape` is offered the new day but does not take it while it is on show.

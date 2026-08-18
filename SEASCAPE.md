@@ -64,12 +64,14 @@ renders them. Both the website and the desktop get all of it.
       uncovered, so a thing that is rare per minute of that is a thing you see
       every time you clear a workspace. `passers.ts`
 
-## Easter eggs
+## Things that are not listed here
 
-- [x] **The chest with a laptop open on its lid, screen still lit.** The site's
-      own, from `Marks.chest/1`: "the joke the site is named after, said once
-      and quietly". `relics.ts`
-- [x] **A sunken code block**, from `Marks.code_block/1`. `relics.ts`
+There are a couple on the floor and this document does not say what they are. A
+surprise with a page describing it is a feature with a whimsical name, and the
+whole of one is somebody finding it themselves. They are drawn in `relics.ts`
+out of shapes in `Codincod.Social.Marks`, which is where to read if you are the
+one maintaining them.
+
 - [ ] More, and rarer.
 
 ## What each surface draws
@@ -100,8 +102,8 @@ the one thing that surface may not be.
 - Everything is seeded. The same seed gives the same water twice, which is why
   the place is the same place all day and the life in it is not.
 - The desktop's seed is the calendar day, so tomorrow is somewhere else: a fixed
-  one meant whatever that number held was all anybody ever saw, and the chest
-  falls to about one sea in ten. A screen takes the new day up only once it is
+  one meant whatever that number held was all anybody ever saw, and the rarest
+  thing down there falls to about one sea in ten. A screen takes the new day up only once it is
   covered, so the ground never moves while somebody is looking at it.
 - The scene opens at the hour of the actual clock, wound forward and wrapped, so
   a machine that has been off comes back to water that carried on rather than to
@@ -132,6 +134,7 @@ QT_QPA_PLATFORM=offscreen qml6 record.qml -- \
 ```
 
 `seed` picks which water: most of what lies on the floor is placed by a roll of
-the dice, so the only way to see the chest is to ask for a sea that has one.
+the dice, so the only way to see the rare things is to ask for a sea that has
+one.
 `settle` winds the scene on before the grab, and it is the only way to catch a
 boat.

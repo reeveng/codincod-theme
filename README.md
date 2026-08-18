@@ -65,8 +65,8 @@ actually looking at the sea.
 
 The seabed is the calendar day's: the same place from one midnight to the next,
 and somewhere else tomorrow. Which stones, which plants, whether there is a
-wreck on the floor and whether the chest with the laptop open on its lid is on
-it are all that one number's doing. A screen takes the new day up the next time
+wreck on the floor and what happens to be lying on it are all that one number's
+doing. A screen takes the new day up the next time
 a window covers it, so the ground never rearranges itself while you are looking
 at it.
 
