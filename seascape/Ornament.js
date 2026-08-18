@@ -2549,7 +2549,16 @@ var __ornament = (() => {
     };
   }
 
+  // ../../codincodv2/assets/js/ornament/sizes.ts
+  var AT_ARM = 0.15;
+  var SWIMMING_OFF = 8;
+  function drawnAt(metres, off) {
+    return AT_ARM * Math.sqrt(Math.max(metres, 0) / Math.max(off, 1e-3));
+  }
+
   // ../../codincodv2/assets/js/ornament/passers.ts
+  var BOAT_OFF = 30;
+  var SUB_OFF = 150;
   var FADE = 0.16;
   var WATERLINE = 0.035;
   var OFFING = 0.2;
@@ -2559,8 +2568,8 @@ var __ornament = (() => {
       chance: 1,
       deepLeast: WATERLINE,
       deepSpan: 0,
-      sizeLeast: 0.04,
-      sizeSpan: 0.03,
+      sizeLeast: drawnAt(6, BOAT_OFF),
+      sizeSpan: drawnAt(11, BOAT_OFF) - drawnAt(6, BOAT_OFF),
       takeLeast: 26,
       takeSpan: 18
     },
@@ -2577,8 +2586,8 @@ var __ornament = (() => {
       chance: 0.15,
       deepLeast: 0.17,
       deepSpan: 0.19,
-      sizeLeast: 0.036,
-      sizeSpan: 0.022,
+      sizeLeast: drawnAt(55, SUB_OFF),
+      sizeSpan: drawnAt(90, SUB_OFF) - drawnAt(55, SUB_OFF),
       takeLeast: 38,
       takeSpan: 22
     }
@@ -3899,8 +3908,8 @@ var __ornament = (() => {
       partySpan: 3,
       seatLeast: 0.08,
       seatSpan: 0.16,
-      sizeLeast: 0.085,
-      sizeSpan: 0.04,
+      sizeLeast: drawnAt(2.4, SWIMMING_OFF),
+      sizeSpan: drawnAt(3.6, SWIMMING_OFF) - drawnAt(2.4, SWIMMING_OFF),
       takeLeast: 16,
       takeSpan: 9
     },
@@ -3915,8 +3924,8 @@ var __ornament = (() => {
       partySpan: 0,
       seatLeast: 0.12,
       seatSpan: 0.18,
-      sizeLeast: 0.06,
-      sizeSpan: 0.035,
+      sizeLeast: drawnAt(2.6, SWIMMING_OFF),
+      sizeSpan: drawnAt(4, SWIMMING_OFF) - drawnAt(2.6, SWIMMING_OFF),
       takeLeast: 30,
       takeSpan: 16
     },
@@ -3931,8 +3940,8 @@ var __ornament = (() => {
       partySpan: 1,
       seatLeast: 0.34,
       seatSpan: 0.22,
-      sizeLeast: 0.09,
-      sizeSpan: 0.045,
+      sizeLeast: drawnAt(3.6, SWIMMING_OFF),
+      sizeSpan: drawnAt(5.5, SWIMMING_OFF) - drawnAt(3.6, SWIMMING_OFF),
       takeLeast: 34,
       takeSpan: 18
     },
@@ -3947,8 +3956,8 @@ var __ornament = (() => {
       partySpan: 0,
       seatLeast: 0.24,
       seatSpan: 0.36,
-      sizeLeast: 0.05,
-      sizeSpan: 0.028,
+      sizeLeast: drawnAt(1, SWIMMING_OFF),
+      sizeSpan: drawnAt(1.5, SWIMMING_OFF) - drawnAt(1, SWIMMING_OFF),
       takeLeast: 40,
       takeSpan: 22
     }
