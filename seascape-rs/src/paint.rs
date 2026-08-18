@@ -87,6 +87,7 @@ fn fs(in: VsOut) -> @location(0) vec4f {
 pub struct Paint {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    format: wgpu::TextureFormat,
     pipeline: wgpu::RenderPipeline,
     bind: wgpu::BindGroup,
     uniforms: wgpu::Buffer,
@@ -95,8 +96,9 @@ pub struct Paint {
     vertices: std::cell::RefCell<wgpu::Buffer>,
     indices: std::cell::RefCell<wgpu::Buffer>,
     msaa: wgpu::TextureView,
-    target: wgpu::Texture,
-    view: wgpu::TextureView,
+    /// Only a headless run owns what it draws into. On a desktop the frame
+    /// belongs to the compositor and arrives one at a time.
+    target: Option<wgpu::Texture>,
     width: u32,
     height: u32,
 }
@@ -105,7 +107,8 @@ pub const SAMPLES: u32 = 4;
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 impl Paint {
-    pub fn new(width: u32, height: u32) -> Self {
+    /// A run with nobody watching, which is what a still is.
+    pub fn headless(width: u32, height: u32) -> Self {
         let instance = wgpu::Instance::default();
         let adapter =
             pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
@@ -119,6 +122,18 @@ impl Paint {
             None,
         ))
         .expect("no GPU device");
+
+        Paint::new(device, queue, FORMAT, width, height, true)
+    }
+
+    pub fn new(
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+        format: wgpu::TextureFormat,
+        width: u32,
+        height: u32,
+        owned: bool,
+    ) -> Self {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("seascape"),
@@ -182,7 +197,7 @@ impl Paint {
                 entry_point: Some("fs"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: FORMAT,
+                    format,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -202,22 +217,23 @@ impl Paint {
                 mip_level_count: 1,
                 sample_count: SAMPLES,
                 dimension: wgpu::TextureDimension::D2,
-                format: FORMAT,
+                format,
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 view_formats: &[],
             })
             .create_view(&Default::default());
-        let target = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("frame"),
-            size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: FORMAT,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
+        let target = owned.then(|| {
+            device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("frame"),
+                size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            })
         });
-        let view = target.create_view(&Default::default());
 
         let vertices = std::cell::RefCell::new(room(&device, 1 << 20, wgpu::BufferUsages::VERTEX));
         let indices = std::cell::RefCell::new(room(&device, 1 << 20, wgpu::BufferUsages::INDEX));
@@ -225,6 +241,7 @@ impl Paint {
         Paint {
             device,
             queue,
+            format,
             pipeline,
             bind,
             uniforms,
@@ -232,10 +249,13 @@ impl Paint {
             indices,
             msaa,
             target,
-            view,
             width,
             height,
         }
+    }
+
+    pub fn format(&self) -> wgpu::TextureFormat {
+        self.format
     }
 
     /// The water's own colours, which are the theme's rather than this file's.
@@ -253,7 +273,15 @@ impl Paint {
         );
     }
 
-    pub fn draw(&self, vertices: &[Vertex], indices: &[u32]) {
+    /// The frame this owns, for a run that has no compositor to hand it one.
+    pub fn own_view(&self) -> wgpu::TextureView {
+        self.target
+            .as_ref()
+            .expect("this paint draws into somebody else's frame")
+            .create_view(&Default::default())
+    }
+
+    pub fn draw(&self, view: &wgpu::TextureView, vertices: &[Vertex], indices: &[u32]) {
         let mut vbuf = self.vertices.borrow_mut();
         let mut ibuf = self.indices.borrow_mut();
         let want = bytemuck::cast_slice::<Vertex, u8>(vertices);
@@ -273,7 +301,7 @@ impl Paint {
                 label: Some("bed"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &self.msaa,
-                    resolve_target: Some(&self.view),
+                    resolve_target: Some(view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                         store: wgpu::StoreOp::Discard,
@@ -290,6 +318,11 @@ impl Paint {
             pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
         }
         self.queue.submit(Some(enc.finish()));
+    }
+
+    /// Wait for the GPU to be done, which only a run with a stopwatch on it or
+    /// a frame about to be read back has any reason to do.
+    pub fn settle(&self) {
         self.device.poll(wgpu::Maintain::Wait);
     }
 
@@ -302,10 +335,14 @@ impl Paint {
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
+        let target = self
+            .target
+            .as_ref()
+            .expect("nothing was drawn into a frame this owns");
         let mut enc = self.device.create_command_encoder(&Default::default());
         enc.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
-                texture: &self.target,
+                texture: target,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,

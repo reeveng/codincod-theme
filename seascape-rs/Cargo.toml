@@ -9,6 +9,9 @@ bytemuck = { version = "1", features = ["derive"] }
 lyon_tessellation = "1.0"
 png = "0.17"
 pollster = "0.4"
+raw-window-handle = "0.6"
+smithay-client-toolkit = { version = "0.21", features = ["system"] }
+wayland-client = { version = "0.31", features = ["log"] }
 v8 = "152"
 wgpu = { version = "23", features = ["wgsl"] }
 

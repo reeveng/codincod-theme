@@ -1,30 +1,8 @@
-//! The seascape, drawn natively.
+//! One still of the bed, so the picture can be held against the QML renderer's.
 //!
-//! One still for now, so the picture can be held against the QML renderer's
-//! own: `compare/reference.qml` draws the same bed and `compare/against.sh`
-//! puts the two side by side.
-mod bed;
-mod paint;
-mod sim;
-
-use lyon_tessellation::VertexBuffers;
-
-fn arg(key: &str, fallback: &str) -> String {
-    std::env::args()
-        .find(|a| a.starts_with(&format!("{key}=")))
-        .map(|a| a[key.len() + 1..].to_string())
-        .unwrap_or_else(|| fallback.to_string())
-}
-
-fn hue(text: &str) -> [f32; 4] {
-    let raw = u32::from_str_radix(text.trim_start_matches('#'), 16).unwrap_or(0);
-    [
-        ((raw >> 16) & 255) as f32 / 255.0,
-        ((raw >> 8) & 255) as f32 / 255.0,
-        (raw & 255) as f32 / 255.0,
-        1.0,
-    ]
-}
+//!   seascape width=2560 height=1440 seed=28 out=bed.png
+//!   seascape frames=120                      # and what a frame costs
+use seascape::{arg, hue, paint, Scene};
 
 fn main() {
     let width: u32 = arg("width", "2560").parse().unwrap();
@@ -34,64 +12,55 @@ fn main() {
     let tolerance: f64 = arg("tolerance", "0.25").parse().unwrap();
     let out = arg("out", "bed.png");
 
-    let mut sim = sim::Sim::new(include_str!("../js/scene.js"));
-    sim.call("build", &[width as f64, height as f64, seed, tolerance]);
-    sim.call("wind", &[settle]);
-
-    let mut geo: VertexBuffers<paint::Vertex, u32> = VertexBuffers::new();
-    let mut bed = bed::Bed::default();
-    let t0 = std::time::Instant::now();
-    let floats = sim.call("publish", &[]) as usize;
-    let published = t0.elapsed();
-
-    let t1 = std::time::Instant::now();
-    bed.take(sim.frame(floats), &mut geo);
-    let cut = t1.elapsed();
-
-    let paint = paint::Paint::new(width, height);
+    let mut scene = Scene::new(width, height, seed, tolerance, settle);
+    let paint = paint::Paint::headless(width, height);
+    let view = paint.own_view();
     // The lid on the water, out of `Seascape.qml`: how much light the surface
     // holds and how fast the column gives it up.
     paint.water(hue("#35c26d"), hue("#0e1712"), 0.13, 2.1);
 
-    let t2 = std::time::Instant::now();
-    paint.draw(&geo.vertices, &geo.indices);
-    let drawn = t2.elapsed();
+    let spent = scene.advance(0.0);
+    let (vertices, indices) = scene.geometry();
+    let t = std::time::Instant::now();
+    paint.draw(&view, vertices, indices);
+    paint.settle();
+    let drawn = t.elapsed().as_secs_f64() * 1000.0;
+    println!(
+        "{} vertices, {} indices: publish {:.2}ms, cut {:.2}ms, draw {:.2}ms -> {out}",
+        vertices.len(),
+        indices.len(),
+        spent.publish,
+        spent.cut,
+        drawn,
+    );
 
     // What a frame costs once the scene is standing, which is the number this
-    // whole exercise is about. The still above is one frame; these are the rest.
+    // whole exercise is about.
     let laps: usize = arg("frames", "0").parse().unwrap();
     if laps > 0 {
-        let mut stepped = 0.0;
-        let mut published = 0.0;
-        let mut cut = 0.0;
-        let mut drawn = 0.0;
         for _ in 0..20 {
-            sim.call("step", &[0.033]);
-            let floats = sim.call("publish", &[]) as usize;
-            bed.take(sim.frame(floats), &mut geo);
-            paint.draw(&geo.vertices, &geo.indices);
+            scene.advance(0.033);
+            let (vertices, indices) = scene.geometry();
+            paint.draw(&view, vertices, indices);
         }
+        let (mut step, mut publish, mut cut, mut drawn) = (0.0, 0.0, 0.0, 0.0);
         for _ in 0..laps {
-            let a = std::time::Instant::now();
-            sim.call("step", &[0.033]);
-            let b = std::time::Instant::now();
-            let floats = sim.call("publish", &[]) as usize;
-            let c = std::time::Instant::now();
-            bed.take(sim.frame(floats), &mut geo);
-            let d = std::time::Instant::now();
-            paint.draw(&geo.vertices, &geo.indices);
-            let e = std::time::Instant::now();
-            stepped += (b - a).as_secs_f64();
-            published += (c - b).as_secs_f64();
-            cut += (d - c).as_secs_f64();
-            drawn += (e - d).as_secs_f64();
+            let spent = scene.advance(0.033);
+            let (vertices, indices) = scene.geometry();
+            let t = std::time::Instant::now();
+            paint.draw(&view, vertices, indices);
+            paint.settle();
+            drawn += t.elapsed().as_secs_f64() * 1000.0;
+            step += spent.step;
+            publish += spent.publish;
+            cut += spent.cut;
         }
-        let each = 1000.0 / laps as f64;
-        let frame = (stepped + published + cut + drawn) * each;
+        let each = 1.0 / laps as f64;
+        let frame = (step + publish + cut + drawn) * each;
         println!(
             "a frame: step {:.2}ms  publish {:.2}ms  cut {:.2}ms  draw {:.2}ms  = {:.2}ms, {:.0} a second",
-            stepped * each,
-            published * each,
+            step * each,
+            publish * each,
             cut * each,
             drawn * each,
             frame,
@@ -99,6 +68,8 @@ fn main() {
         );
     }
 
+    let (vertices, indices) = scene.geometry();
+    paint.draw(&view, vertices, indices);
     let pixels = paint.read();
     let file = std::fs::File::create(&out).expect("cannot write the still");
     let mut png = png::Encoder::new(std::io::BufWriter::new(file), width, height);
@@ -108,14 +79,4 @@ fn main() {
         .unwrap()
         .write_image_data(&pixels)
         .unwrap();
-
-    let ms = |d: std::time::Duration| d.as_secs_f64() * 1000.0;
-    println!(
-        "{} vertices, {} indices: publish {:.2}ms, cut {:.2}ms, draw {:.2}ms -> {out}",
-        geo.vertices.len(),
-        geo.indices.len(),
-        ms(published),
-        ms(cut),
-        ms(drawn),
-    );
 }
