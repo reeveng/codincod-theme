@@ -228,6 +228,25 @@ rare things, so what is measured is a sea with a flock crossing it and a boat
 overhead rather than the quiet one most seconds hold.
 
 `render` is not the cost of drawing the scene. A still frame of it draws in about
-a millisecond. It is the cost of rebuilding and uploading the geometry of every
-`Shape` that changed, which is why the whole of the work here is about how few of
-them change.
+a millisecond. It is the cost Qt pays per `Shape` node whenever anything in the
+window has changed, and it is linear in how many nodes there are: measured across
+a bed sown at a tenth of its density and at full, about 13 microseconds each.
+
+Three things fall out of that, and the third is the one that costs time to learn.
+
+The curve renderer charges per path rather than per item. Three thousand lines
+cost the same whether they are three thousand shapes or two hundred, so putting
+several lines in one `ShapePath` is what saves anything, and putting them in one
+`Shape` is not.
+
+There is a knee. The same three thousand lines cost 39ms as a path each, 13ms as
+fifty paths of sixty, and 22ms as one path holding all of them. One giant path is
+worse than the thing it replaced.
+
+Merging pays only where it removes many nodes. A plant's leaves were a path each
+and the bed lost 1671 shapes, which took the frame from 114ms to 60ms. The same
+change on a crab's legs and an octopus's arms removes about 150 shapes and makes
+the frame 20ms worse, repeatably, on a quiet machine: a `PathSvg` rebuilt every
+frame costs more than the nodes it saves. It was tried, measured and taken out.
+Rounding the numbers written into those paths costs more than the digits it
+saves, too.
