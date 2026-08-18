@@ -58,6 +58,12 @@ pub struct Vertex {
     pub limb: u32,
     /// How far up that limb it sits, 0 at the root and 1 at the tip.
     pub t: f32,
+    /// How far back it stands, which is what the card sorts the water by rather
+    /// than the order things happen to be handed over in. Last, because
+    /// `vertex_attr_array!` lays the attributes out in the order they are
+    /// written and a field put in the middle silently renames every one after
+    /// it.
+    pub lane: f32,
 }
 
 /// A vertex nothing bends: the ground, a coral, a crown already drawn where the
@@ -194,6 +200,7 @@ fn vs(
   @location(2) shade: f32,
   @location(3) limb: u32,
   @location(4) t: f32,
+  @location(5) lane: f32,
 ) -> VsOut {
   var at = pos;
   if (limb != STIFF) {
@@ -211,8 +218,14 @@ fn vs(
       + vec2f(spin.x * arm.x - spin.y * arm.y, spin.y * arm.x + spin.x * arm.y);
   }
 
+  // Near is a small depth and far a large one, so a nearer thing wins wherever
+  // the two meet and nothing has to be handed over in order. The compare is
+  // `less-equal`, so within one thing the later triangle is still the one on
+  // top, which is the order a drawing is made in.
+  let z = clamp((2.0 - lane) / 12.0, 0.0, 1.0);
+
   var out: VsOut;
-  out.pos = vec4f(at.x / u.size.x * 2.0 - 1.0, 1.0 - at.y / u.size.y * 2.0, 0.0, 1.0);
+  out.pos = vec4f(at.x / u.size.x * 2.0 - 1.0, 1.0 - at.y / u.size.y * 2.0, z, 1.0);
   out.weight = weight;
   out.shade = shade;
   out.world = at;
@@ -249,11 +262,16 @@ pub struct Paint {
     limbs: std::cell::RefCell<wgpu::Buffer>,
     /// And where each plant's sway has got to, which is the whole of a frame.
     swings: std::cell::RefCell<wgpu::Buffer>,
-    /// Held rather than made every frame: a buffer a frame long is an
-    /// allocation a frame long, and the bed is much the same size every time.
+    /// The standing bed, written once and drawn every frame.
+    standing: std::cell::RefCell<(wgpu::Buffer, wgpu::Buffer, u32)>,
+    /// And the crowns, which are the one thing here that is drawn again. Held
+    /// rather than made every frame: a buffer a frame long is an allocation a
+    /// frame long, and there are much the same number of them every time.
     vertices: std::cell::RefCell<wgpu::Buffer>,
     indices: std::cell::RefCell<wgpu::Buffer>,
     msaa: wgpu::TextureView,
+    /// How far back each pixel's water is, so nothing has to be drawn in order.
+    sunk: wgpu::TextureView,
     /// Only a headless run owns what it draws into. On a desktop the frame
     /// belongs to the compositor and arrives one at a time.
     target: Option<wgpu::Texture>,
@@ -262,6 +280,7 @@ pub struct Paint {
 }
 
 pub const SAMPLES: u32 = 4;
+pub const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 impl Paint {
@@ -359,7 +378,12 @@ impl Paint {
                     array_stride: std::mem::size_of::<Vertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![
-                        0 => Float32x2, 1 => Float32, 2 => Float32, 3 => Uint32, 4 => Float32
+                        0 => Float32x2,
+                        1 => Float32,
+                        2 => Float32,
+                        3 => Uint32,
+                        4 => Float32,
+                        5 => Float32
                     ],
                 }],
             },
@@ -374,7 +398,13 @@ impl Paint {
                 })],
             }),
             primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: SAMPLES,
                 ..Default::default()
@@ -388,6 +418,18 @@ impl Paint {
             height,
             depth_or_array_layers: 1,
         };
+        let sunk = device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("lanes"),
+                size,
+                mip_level_count: 1,
+                sample_count: SAMPLES,
+                dimension: wgpu::TextureDimension::D2,
+                format: DEPTH,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            })
+            .create_view(&Default::default());
         let msaa = device
             .create_texture(&wgpu::TextureDescriptor {
                 label: Some("msaa"),
@@ -415,6 +457,11 @@ impl Paint {
 
         let vertices = std::cell::RefCell::new(room(&device, 1 << 20, wgpu::BufferUsages::VERTEX));
         let indices = std::cell::RefCell::new(room(&device, 1 << 20, wgpu::BufferUsages::INDEX));
+        let standing = std::cell::RefCell::new((
+            room(&device, 1 << 12, wgpu::BufferUsages::VERTEX),
+            room(&device, 1 << 12, wgpu::BufferUsages::INDEX),
+            0,
+        ));
 
         Paint {
             device,
@@ -426,9 +473,11 @@ impl Paint {
             uniforms,
             limbs,
             swings,
+            standing,
             vertices,
             indices,
             msaa,
+            sunk,
             target,
             width,
             height,
@@ -504,9 +553,28 @@ impl Paint {
             .create_view(&Default::default())
     }
 
-    /// Draw the bed. `fresh` says the triangles have changed since the last
-    /// frame; where they have not, the card already has them and the only thing
-    /// crossing the bus this frame is the sway.
+    /// The standing bed, handed over once. Nothing here is sent again.
+    pub fn stand(&self, vertices: &[Vertex], indices: &[u32]) {
+        let want = bytemuck::cast_slice::<Vertex, u8>(vertices);
+        let holds = bytemuck::cast_slice::<u32, u8>(indices);
+        let mut held = self.standing.borrow_mut();
+
+        if (held.0.size() as usize) < want.len() {
+            held.0 = room(&self.device, want.len(), wgpu::BufferUsages::VERTEX);
+        }
+        if (held.1.size() as usize) < holds.len() {
+            held.1 = room(&self.device, holds.len(), wgpu::BufferUsages::INDEX);
+        }
+        self.queue.write_buffer(&held.0, 0, want);
+        self.queue.write_buffer(&held.1, 0, holds);
+        held.2 = indices.len() as u32;
+    }
+
+    /// Draw the water: the bed that stands there, and the crowns over it.
+    ///
+    /// `fresh` says a crown has been redrawn since the last frame. Where none
+    /// has, the card already has every triangle in the picture and the only
+    /// thing crossing the bus is the sway.
     pub fn draw(
         &self,
         view: &wgpu::TextureView,
@@ -530,6 +598,7 @@ impl Paint {
             self.queue.write_buffer(&ibuf, 0, holds);
         }
 
+        let standing = self.standing.borrow();
         let mut enc = self.device.create_command_encoder(&Default::default());
         {
             let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -542,15 +611,29 @@ impl Paint {
                         store: wgpu::StoreOp::Discard,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.sunk,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Discard,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &*self.bind.borrow(), &[]);
-            pass.set_vertex_buffer(0, vbuf.slice(..));
-            pass.set_index_buffer(ibuf.slice(..), wgpu::IndexFormat::Uint32);
-            pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+
+            pass.set_vertex_buffer(0, standing.0.slice(..));
+            pass.set_index_buffer(standing.1.slice(..), wgpu::IndexFormat::Uint32);
+            pass.draw_indexed(0..standing.2, 0, 0..1);
+
+            if !indices.is_empty() {
+                pass.set_vertex_buffer(0, vbuf.slice(..));
+                pass.set_index_buffer(ibuf.slice(..), wgpu::IndexFormat::Uint32);
+                pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+            }
         }
         self.queue.submit(Some(enc.finish()));
     }

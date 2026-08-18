@@ -173,6 +173,8 @@ impl Wall {
         );
         // The standing bed goes over once and stays there; see `bed.rs`.
         paint.plant(scene.limbs());
+        let (standing, held) = scene.standing();
+        paint.stand(standing, held);
 
         self.paint = Some(paint);
         self.scene = Some(scene);

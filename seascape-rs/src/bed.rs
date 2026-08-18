@@ -117,6 +117,8 @@ struct Bough {
 
 /// The bed, standing.
 pub struct Bed {
+    /// The whole bed laid out, cut once and handed over once.
+    standing: VertexBuffers<Vertex, u32>,
     ground: Vec<Cut>,
     plants: Vec<Cut>,
     kinds: Vec<u8>,
@@ -132,6 +134,7 @@ pub struct Bed {
 impl Default for Bed {
     fn default() -> Self {
         Bed {
+            standing: VertexBuffers::new(),
             ground: Vec::new(),
             plants: Vec::new(),
             kinds: Vec::new(),
@@ -238,10 +241,26 @@ impl Bed {
             self.plants.push(cut);
         }
 
-        self.order = (0..self.plants.len()).collect();
+        self.order = (0..self.plants.len())
+            .filter(|at| self.kinds[*at] != ANEMONE)
+            .collect();
         let depths: Vec<f32> = self.plants.iter().map(|c| c.depth).collect();
         self.order
             .sort_by(|a, b| depths[*a].partial_cmp(&depths[*b]).unwrap());
+
+        self.standing.vertices.clear();
+        self.standing.indices.clear();
+        for cut in &self.ground {
+            lay(cut, &mut self.standing);
+        }
+        for at in &self.order {
+            lay(&self.plants[*at], &mut self.standing);
+        }
+    }
+
+    /// The bed as it stands, which the card is handed once.
+    pub fn standing(&self) -> (&[Vertex], &[u32]) {
+        (&self.standing.vertices, &self.standing.indices)
     }
 
     /// The limbs of one plant, read off the wire.
@@ -402,7 +421,7 @@ impl Bed {
 
         swings.clear();
         swings.reserve(plants);
-        let mut redrawn = geo.vertices.is_empty();
+        let mut redrawn = false;
 
         for at in 0..plants {
             let amp = cursor.next();
@@ -435,11 +454,10 @@ impl Bed {
 
         geo.vertices.clear();
         geo.indices.clear();
-        for cut in &self.ground {
-            lay(cut, geo);
-        }
-        for at in &self.order {
-            lay(&self.plants[*at], geo);
+        for (at, cut) in self.plants.iter().enumerate() {
+            if self.kinds[at] == ANEMONE {
+                lay(cut, geo);
+            }
         }
         true
     }
@@ -497,6 +515,7 @@ impl Bed {
                     shade: DOWN_THE_BOX,
                     limb: STIFF,
                     t: 0.0,
+                    lane: 0.0,
                 }),
             )
             .unwrap();
@@ -541,6 +560,7 @@ impl Bed {
                             shade,
                             limb: *limb,
                             t,
+                            lane: 0.0,
                         }
                     }),
                 )
@@ -591,6 +611,7 @@ impl Bed {
                     shade: y,
                     limb: STIFF,
                     t: 0.0,
+                    lane: 0.0,
                 }),
             )
             .unwrap();
@@ -608,7 +629,10 @@ fn join(into: &mut Cut, geo: &VertexBuffers<Vertex, u32>) {
 /// Lay a thing's triangles into the frame being handed to the GPU.
 fn lay(cut: &Cut, geo: &mut VertexBuffers<Vertex, u32>) {
     let base = geo.vertices.len() as u32;
-    geo.vertices.extend_from_slice(&cut.vertices);
+    geo.vertices.extend(cut.vertices.iter().map(|v| Vertex {
+        lane: cut.depth,
+        ..*v
+    }));
     geo.indices.extend(cut.indices.iter().map(|i| i + base));
 }
 

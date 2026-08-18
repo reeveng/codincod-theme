@@ -51,6 +51,11 @@ impl Scene {
         scene
     }
 
+    /// The bed as it stands, which the card is handed once.
+    pub fn standing(&self) -> (&[paint::Vertex], &[u32]) {
+        self.bed.standing()
+    }
+
     /// Every limb of every plant, for the card to bend the bed by.
     pub fn limbs(&self) -> &[paint::Limb] {
         self.bed.limbs()

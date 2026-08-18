@@ -21,12 +21,14 @@ fn main() {
 
     // The standing bed goes over once; a frame is the sway after that.
     paint.plant(scene.limbs());
+    let (standing, held) = scene.standing();
+    paint.stand(standing, held);
 
     let spent = scene.advance(0.0);
     paint.sway(scene.swings());
     let (vertices, indices) = scene.geometry();
     let t = std::time::Instant::now();
-    paint.draw(&view, vertices, indices, spent.redrawn);
+    paint.draw(&view, vertices, indices, true);
     paint.settle();
     let drawn = t.elapsed().as_secs_f64() * 1000.0;
     println!(
