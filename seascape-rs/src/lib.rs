@@ -77,7 +77,12 @@ impl Scene {
         let redrawn = self
             .bed
             .take(self.sim.frame(floats), &mut self.geo, &mut self.swings);
-        Spent { step, publish, cut: ms(c), redrawn }
+        Spent {
+            step,
+            publish,
+            cut: ms(c),
+            redrawn,
+        }
     }
 
     pub fn geometry(&self) -> (&[paint::Vertex], &[u32]) {

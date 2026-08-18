@@ -164,7 +164,13 @@ impl Wall {
         let paint = Paint::new(device, queue, format, self.width, self.height, false);
         paint.water(self.ink, self.surface_hue, 0.13, 2.1);
 
-        let scene = Scene::new(self.width, self.height, self.seed, self.tolerance, self.settle);
+        let scene = Scene::new(
+            self.width,
+            self.height,
+            self.seed,
+            self.tolerance,
+            self.settle,
+        );
         // The standing bed goes over once and stays there; see `bed.rs`.
         paint.plant(scene.limbs());
 

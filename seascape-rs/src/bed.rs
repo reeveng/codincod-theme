@@ -158,7 +158,10 @@ impl Bed {
         let plants = cursor.next() as usize;
 
         // The water itself, which everything else is drawn into.
-        let mut sea = Cut { depth: -9.0, ..Default::default() };
+        let mut sea = Cut {
+            depth: -9.0,
+            ..Default::default()
+        };
         let box_of = [
             (0.0, 0.0),
             (width, 0.0),
@@ -177,7 +180,10 @@ impl Bed {
                 3 => haze(STONE_INK, depth),
                 _ => haze(SAND_INK, depth),
             };
-            let mut cut = Cut { depth: lane(kind, depth), ..Default::default() };
+            let mut cut = Cut {
+                depth: lane(kind, depth),
+                ..Default::default()
+            };
             self.fill_shape(&mut cut, &ridge, weight, true);
             self.ground.push(cut);
         }
@@ -200,7 +206,10 @@ impl Bed {
             self.kinds.push(kind);
             self.girths.push(girth);
 
-            let mut cut = Cut { depth, ..Default::default() };
+            let mut cut = Cut {
+                depth,
+                ..Default::default()
+            };
             let weight = haze(FLORA_INK, depth);
 
             if kind == CORAL {
@@ -298,7 +307,10 @@ impl Bed {
                     on.root[1] + bough.seat * on.axis[1],
                 ]
             };
-            let axis = [bough.span * bough.slant.sin(), -bough.span * bough.slant.cos()];
+            let axis = [
+                bough.span * bough.slant.sin(),
+                -bough.span * bough.slant.cos(),
+            ];
 
             self.limbs.push(Limb {
                 root,
@@ -309,7 +321,11 @@ impl Bed {
                 seat: bough.seat,
                 steps: bough.steps as f32,
                 plant,
-                stem: if bough.stem < 0 { -1 } else { base as i32 + bough.stem },
+                stem: if bough.stem < 0 {
+                    -1
+                } else {
+                    base as i32 + bough.stem
+                },
                 pad: 0.0,
             });
 
@@ -447,8 +463,7 @@ impl Bed {
             .chain(blades.iter().cloned())
             .map(|line| (STIFF, line.into_iter().map(|(x, y)| (x, y, 0.0)).collect()))
             .collect();
-        let lines: Vec<Bent> =
-            held.iter().map(|(limb, line)| (*limb, line)).collect();
+        let lines: Vec<Bent> = held.iter().map(|(limb, line)| (*limb, line)).collect();
 
         self.stroke_lines(into, &lines, girth, weight, shade);
     }
@@ -520,7 +535,13 @@ impl Bed {
                     &mut BuffersBuilder::new(&mut geo, |mut v: StrokeVertex| {
                         let pos = v.position().to_array();
                         let t = v.interpolated_attributes()[0];
-                        Vertex { pos, weight, shade, limb: *limb, t }
+                        Vertex {
+                            pos,
+                            weight,
+                            shade,
+                            limb: *limb,
+                            t,
+                        }
                     }),
                 )
                 .unwrap();

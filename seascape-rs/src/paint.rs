@@ -20,9 +20,18 @@ fn tied(
         label: None,
         layout,
         entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: uniforms.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: limbs.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: swings.as_entire_binding() },
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniforms.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: limbs.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: swings.as_entire_binding(),
+            },
         ],
     })
 }
@@ -283,7 +292,6 @@ impl Paint {
         height: u32,
         owned: bool,
     ) -> Self {
-
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("seascape"),
             source: wgpu::ShaderSource::Wgsl(SHADER.into()),
@@ -367,12 +375,19 @@ impl Paint {
             }),
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
-            multisample: wgpu::MultisampleState { count: SAMPLES, ..Default::default() },
+            multisample: wgpu::MultisampleState {
+                count: SAMPLES,
+                ..Default::default()
+            },
             multiview: None,
             cache: None,
         });
 
-        let size = wgpu::Extent3d { width, height, depth_or_array_layers: 1 };
+        let size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
         let msaa = device
             .create_texture(&wgpu::TextureDescriptor {
                 label: Some("msaa"),
@@ -575,7 +590,11 @@ impl Paint {
                     rows_per_image: Some(self.height),
                 },
             },
-            wgpu::Extent3d { width: self.width, height: self.height, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
         );
         self.queue.submit(Some(enc.finish()));
 

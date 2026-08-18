@@ -46,7 +46,9 @@ impl Sim {
                 .expect("no geometry")
                 .try_into()
                 .expect("geometry is not a Float32Array");
-            let store = array.get_backing_store().expect("geometry has no backing store");
+            let store = array
+                .get_backing_store()
+                .expect("geometry has no backing store");
             let floats = unsafe {
                 (store.data().unwrap().as_ptr() as *const u8).add(array.byte_offset()) as *const f32
             };
@@ -60,7 +62,13 @@ impl Sim {
             )
         };
 
-        Sim { isolate, context, sea, floats, room }
+        Sim {
+            isolate,
+            context,
+            sea,
+            floats,
+            room,
+        }
     }
 
     /// One of the bridge's functions, with numbers in and a number out.
