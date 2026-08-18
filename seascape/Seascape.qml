@@ -228,6 +228,15 @@ Item {
    */
   property var species: Ornament.WILD
 
+  /**
+   * Which big animals may cross, or null for the lot of them.
+   *
+   * Here for the reason `species` is: a scene wants to be lookable at one
+   * animal at a time while it is being tuned, and a turtle crosses once in
+   * several minutes. Nothing sets it on a desktop.
+   */
+  property var visitorKinds: null
+
   /** Cephalopods. Few: they are the thing you notice, so there is little of it. */
   property int squids: 2
   property int octopuses: 2
@@ -443,6 +452,20 @@ Item {
    * `shadowed`. Near rock is nearly all of the way there, because what a wall
    * an arm's length off actually looks like is the absence of anything.
    */
+  /**
+   * How dark a big animal and a flock are, against the open water's rule.
+   *
+   * A visitor is heavier than a fish because it is a shape rather than a
+   * detail: what is being read from the far side of the picture is a
+   * silhouette, and one drawn at the shoal's weight is a smudge. A speck is
+   * lighter than a fish for the opposite reason. There are hundreds of them
+   * and what makes a bait ball a mass is the crowd, not any one of them.
+   */
+  property real visitorInk: 0.42
+  property real speckInk: 0.16
+
+
+
   property real cragInk: 0.94
   property real isleInk: 0.88
 
@@ -587,6 +610,8 @@ Item {
   property var passers: null
   property var walkers: null
   property var crags: null
+  property var visitors: null
+  property var flock: null
 
   property int herd: 0
   property int flurry: 0
@@ -616,6 +641,17 @@ Item {
    */
   property int plumeSlots: 76
   property int passerSlots: 4
+
+  /**
+   * The largest party any visitor arrives in; see `HABITS.dolphin`.
+   *
+   * A ceiling rather than a count, for the reason `relicSlots` is one. A pod
+   * builds its delegates once and the slots past it stand empty.
+   */
+  property int visitorSlots: 6
+
+  /** How many fish a flock is drawn with, whatever it is a flock of. */
+  property int speckPool: 420
 
   /** Every puff of churn a hull can have in the water at once; see `FROTH_MOST`. */
   property int frothSlots: Ornament.FROTH_MOST
@@ -651,6 +687,18 @@ Item {
   property var sunken: []
   property var plume: []
   property var crossing: []
+  property var visiting: []
+  property var specks: []
+
+  /**
+   * How loud the flock is now.
+   *
+   * Republished rather than bound to `flock.weight`, because a binding onto a
+   * plain object's field is read once and never again: QML has no way to know
+   * the simulation changed it. Everything else in this scene is copied out for
+   * the same reason; this is the one number of the lot.
+   */
+  property real flockWeight: 0
 
   /**
    * A weight as a colour, opaque, rather than as an alpha.
@@ -869,6 +917,7 @@ Item {
     })
 
     flora = Ornament.createFlora({
+      about: about,
       anemones: spread(anemonesPerK, mostAnemones),
       corals: spread(coralsPerK, mostCorals),
       fans: spread(fansPerK, mostFans),
@@ -881,6 +930,7 @@ Item {
     })
 
     walkers = Ornament.createWalkers({
+      about: about,
       crabs: spread(crabsPerK, mostCrabs),
       floor: seabed.floorAt,
       seed: seed,
@@ -916,6 +966,22 @@ Item {
     })
 
     passers = Ornament.createPassers({
+      eager: rushed,
+      height: height,
+      seed: seed,
+      width: width,
+    })
+
+    visitors = Ornament.createVisitors({
+      eager: rushed,
+      height: height,
+      kinds: visitorKinds || undefined,
+      seed: seed,
+      width: width,
+    })
+
+    flock = Ornament.createSwarm({
+      count: speckPool,
       eager: rushed,
       height: height,
       seed: seed,
@@ -1011,17 +1077,38 @@ Item {
     passers.resize(width, height)
     walkers.resize(width, height, seabed.floorAt)
     crags.resize(width, height, seabed.floorAt)
+    visitors.resize(width, height)
+    flock.resize(width, height, speckPool)
     cutGround()
     publish()
     report()
   }
 
-  // The passers go first, so the fish answer the hull where it is this frame
-  // rather than where it was last one. Everything else in here is indifferent
-  // to the order it is stepped in.
+  /**
+   * Whatever is going through the water hardest this frame, or nothing.
+   *
+   * There are two things in this sea that push the small fish about and they
+   * are never both worth answering. A hull is a disturbance from above and a
+   * shark is one going through, and a shoal handed both would be a shoal
+   * pulled two ways at once by arithmetic rather than by anything it can see.
+   * So it is told about the louder one, which is the one it would have noticed.
+   */
+  function felt() {
+    var above = passers.startle
+    var among = visitors.startle
+    if (!above) return among
+    if (!among) return above
+    return among.force > above.force ? among : above
+  }
+
+  // The passers and the visitors go first, so the fish answer the hull and the
+  // shark where they are this frame rather than where they were last one.
+  // Everything else in here is indifferent to the order it is stepped in.
   function advance(dt) {
     passers.step(dt)
-    shoal.step(dt, null, passers.startle)
+    visitors.step(dt)
+    flock.step(dt, felt())
+    shoal.step(dt, null, felt())
     drift.step(dt)
     light.step(dt)
     flora.step(dt)
@@ -1076,7 +1163,13 @@ Item {
       // the one caller allowed to spend them; see the note above.
       if (rushed) passers.step(windStep)
 
-      shoal.step(windStep, null, rushed ? passers.startle : null)
+      // Wound like the shoal rather than left waiting like the passers. Both
+      // of these keep a stopwatch rather than an appointment, so winding is
+      // the difference between a scene that opens on whatever the water was
+      // already doing and one that opens on empty water every time.
+      visitors.step(windStep)
+      flock.step(windStep, felt())
+      shoal.step(windStep, null, felt())
       drift.step(windStep)
       light.step(windStep)
       inklings.step(windStep, rushed ? passers.startle : null)
@@ -1349,12 +1442,101 @@ Item {
     }
     crossing = going
 
+    var visited = []
+    for (var t = 0; t < visitors.crossing.length && t < visitorSlots; t++) {
+      var guest = visitors.crossing[t]
+      visited.push({
+        body: Ornament.BODIES[guest.kind](guest.stroke),
+        depth: guest.depth,
+        facing: guest.facing,
+        size: guest.size,
+        tilt: guest.tilt,
+        weight: guest.weight,
+        x: guest.x,
+        y: guest.y,
+      })
+    }
+    visiting = visited
+
+    var massed = []
+    for (var y = 0; y < flock.specks.length && y < speckPool; y++) {
+      var speck = flock.specks[y]
+      massed.push({ depth: speck.depth, size: speck.size, tilt: speck.tilt, x: speck.x, y: speck.y })
+    }
+    specks = massed
+    flockWeight = flock.weight
+
     var churning = []
     for (var f = 0; f < passers.wake.length && f < frothSlots; f++) {
       var puff = passers.wake[f]
       churning.push({ age: puff.age, r: puff.r, x: puff.x, y: puff.y })
     }
     churn = churning
+  }
+
+  /**
+   * What is in this water, big enough to be worth noticing, as `{size, x, y}`.
+   *
+   * Handed to the plants, the walkers and the clownfish at the moment they are
+   * built, and read by each of them once a step. It is a register rather than
+   * an order: nothing here decides that a crab should freeze or that a crown
+   * should shut. It says what is in the water, and every one of them makes its
+   * own mind up about what is worth minding and from how far off, which is why
+   * a starfish ignores all of it and an anemone answers only what is nearly on
+   * top of it.
+   *
+   * That is the whole of the arrangement. Nothing is dispatched, so adding an
+   * animal to this scene needs no change anywhere else: it turns up in here and
+   * whoever cares about it already knows what to do.
+   *
+   * `size` is the drawn width in px, which is as much of anything as a crab can
+   * make out. What decides a reach is how big a thing looks, and a shark on the
+   * far side of the water looks small.
+   */
+  function about() {
+    var seen = []
+
+    // The bed is built before the water is, so this can be asked before there
+    // is anything to ask about. An empty water is the right answer then: it is
+    // what everything reading this does when it is handed nothing.
+    if (!visitors || !inklings || !flock) return seen
+
+    for (var v = 0; v < visitors.crossing.length; v++) {
+      var guest = visitors.crossing[v]
+      if (guest.weight > 0.05) seen.push({ size: guest.size, x: guest.x, y: guest.y })
+    }
+
+    for (var o = 0; o < inklings.octopuses.length; o++) {
+      var pus = inklings.octopuses[o]
+      seen.push({ size: pus.size * 2, x: pus.x, y: pus.y })
+    }
+
+    for (var q = 0; q < inklings.squids.length; q++) {
+      var squid = inklings.squids[q]
+      seen.push({ size: squid.size, x: squid.x, y: squid.y })
+    }
+
+    // The flock as one thing rather than as several hundred. A bait ball going
+    // over is a shadow the width of the whole ball; passed a fish at a time it
+    // would be hundreds of animals none of which is bigger than a crab.
+    if (flock.weight > 0.05 && flock.specks.length > 0) {
+      var lx = flock.specks[0].x
+      var rx = lx
+      var ty = flock.specks[0].y
+      var by = ty
+
+      for (var f = 1; f < flock.specks.length; f++) {
+        var one = flock.specks[f]
+        if (one.x < lx) lx = one.x
+        if (one.x > rx) rx = one.x
+        if (one.y < ty) ty = one.y
+        if (one.y > by) by = one.y
+      }
+
+      seen.push({ size: rx - lx, x: (lx + rx) / 2, y: (ty + by) / 2 })
+    }
+
+    return seen
   }
 
   /**
@@ -2773,6 +2955,106 @@ Item {
                    root.nightInk * (1 - root.daylight))
     visible: root.daylight < 1
     z: 3.1
+  }
+
+  /**
+   * A flock of thousands, which is a few hundred specks and a shape round them.
+   *
+   * Drawn as marks rather than as fish. At the size one of these is on the
+   * screen a fish drawing is four pixels of nothing, and the thing that makes a
+   * bait ball read is that it is a crowd with a body: hundreds of identical
+   * small marks, packed, all leaning the same way and all leaning a little
+   * differently. So each is a stroke turned by its own tilt, and the mass is
+   * everything.
+   *
+   * Behind the near rock and in among the fish by depth, because the whole
+   * point of one going over is that it goes over something.
+   */
+  Repeater {
+    model: root.speckPool
+
+    delegate: Shape {
+      id: fleck
+      required property int index
+
+      readonly property var one: root.specks[index] || null
+      readonly property real weight: one
+        ? root.speckInk * (1 - root.depthInk + root.depthInk * one.depth) * root.flockWeight
+        : 0
+
+      preferredRendererType: Shape.CurveRenderer
+      visible: one !== null && weight > 0.002
+      x: one ? one.x : 0
+      y: one ? one.y : 0
+      z: one ? one.depth : 0
+
+      transform: Rotation { angle: fleck.one ? fleck.one.tilt * 180 / Math.PI : 0 }
+
+      ShapePath {
+        capStyle: ShapePath.RoundCap
+        fillColor: "transparent"
+        strokeColor: root.afloat(fleck.one ? fleck.one.y : 0, fleck.weight)
+        strokeWidth: fleck.one ? Math.max(0.7, fleck.one.size * 0.42) : 1
+
+        PathMove { x: fleck.one ? -fleck.one.size / 2 : 0; y: 0 }
+        PathLine { x: fleck.one ? fleck.one.size / 2 : 0; y: 0 }
+      }
+    }
+  }
+
+  /**
+   * The big animals: a turtle, a pod of dolphins, a manta, a shark going
+   * somewhere.
+   *
+   * Silhouettes, because from down here that is all any of them ever is, and
+   * one drawing apiece read off the animal's own stroke so its gait and its
+   * travel cannot fall out of step. Mirrored by `facing` and turned by `tilt`
+   * exactly as a fish is, and for the same reason: the turn is the whole turn
+   * already, and every renderer that has ever derived it a second time has got
+   * it backwards.
+   *
+   * Heavier than a fish. What is being read across the whole picture is the
+   * shape, and a shape drawn at the shoal's weight is a smudge.
+   */
+  Repeater {
+    model: root.visitorSlots
+
+    delegate: Item {
+      id: guest
+      required property int index
+
+      readonly property var one: root.visiting[index] || null
+      readonly property real span: one ? one.size : 1
+
+      readonly property real weight: one
+        ? root.visitorInk * one.weight * (1 - root.depthInk + root.depthInk * one.depth)
+        : 0
+
+      visible: one !== null && weight > 0.002
+      x: one ? one.x : 0
+      y: one ? one.y : 0
+      z: one ? one.depth : 0
+
+      transform: [
+        Scale { xScale: guest.span * (guest.one ? guest.one.facing : 1); yScale: guest.span },
+        Rotation { angle: guest.one ? guest.one.tilt * 180 / Math.PI : 0 },
+      ]
+
+      Shape {
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+          fillColor: root.afloat(guest.one ? guest.one.y : 0, guest.weight)
+          // Fins are subpaths rooted inside the body and meant to merge with
+          // it. Counting crossings instead cancels every overlap and hands
+          // back an animal with holes where its fins are.
+          fillRule: ShapePath.WindingFill
+          strokeColor: "transparent"
+
+          PathSvg { path: guest.one ? guest.one.body : "" }
+        }
+      }
+    }
   }
 
   /**

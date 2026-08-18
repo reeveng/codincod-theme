@@ -74,6 +74,9 @@ Window {
   readonly property real settle: Number(win.arg("settle", "40"))
   readonly property string out: win.arg("out", "preview.png")
 
+  /** `visitor=shark` to watch one animal, since a turtle crosses once a while. */
+  readonly property string visitor: win.arg("visitor", "")
+
   Seascape {
     id: sea
     anchors.fill: parent
@@ -86,6 +89,7 @@ Window {
     seed: win.seed
     settle: win.settle
     surface: win.surface
+    visitorKinds: win.visitor ? [win.visitor] : null
   }
 
   // Long enough that a vent has fired and the snow has spread, short enough to

@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.z5WXcIJ4mi/entry.ts
+  // ../../../../../../tmp/tmp.uyjOTaDdXQ/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -1737,6 +1737,11 @@ var __ornament = (() => {
   var CROWN_STEPS = 5;
   var CROWN_CROWDED = 30;
   var CROWN_FEWEST = 6;
+  var CROWN_MINDS = 2.4;
+  var CROWN_NOTICE = 0.9;
+  var CROWN_PULL = 0.62;
+  var COLUMN_SQUAT = 0.22;
+  var PULL_FADE = 6;
   var FAN_LEAST = 0.055;
   var FAN_SPAN = 0.05;
   var FAN_GIRTH = 0.07;
@@ -1857,6 +1862,7 @@ var __ornament = (() => {
           y: floor(x, depth)
         });
         sways.push({
+          fright: 0,
           lean: 0,
           mates: [],
           own: random() * Math.PI * 2,
@@ -1881,6 +1887,7 @@ var __ornament = (() => {
         y: floor(x, depth)
       });
       sways.push({
+        fright: 0,
         lean: span * LEANS[kind],
         mates: crop(kind, span),
         own: random() * Math.PI * 2,
@@ -1981,11 +1988,13 @@ var __ornament = (() => {
       const current = field(one.x / width * FIELD_CELLS3 + drift, drift);
       const own = Math.sin(sway.own);
       const amp = sway.lean * (current * CURRENT_SHARE + own * (1 - CURRENT_SHARE));
-      const points = strand(one.x, one.y, span * STEMS[one.kind], sway.own, amp, 0, sway.steps);
+      const shy2 = one.kind === "anemone" ? 1 - sway.fright * COLUMN_SQUAT : 1;
+      const points = strand(one.x, one.y, span * STEMS[one.kind] * shy2, sway.own, amp, 0, sway.steps);
       one.points = points;
       if (one.kind === "anemone") {
         const mouth = points[points.length - 1];
-        one.blades = mouth ? crownAt(mouth, sway.tentacles, span, sway.own) : [];
+        const out = span * (1 - sway.fright * CROWN_PULL);
+        one.blades = mouth ? crownAt(mouth, sway.tentacles, out, sway.own) : [];
         return;
       }
       if (one.kind === "fan") {
@@ -2108,18 +2117,36 @@ var __ornament = (() => {
       }
       return points;
     }
-    function carry(seconds) {
+    function scared(one, span, water) {
+      let worst = 0;
+      for (const thing of water) {
+        if (thing.size < span * CROWN_MINDS) continue;
+        const reach2 = thing.size * CROWN_NOTICE;
+        const away2 = Math.hypot(one.x - thing.x, one.y - thing.y);
+        if (away2 < reach2) worst = Math.max(worst, 1 - away2 / reach2);
+      }
+      return worst;
+    }
+    function carry(seconds, water) {
+      var _a;
       drift += DRIFT3 * seconds;
       for (let at = 0; at < sways.length; at++) {
         const sway = sways[at];
-        if (sway && sway.rate > 0) sways[at] = __spreadProps(__spreadValues({}, sway), { own: sway.own + sway.rate * seconds });
+        const one = plants[at];
+        if (!sway || !one) continue;
+        const shy2 = one.kind === "anemone" ? scared(one, (_a = heights.get(at)) != null ? _a : 0, water) : 0;
+        const fright = Math.max(0, Math.max(sway.fright - seconds / PULL_FADE, shy2));
+        if (sway.rate > 0 || fright !== sway.fright) {
+          sways[at] = __spreadProps(__spreadValues({}, sway), { fright, own: sway.own + sway.rate * seconds });
+        }
       }
     }
     function recut() {
       for (let at = 0; at < plants.length; at++) bend2(at, noise);
     }
     function advance2(seconds) {
-      carry(Math.min(Math.max(seconds, 0), 0.1));
+      var _a, _b;
+      carry(Math.min(Math.max(seconds, 0), 0.1), (_b = (_a = options.about) == null ? void 0 : _a.call(options)) != null ? _b : []);
       recut();
     }
     sow();
@@ -2135,7 +2162,7 @@ var __ornament = (() => {
       },
       step: advance2,
       wind(seconds) {
-        carry(Math.max(seconds, 0));
+        carry(Math.max(seconds, 0), []);
         recut();
       }
     };
@@ -4013,6 +4040,12 @@ var __ornament = (() => {
   var GO_LEAST = 0.8;
   var GO_SPAN = 2.6;
   var TURN_ODDS2 = 0.45;
+  var MINDS2 = 1.6;
+  var NOTICE2 = 3.2;
+  var FRIGHT_FADE2 = 3.5;
+  var FREEZE_AT = 0.05;
+  var BOLT_AT = 0.55;
+  var BOLT3 = 3.4;
   var CREEP = 8e-3;
   var DAWDLE = 0.6;
   var HOLD_LEAST3 = 40;
@@ -4124,6 +4157,7 @@ var __ornament = (() => {
       doings.push({
         arms,
         at: random() * run,
+        fright: 0,
         going,
         odd,
         pace: crab ? size * SCUTTLE * (1 - HASTE2 + random() * HASTE2 * 2) : size * CREEP * (1 - DAWDLE + random() * DAWDLE * 2),
@@ -4145,13 +4179,42 @@ var __ornament = (() => {
     function bout(going) {
       return going ? GO_LEAST + random() * GO_SPAN : STAND_LEAST + random() * STAND_SPAN;
     }
-    function carry(at, seconds) {
+    function minded(one, water) {
+      let alarm = 0;
+      let from = one.x;
+      for (const thing of water) {
+        if (thing.size < one.size * MINDS2) continue;
+        const reach2 = thing.size * NOTICE2;
+        const away2 = Math.hypot(one.x - thing.x, one.y - thing.y);
+        if (away2 >= reach2) continue;
+        const worry = 1 - away2 / reach2;
+        if (worry <= alarm) continue;
+        alarm = worry;
+        from = thing.x;
+      }
+      return { alarm, from };
+    }
+    function carry(at, seconds, water) {
       var _a, _b;
       const one = walkers[at];
       const doing = doings[at];
       if (!one || !doing) return;
       doing.at += seconds;
       if (one.kind === "crab") {
+        const seen = minded(one, water);
+        doing.fright = Math.max(0, Math.max(doing.fright - seconds / FRIGHT_FADE2, seen.alarm));
+        if (doing.fright > BOLT_AT) {
+          one.facing = one.x < seen.from ? -1 : 1;
+          const gone2 = doing.pace * BOLT3 * seconds * one.facing;
+          one.x += gone2;
+          doing.stride += Math.abs(gone2) / one.size * GAIT2;
+          settle(one);
+          return;
+        }
+        if (doing.fright > FREEZE_AT) {
+          settle(one);
+          return;
+        }
         if (doing.at >= doing.span) {
           doing.going = !doing.going;
           doing.at = 0;
@@ -4174,6 +4237,9 @@ var __ornament = (() => {
           doing.arms[arm] = ((_a = doing.arms[arm]) != null ? _a : 0) + ((_b = doing.rates[arm]) != null ? _b : 0) * seconds;
         }
       }
+      settle(one);
+    }
+    function settle(one) {
       const past = one.size * MARGIN3;
       if (one.x < -past) one.x += width + past * 2;
       if (one.x > width + past) one.x -= width + past * 2;
@@ -4203,9 +4269,11 @@ var __ornament = (() => {
       for (let made = 0; made < Math.max(0, (_b = options.starfish) != null ? _b : 0); made++) born("starfish");
     }
     function advance2(seconds) {
+      var _a, _b;
       const step = Math.min(Math.max(seconds, 0), 0.1);
+      const water = (_b = (_a = options.about) == null ? void 0 : _a.call(options)) != null ? _b : [];
       for (let at = 0; at < walkers.length; at++) {
-        carry(at, step);
+        carry(at, step, water);
         draw2(at);
       }
     }
