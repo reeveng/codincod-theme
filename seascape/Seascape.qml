@@ -259,16 +259,16 @@ Item {
   /** How thick a blade is drawn against the strand it belongs to. */
   property real bladeGirth: 0.8
 
-  property real kelpsPerK: 9
-  property real grassesPerK: 48
-  property real coralsPerK: 17
+  property real kelpsPerK: 12
+  property real grassesPerK: 62
+  property real coralsPerK: 22
   property real stonesPerK: 25
   property real cliffsPerK: 5.5
 
   property int leastOfEach: 2
-  property int mostKelps: 30
-  property int mostGrasses: 120
-  property int mostCorals: 40
+  property int mostKelps: 38
+  property int mostGrasses: 155
+  property int mostCorals: 52
   property int mostStones: 64
   property int mostCliffs: 16
 
@@ -284,10 +284,14 @@ Item {
    * with taste. The bands were drawn against a column that was one colour from
    * top to bottom, so the fourth came out the same green as the third and there
    * was nothing to be had by cutting a fifth. Light that runs out with depth
-   * gives each of them a different water to stand against, and seven of them
-   * are seven distances.
+   * gives each of them a different water to stand against, and the ceiling is
+   * whatever the ramp from the haze to the sand can be cut into and still be
+   * counted: six steps of it are about four levels of green apiece, and four
+   * levels is the least the eye reads as one hill being in front of another.
+   * Seven was one too many and the far half of the bed came out as a single
+   * mass with lines drawn on it.
    */
-  property int ranges: 7
+  property int ranges: 6
 
   /**
    * How much of the wallpaper the water hides.
@@ -303,7 +307,15 @@ Item {
    */
   property real waterInk: 0.88
 
-  /** How much darker a cut-out is than the shape it is cut from. */
+  /**
+   * How much darker a cut-out is than the shape it is cut from: an eye, the
+   * bands on a chest, the shadow under a lid.
+   *
+   * A hole is not the background colour. Painted in the water's own colour it
+   * would be a window through the animal onto the water behind, which is the
+   * thing everything here is drawn opaque to avoid. It is the same body at a
+   * third of its weight, which is the same body, darker.
+   */
   property real cutShade: 0.34
 
   /**
@@ -349,9 +361,9 @@ Item {
     root.waterLid * (root.lidNight + (1 - root.lidNight) * root.daylight)
 
   /** How dark the ground and the things rooted in it may be, at the front. */
-  property real sandInk: 0.13
-  property real stoneInk: 0.2
-  property real floraInk: 0.26
+  property real sandInk: 0.19
+  property real stoneInk: 0.25
+  property real floraInk: 0.33
 
   /**
    * What anything down there weighs at the back of the water.
@@ -367,7 +379,7 @@ Item {
    * would be a band nobody could find, and then the distance would be gone
    * again for the opposite reason.
    */
-  property real hazeInk: 0.03
+  property real hazeInk: 0.016
 
   /**
    * The light along the top edge of ground, and how wide that edge is drawn.
@@ -383,7 +395,7 @@ Item {
    * the furthest hills have almost none, which is the second time the same
    * statement is made and the reason it reads at a glance.
    */
-  property real crestInk: 0.24
+  property real crestInk: 0.2
 
   /**
    * What a cliff's own edge is worth, however far back it stands.
@@ -399,7 +411,7 @@ Item {
    * a contour map rather than a country: what tells two of them apart is that
    * one is in front of the other, and that is a mass and not an edge.
    */
-  property real hazeCrest: 0.11
+  property real hazeCrest: 0.085
 
   property real crestWidth: 1.5
 
@@ -561,6 +573,8 @@ Item {
 
   /** The ground, published once when it is cut rather than every tick. */
   property var sand: []
+  /** The height the sand's own edge sits at; see `seatOf`. */
+  property real shore: 0
   property var hills: []
   property var scarp: []
   property var rocks: []
@@ -661,18 +675,6 @@ Item {
                    base.g + (ink.g - base.g) * w,
                    base.b + (ink.b - base.b) * w,
                    1)
-  }
-
-  /**
-   * The same, for what is cut out of a shape rather than drawn: an eye, the
-   * bands on a chest, the shadow under a lid.
-   *
-   * A hole is not the background colour. Painted in the water's own colour it
-   * would be a window through the animal onto the water behind, which is the
-   * thing this whole change is getting rid of. It is the same body, darker.
-   */
-  function shade(weight) {
-    return tint(weight * cutShade)
   }
 
   /**
@@ -937,22 +939,48 @@ Item {
    * are published when they change rather than every tick. A seabed republished
    * at thirty frames a second is thirty rebuilds of a shape that did not move.
    */
+  /**
+   * The height a band of ground is seen at, which is the height of its own top
+   * edge.
+   *
+   * A band is closed off under the box, so most of it is behind the bands in
+   * front of it and the only part anybody sees is the strip between its crest
+   * and the next crest along. That strip is where its colour has to work, so
+   * that is the water it is weighed against; see `afloat`.
+   */
+  function seatOf(ridge) {
+    if (!ridge.length) return height
+
+    var sum = 0
+    for (var i = 0; i < ridge.length; i++) sum += ridge[i].y
+    return sum / ridge.length
+  }
+
   function cutGround() {
     if (!seabed) return
 
     sand = polygon(seabed.ridge, true)
+    shore = seatOf(seabed.ridge)
 
     var country = []
     for (var b = 0; b < seabed.ranges.length; b++) {
       var band = seabed.ranges[b]
-      country.push({ depth: band.depth, points: polygon(band.ridge, true) })
+      country.push({
+        depth: band.depth,
+        points: polygon(band.ridge, true),
+        seat: seatOf(band.ridge),
+      })
     }
     hills = country
 
     var walls = []
     for (var c = 0; c < seabed.cliffs.length; c++) {
       var cliff = seabed.cliffs[c]
-      walls.push({ depth: cliff.depth, points: polygon(cliff.ridge, true) })
+      walls.push({
+        depth: cliff.depth,
+        points: polygon(cliff.ridge, true),
+        seat: seatOf(cliff.ridge),
+      })
     }
     scarp = walls
 
@@ -1190,9 +1218,11 @@ Item {
       z: cliff ? -3.4 + cliff.depth : -3.4
 
       ShapePath {
-        fillColor: root.tint(root.farInk(root.sandInk, wall.cliff ? wall.cliff.depth : 0))
-        strokeColor: root.tint(root.farInk(root.crestInk, wall.cliff ? wall.cliff.depth : 0,
-                                           root.hazeCrest))
+        fillColor: root.afloat(wall.cliff ? wall.cliff.seat : 0,
+                               root.farInk(root.sandInk, wall.cliff ? wall.cliff.depth : 0))
+        strokeColor: root.afloat(wall.cliff ? wall.cliff.seat : 0,
+                                 root.farInk(root.crestInk, wall.cliff ? wall.cliff.depth : 0,
+                                             root.hazeCrest))
         strokeWidth: root.crestWidth
 
         PathPolyline { path: wall.cliff ? wall.cliff.points : [] }
@@ -1225,8 +1255,10 @@ Item {
       z: band ? -3 + band.depth : -3
 
       ShapePath {
-        fillColor: root.tint(root.farInk(root.sandInk, bank.band ? bank.band.depth : 0))
-        strokeColor: root.tint(root.farInk(root.crestInk, bank.band ? bank.band.depth : 0))
+        fillColor: root.afloat(bank.band ? bank.band.seat : 0,
+                               root.farInk(root.sandInk, bank.band ? bank.band.depth : 0))
+        strokeColor: root.afloat(bank.band ? bank.band.seat : 0,
+                                 root.farInk(root.crestInk, bank.band ? bank.band.depth : 0))
         strokeWidth: root.crestWidth
 
         PathPolyline { path: bank.band ? bank.band.points : [] }
@@ -1242,8 +1274,8 @@ Item {
     z: -2
 
     ShapePath {
-      fillColor: root.tint(root.sandInk)
-      strokeColor: root.tint(root.crestInk)
+      fillColor: root.afloat(root.shore, root.sandInk)
+      strokeColor: root.afloat(root.shore, root.crestInk)
       strokeWidth: root.crestWidth
 
       PathPolyline { path: root.sand }
@@ -1262,7 +1294,8 @@ Item {
       readonly property var stone: root.rocks[index] || null
 
       antialiasing: true
-      color: root.tint(root.farInk(root.stoneInk, stone ? stone.depth : 1))
+      color: root.afloat(stone ? stone.y : 0,
+                         root.farInk(root.stoneInk, stone ? stone.depth : 1))
       height: stone ? stone.rise : 0
       radius: height / 2
       rotation: stone ? stone.lean * 180 / Math.PI : 0
@@ -1300,7 +1333,7 @@ Item {
         ShapePath {
           capStyle: ShapePath.RoundCap
           fillColor: "transparent"
-          strokeColor: root.tint(sprout.weight)
+          strokeColor: root.afloat(sprout.one ? sprout.one.y : 0, sprout.weight)
           strokeWidth: sprout.one ? sprout.one.girth : 0
 
           PathPolyline { path: sprout.one && sprout.one.kind !== "coral" ? sprout.one.points : [] }
@@ -1324,7 +1357,7 @@ Item {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
-            strokeColor: root.tint(sprout.weight)
+            strokeColor: root.afloat(sprout.one ? sprout.one.y : 0, sprout.weight)
             strokeWidth: sprout.one ? sprout.one.girth * root.bladeGirth : 0
 
             PathPolyline { path: sprout.one ? sprout.one.blades[leaf.index] : [] }
@@ -1358,7 +1391,7 @@ Item {
             ShapePath {
               capStyle: ShapePath.RoundCap
               fillColor: "transparent"
-              strokeColor: root.tint(sprout.weight)
+              strokeColor: root.afloat(sprout.one ? sprout.one.y : 0, sprout.weight)
               strokeWidth: branch.twig.width
 
               PathSvg { path: branch.twig.d }
@@ -1771,7 +1804,7 @@ Item {
         // needs one path and a lookup rather than a Shape per kind. What is
         // drawn on top of that silhouette is each kind's own business, below.
         ShapePath {
-          fillColor: root.tint(relic.weight)
+          fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight)
           fillRule: ShapePath.WindingFill
           strokeColor: "transparent"
 
@@ -1789,7 +1822,8 @@ Item {
         ShapePath {
           capStyle: ShapePath.RoundCap
           fillColor: "transparent"
-          strokeColor: root.tint(relic.one && relic.one.kind === "wreck" ? relic.weight : 0)
+          strokeColor: root.afloat(relic.one ? relic.one.y : 0,
+                                     relic.one && relic.one.kind === "wreck" ? relic.weight : 0)
           strokeWidth: 0.03
 
           PathPolyline {
@@ -1814,7 +1848,7 @@ Item {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
-            fillColor: root.shade(relic.weight)
+            fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight * root.cutShade)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.BLOCK_LINES[line.index] }
@@ -1838,7 +1872,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
-              fillColor: root.shade(relic.weight)
+              fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight * root.cutShade)
               strokeColor: "transparent"
 
               PathSvg { path: Ornament.CHEST_BANDS[band.index] }
@@ -1850,14 +1884,14 @@ Item {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
-            fillColor: root.shade(relic.weight)
+            fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight * root.cutShade)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.CHEST_LOCK }
           }
 
           ShapePath {
-            fillColor: root.tint(relic.weight)
+            fillColor: root.afloat(relic.one ? relic.one.y : 0, relic.weight)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.LAPTOP_BASE }
@@ -2041,7 +2075,7 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-          fillColor: root.tint(pus.weight)
+          fillColor: root.afloat(pus.one ? pus.one.y : 0, pus.weight)
           strokeColor: "transparent"
 
           PathSvg { path: Ornament.OCTOPUS_HEAD }
@@ -2060,7 +2094,7 @@ Item {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
-            strokeColor: root.tint(pus.weight)
+            strokeColor: root.afloat(pus.one ? pus.one.y : 0, pus.weight)
             strokeWidth: 0.075
 
             PathPolyline { path: pus.one ? pus.one.arms[limb.index] : [] }

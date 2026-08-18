@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.Ap3pF4iEnU/entry.ts
+  // ../../../../../../tmp/tmp.m0QKy2kBQ7/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -89,7 +89,7 @@ var __ornament = (() => {
     sunNow: () => sunNow
   });
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/perlin.ts
+  // ../../codincodv2/assets/js/ornament/perlin.ts
   var SIZE = 256;
   var MASK = SIZE - 1;
   var NORMALISE = Math.SQRT2;
@@ -161,7 +161,7 @@ var __ornament = (() => {
     return a + t * (b - a);
   }
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/shoal.ts
+  // ../../codincodv2/assets/js/ornament/shoal.ts
   var SPECIES = {
     /** The one that was here first. Everything else is described against it. */
     cruiser: { bill: 0, deep: 0.52, girth: 1, hold: 1, pace: 1, pitch: 1, stride: 1, verve: 0 },
@@ -625,7 +625,7 @@ var __ornament = (() => {
   }
   var EDGE_HOLD = 8;
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/cephalopods.ts
+  // ../../codincodv2/assets/js/ornament/cephalopods.ts
   var CYCLE_SLOWEST = 3.4;
   var CYCLE_FASTEST = 6.8;
   var JET_SHARE = 0.16;
@@ -875,7 +875,7 @@ var __ornament = (() => {
     return arms;
   }
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/drift.ts
+  // ../../codincodv2/assets/js/ornament/drift.ts
   var FIELD_CELLS2 = 2.2;
   var DRIFT2 = 0.04;
   var SWAY = 13;
@@ -1011,7 +1011,7 @@ var __ornament = (() => {
     return value;
   }
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/fish_shape.ts
+  // ../../codincodv2/assets/js/ornament/fish_shape.ts
   var SPAN = 38;
   var NOSE = 29;
   var along = (t) => 21 * t * (1 - t) ** 2 + 63 * t ** 2 * (1 - t) + 29 * t ** 3;
@@ -1153,7 +1153,7 @@ var __ornament = (() => {
     return made;
   }
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/flora.ts
+  // ../../codincodv2/assets/js/ornament/flora.ts
   var CORAL = [
     { d: "M0 0 C-2 -14 -10 -18 -16 -26", width: 5 },
     { d: "M0 0 C0 -16 2 -24 0 -34", width: 6 },
@@ -1212,7 +1212,7 @@ var __ornament = (() => {
   var BLADE_TAPER = 0.45;
   var CORAL_SMALLEST = 0.9;
   var CORAL_LARGEST = 2.4;
-  var DEPTH_FAR4 = 0.22;
+  var DEPTH_FAR4 = 0.12;
   var DEPTH_NEAR4 = 1;
   var MIN_SPAN3 = 1;
   function createFlora(options) {
@@ -1391,7 +1391,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/passers.ts
+  // ../../codincodv2/assets/js/ornament/passers.ts
   var FADE = 0.16;
   var WATERLINE = 0.035;
   var OFFING = 0.2;
@@ -1545,7 +1545,7 @@ var __ornament = (() => {
     return { reach: 1 - (1 - t) ** 2, weight: (1 - t) ** 1.6 };
   }
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/rays.ts
+  // ../../codincodv2/assets/js/ornament/rays.ts
   var SPREAD = 2.4;
   var SPAN_LEAST = 0.018;
   var SPAN_SPAN = 0.055;
@@ -1610,7 +1610,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/relics.ts
+  // ../../codincodv2/assets/js/ornament/relics.ts
   var ODDS = {
     block: 0.34,
     chest: 0.1,
@@ -1742,7 +1742,7 @@ var __ornament = (() => {
     "M-0.3 -1.5 L-0.08 -1.53 L-0.08 -1.45 L-0.3 -1.42 Z"
   ];
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/seabed.ts
+  // ../../codincodv2/assets/js/ornament/seabed.ts
   var FLOOR_SEAT = 0.1;
   var FLOOR_ROLL = 0.085;
   var HORIZON_SEAT = 0.36;
@@ -1875,7 +1875,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../../../Documents/projects/codincodv2/assets/js/ornament/sun.ts
+  // ../../codincodv2/assets/js/ornament/sun.ts
   var RAD = Math.PI / 180;
   var J2000_OFFSET_DAYS = 10957.5;
   var DAY_MS = 864e5;
