@@ -88,6 +88,27 @@ feel is rarity in the day. Nothing is written to disk, so restarting the shell
 forgets what has already crossed and a day with a restart in it can hold a
 second boat.
 
+### What a passer does to the water
+
+A hull leaves churn: puffs of white water off the stern that swell, open into
+the V a hull leaves, and thin out where they lie. They belong to the water
+rather than to the boat, so they stay where they were made while it goes on, and
+they are still dying out after it has left the picture. `frothInk` is the weight
+they are drawn at and it is above the hull's own, which is the only weight in
+`Seascape.qml` that outranks the thing it belongs to: white water is the
+brightest thing on a sea, and at that distance the wake is what somebody picks
+out first.
+
+The wake replaced two straight lines off the stern that were supposed to be one.
+They read as a beam, which made the boat look like the thing that was pinging
+and made the ping itself look like nothing.
+
+The fish answer both. `Passers.startle` is a push out from a point that
+`shoal.ts` takes as something to get away from, so the shoal under a hull dives
+and scatters and a ping empties the water in front of it. A ping is felt as far
+out as its leading ring has got, which is why the water goes on emptying for as
+long as the sound is travelling.
+
 ### Why the sea is different tomorrow
 
 `root.today` is `Ornament.daySeed`, the local calendar day stirred into a seed,

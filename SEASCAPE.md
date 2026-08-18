@@ -47,8 +47,13 @@ renders them. Both the website and the desktop get all of it.
       six animals on a belt. `shoal.ts`
 - [x] **Squid**: jet and drift, the opposite rhythm to a fish. A hard pulse,
       then a long passive glide with the tentacles trailing. `cephalopods.ts`
-- [x] **Octopuses**: on the bottom rather than in the water, arms working over
-      the stones. `cephalopods.ts`
+- [x] **Octopuses**: on the bottom rather than in the water, and the only thing
+      in this water with a repertoire rather than a rhythm. It crawls, works its
+      arms into the stones without moving, sits, buries itself, walks on the
+      back pair, drops over a rock, and once in a while lets go and jets. How
+      much of a day goes to each is off a published ethogram rather than
+      invented, and jetting is mostly an answer to whatever went over the top of
+      the picture. `cephalopods.ts`
 
 ## Once in a great while
 
