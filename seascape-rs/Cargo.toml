@@ -1,0 +1,16 @@
+[package]
+name = "seascape"
+version = "0.1.0"
+edition = "2021"
+description = "The seascape wallpaper, drawn natively"
+
+[dependencies]
+bytemuck = { version = "1", features = ["derive"] }
+lyon_tessellation = "1.0"
+png = "0.17"
+pollster = "0.4"
+v8 = "152"
+wgpu = { version = "23", features = ["wgsl"] }
+
+[profile.release]
+opt-level = 3
