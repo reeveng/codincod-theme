@@ -79,6 +79,43 @@ one maintaining them.
 
 - [ ] More, and rarer.
 
+## Between the water and the eye
+
+None of this is in the water. It is what the water is being looked at through,
+and it is a separate list because the two are answered differently: everything
+above is a simulation drawing itself, and everything here is one pass over the
+finished frame. `Lens.qml`, and `lens.frag` beside it.
+
+- [x] **Film grain**, hashed per pixel per frame rather than sampled off a tile,
+      because a tile laid over a desktop is a pattern somebody eventually sees.
+      It is a dither as much as a look: this scene is a few flat fills in one hue
+      over a long gradient, and eight bits of alpha down a whole screen leaves
+      too few values to get there without seams. The bands in the water and down
+      every shaft of light were real, and grain is what took them out.
+- [x] **A vignette**, the corners giving up light they cannot gather. Towards no
+      light rather than towards the water's own surface colour, which is the one
+      darkening in this scene that may not be a wash of the theme: washed in the
+      surface, the near rock at the edge of the frame, the darkest thing in the
+      picture, came out as the lightest thing in it.
+- [ ] **Bloom** on the two brightest things there are, which is the disc above
+      the water and the white water off a hull.
+- [ ] **Depth of field**: the far wall soft, the near rock softer, the middle
+      sharp. Both of those groups stand still, so a blur of them is paid for once
+      rather than every frame, which is the only reason it is affordable here.
+- [ ] **Bokeh on the near snow**: a mote a hand from the glass is a soft disc
+      rather than a hard dot, which is drawn defocus rather than filtered
+      defocus, and the strongest depth cue in real footage of water.
+- [ ] **A handheld camera**: a few px of low, slow wander, so the frame is held
+      by somebody rather than bolted to a tripod.
+
+Not on this list and deliberately: motion blur, chromatic aberration, lens dirt,
+letterboxing, colour grading and a LUT. The first two are a blur and a fringe
+that both need the finished frame read back as a texture, which is a screen's
+worth of memory and a screen's worth of copy every frame for something nobody
+would find. The rest fight the theme: this scene draws in the accent and cuts out
+in the background so that a theme switch recolours the water, and a grade is a
+second opinion about colour laid over the first.
+
 ## What each surface draws
 
 Three renderers, one set of simulations. They do not all draw all of it, and
@@ -88,6 +125,7 @@ that is the point rather than a gap:
 | --- | --- | --- | --- |
 | renderer | `Seascape.qml` | `glass.ts` + HEEx | `water.ts` |
 | the shoal, all five kinds | yes | yes | yes |
+| the lens: grain, vignette | yes | no | no |
 | cephalopods, relics, passers | yes | no | no |
 | floor, flora, rays | yes | hand-composed art | no |
 | the hour | yes | yes | no |

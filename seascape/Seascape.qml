@@ -200,6 +200,37 @@ Item {
   /** How much of a creature's weight is its depth. One in the murk is a hint. */
   property real depthInk: 0.65
 
+  // -------------------------------------------------------------------- camera
+  //
+  // Nothing in this group is in the water. It is what the water is being looked
+  // at through, and it is here rather than in `Lens.qml` because a mounter tunes
+  // a scene, not a lens: `preview.qml` turns the film off to compare a drawing
+  // against yesterday's, and a desktop wants it on.
+
+  /**
+   * The film: how heavy one crystal of grain may be, and how many px it covers.
+   *
+   * A twentieth, which sounds like a lot for something nobody is meant to notice
+   * and is not, because almost none of the grain lands anywhere near it. What it
+   * buys is not a look but a dither: this scene is a few flat fills in one hue
+   * over a long gradient, and a long gradient in eight bits of alpha is a stack
+   * of bands with findable seams across the water and down every shaft of light.
+   * Grain puts a value either side of the one a band wanted and the seams go.
+   */
+  property real grainInk: 0.05
+  property real grainSpan: 1.6
+
+  /**
+   * How much light the corners of the picture give up.
+   *
+   * A lens gathers less at its edges than at its middle, and a frame that did
+   * not fall off at all is the one thing on this list that reads as rendered
+   * rather than filmed. What a corner falls towards is `Lens.shade`, which is the
+   * absence of light rather than a colour; the reason it cannot be the water's
+   * own surface, the way the night wash is, is written there.
+   */
+  property real vignetteInk: 0.3
+
   // ------------------------------------------------------------------- density
   //
   // Counted against the box rather than set outright, so the same component
@@ -617,12 +648,14 @@ Item {
   property int tick: 33
 
   /**
-   * How far a plant may wander from its last drawing before it is recut, in px.
+   * How far anything may wander from its last drawing before it is redrawn, in
+   * px.
    *
-   * `FloraOptions.tolerance`, handed on so a harness can turn it off and a
-   * slower machine could one day be given a looser one. Nothing here reads it
-   * back: what it buys is a bed that costs what it is doing rather than what it
-   * is made of, and the number itself belongs to the bed.
+   * `FloraOptions.tolerance` and the same field on every other sim that has
+   * one, handed on so a harness can turn them all off at once and a slower
+   * machine could one day be given a looser one. Nothing here reads it back:
+   * what it buys is a scene that costs what it is doing rather than what it is
+   * made of, and the number itself belongs to the sims.
    */
   property real tolerance: 0.25
 
@@ -1127,6 +1160,7 @@ Item {
       height: height,
       motes: flurry,
       seed: seed,
+      tolerance: tolerance,
       vents: vents,
       width: width,
     })
@@ -1209,6 +1243,7 @@ Item {
     reef.resize(width, height, seabed.floorAt)
     nemos.resettle()
     growth = []
+    motes = []
     walking = []
     cutGround()
     publish()
@@ -1435,12 +1470,29 @@ Item {
     }
     fishes = swimming
 
-    var falling = []
-    for (var m = 0; m < drift.motes.length; m++) {
-      var mote = drift.motes[m]
-      falling.push({ depth: mote.depth, r: mote.r, x: mote.x, y: mote.y })
+    // The bed's bargain on the snow. A mote is a dot with no geometry to cut, so
+    // what this saves is the copy and the bindings hanging off it rather than
+    // any drawing, and most of the snow has fallen less than a quarter of a
+    // pixel since it was last looked at. `drift.ts` says which have fallen
+    // further, and these stand in for the rest.
+    if (motes.length !== drift.motes.length) {
+      var falling = []
+      for (var m = 0; m < drift.motes.length; m++) {
+        var sown = drift.motes[m]
+        falling.push({ cut: -1, depth: sown.depth, r: sown.r, x: sown.x, y: sown.y })
+      }
+      motes = falling
     }
-    motes = falling
+
+    for (var f = 0; f < drift.motes.length; f++) {
+      var mote = drift.motes[f]
+      var falling_one = motes[f]
+      if (!falling_one || falling_one.cut === mote.cut) continue
+
+      falling_one.cut = mote.cut
+      falling_one.x = mote.x
+      falling_one.y = mote.y
+    }
 
     var rising = []
     for (var b = 0; b < drift.bubbles.length && b < bubblePool; b++) {
@@ -2358,18 +2410,27 @@ Item {
     model: root.flurry
 
     delegate: Rectangle {
+      id: flake
       required property int index
 
       readonly property var mote: root.motes[index] || null
 
+      // The gate, as the bed has it. See `root.pulse`. Size and distance are
+      // outside it because a mote is dealt both when it is sown and neither
+      // ever changes, so those bindings are read once and left alone.
+      readonly property int rev: { root.pulse; return mote ? mote.cut : -1 }
+
       antialiasing: true
-      color: root.afloat(mote ? mote.y : 0, root.snowInk * (mote ? mote.depth : 0))
+      color: {
+        flake.rev
+        return root.afloat(mote ? mote.y : 0, root.snowInk * (mote ? mote.depth : 0))
+      }
       height: mote ? mote.r * 2 : 0
       radius: height / 2
       visible: mote !== null
       width: height
-      x: mote ? mote.x - mote.r : 0
-      y: mote ? mote.y - mote.r : 0
+      x: { flake.rev; return mote ? mote.x - mote.r : 0 }
+      y: { flake.rev; return mote ? mote.y - mote.r : 0 }
       z: mote ? mote.depth : 0
     }
   }
@@ -3555,5 +3616,22 @@ Item {
         }
       }
     }
+  }
+
+  // The camera, over the whole of it. Last so that nothing in the water can be
+  // in front of the film it was exposed on, and `z` above the night wash for the
+  // same reason: an hour is something the water is in, and this is not.
+  Lens {
+    anchors.fill: parent
+    grain: root.grainInk
+    grainSpan: root.grainSpan
+
+    // The frame counter the bed already keeps, wrapped so the shader is never
+    // handed a number too big for a float to tell from the next one. Nothing new
+    // is counted for this: `pulse` goes up once a frame and stops when the water
+    // does, which is exactly when a film should stop.
+    turn: root.pulse % 512
+    vignette: root.vignetteInk
+    z: 4
   }
 }
