@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // seascape/.ornament-entry/entry.ts
+  // .ornament-entry/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -104,10 +104,11 @@ var __ornament = (() => {
     squidArms: () => squidArms,
     squidBody: () => squidBody,
     starfishBody: () => starfishBody,
-    sunNow: () => sunNow
+    sunNow: () => sunNow,
+    thriving: () => thriving
   });
 
-  // ../codincodv2/assets/js/ornament/biome.ts
+  // ../../codincodv2/assets/js/ornament/biome.ts
   var REACH = 0.36;
   function abreast(depth, other) {
     return Math.max(0, 1 - Math.abs(depth - other) / REACH);
@@ -132,7 +133,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/perlin.ts
+  // ../../codincodv2/assets/js/ornament/perlin.ts
   var SIZE = 256;
   var MASK = SIZE - 1;
   var NORMALISE = Math.SQRT2;
@@ -204,7 +205,7 @@ var __ornament = (() => {
     return a + t * (b - a);
   }
 
-  // ../codincodv2/assets/js/ornament/shoal.ts
+  // ../../codincodv2/assets/js/ornament/shoal.ts
   var SPECIES = {
     /** The one that was here first. Everything else is described against it. */
     cruiser: {
@@ -295,6 +296,7 @@ var __ornament = (() => {
     return startle.depth == null ? 1 : abreast(depth, startle.depth);
   }
   var MIN_SHOAL = 1;
+  var FILL_EVERY = 2.5;
   var FIELD_CELLS = 3.6;
   var DRIFT = 0.06;
   var CRUISE = 1.05;
@@ -384,6 +386,21 @@ var __ornament = (() => {
     const born = () => spawn(random, draw(mix2, random), { cruise, height, longest, shortest, width });
     const fish = Array.from({ length: Math.max(MIN_SHOAL, options.count) }, born);
     pair(fish);
+    let asked = fish.length;
+    let filled = 0;
+    function entering() {
+      const made = born();
+      made.x = made.facing > 0 ? -made.size * MARGIN : width + made.size * MARGIN;
+      return made;
+    }
+    function drop(at) {
+      const going = fish[at];
+      if (!going) return;
+      fish.splice(at, 1);
+      if (attentive === going) attentive = null;
+      if (last === going) last = null;
+      for (const one of fish) if (one.mate === going) one.mate = null;
+    }
     function renew(at) {
       const going = fish[at];
       if (!going) return;
@@ -396,9 +413,7 @@ var __ornament = (() => {
           return;
         }
       }
-      const made = born();
-      made.x = made.facing > 0 ? -made.size * MARGIN : width + made.size * MARGIN;
-      fish[at] = made;
+      fish[at] = entering();
       if (attentive === going) attentive = null;
       if (last === going) last = null;
       for (const one of fish) if (one.mate === going) one.mate = null;
@@ -408,6 +423,9 @@ var __ornament = (() => {
         return attentive;
       },
       fish,
+      hold(count) {
+        asked = Math.max(MIN_SHOAL, Math.round(count));
+      },
       resize(nextWidth, nextHeight, count) {
         const scaleX = Math.max(1, nextWidth) / width;
         const scaleY = Math.max(1, nextHeight) / height;
@@ -418,6 +436,7 @@ var __ornament = (() => {
           one.y *= scaleY;
         }
         if (count == null) return;
+        asked = Math.max(MIN_SHOAL, Math.round(count));
         while (fish.length > count && fish.length > MIN_SHOAL) {
           const going = fish.at(-1);
           if (going === attentive) attentive = null;
@@ -499,9 +518,16 @@ var __ornament = (() => {
           one.x += Math.cos(one.heading) * stroke * dt;
           one.y = clamp(one.y + Math.sin(one.heading) * stroke * dt, -EDGE_HOLD, height + EDGE_HOLD);
           if (gone(one.x, width, one.size)) {
-            renew(at);
+            if (fish.length > asked && fish.length > MIN_SHOAL) drop(at);
+            else renew(at);
             arrived = true;
           }
+        }
+        filled += dt;
+        if (fish.length < asked && filled >= FILL_EVERY) {
+          filled = 0;
+          fish.push(entering());
+          arrived = true;
         }
         if (arrived) pair(fish, JOIN_REACH, false);
       }
@@ -723,7 +749,7 @@ var __ornament = (() => {
   }
   var EDGE_HOLD = 8;
 
-  // ../codincodv2/assets/js/ornament/cephalopods.ts
+  // ../../codincodv2/assets/js/ornament/cephalopods.ts
   var CYCLE_SLOWEST = 3.4;
   var CYCLE_FASTEST = 6.8;
   var JET_SHARE = 0.16;
@@ -1131,7 +1157,7 @@ var __ornament = (() => {
     return arms;
   }
 
-  // ../codincodv2/assets/js/ornament/flora.ts
+  // ../../codincodv2/assets/js/ornament/flora.ts
   var gatherings = [];
   function gathered(twigs) {
     for (const held of gatherings) {
@@ -1822,7 +1848,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/crags.ts
+  // ../../codincodv2/assets/js/ornament/crags.ts
   var FRAMINGS = {
     cave: 1,
     hills: 2,
@@ -2108,7 +2134,7 @@ var __ornament = (() => {
   }
   var isleAllowed = (framing) => framing === "hills" || framing === "open";
 
-  // ../codincodv2/assets/js/ornament/drift.ts
+  // ../../codincodv2/assets/js/ornament/drift.ts
   var FIELD_CELLS3 = 2.2;
   var DRIFT3 = 0.04;
   var SWAY = 13;
@@ -2272,7 +2298,7 @@ var __ornament = (() => {
     return value;
   }
 
-  // ../codincodv2/assets/js/ornament/fish_shape.ts
+  // ../../codincodv2/assets/js/ornament/fish_shape.ts
   var SPAN = 38;
   var NOSE = 29;
   var along = (t) => 21 * t * (1 - t) ** 2 + 63 * t ** 2 * (1 - t) + 29 * t ** 3;
@@ -2414,7 +2440,7 @@ var __ornament = (() => {
     return made;
   }
 
-  // ../codincodv2/assets/js/ornament/nemos.ts
+  // ../../codincodv2/assets/js/ornament/nemos.ts
   var GROUP_LEAST = 2;
   var GROUP_SPAN = 3;
   var RANK_STEP = 0.16;
@@ -2619,14 +2645,14 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/sizes.ts
+  // ../../codincodv2/assets/js/ornament/sizes.ts
   var AT_ARM = 0.15;
   var SWIMMING_OFF = 8;
   function drawnAt(metres, off) {
     return AT_ARM * Math.sqrt(Math.max(metres, 0) / Math.max(off, 1e-3));
   }
 
-  // ../codincodv2/assets/js/ornament/passers.ts
+  // ../../codincodv2/assets/js/ornament/passers.ts
   var BOAT_OFF = 30;
   var SUB_OFF = 150;
   var FADE = 0.16;
@@ -2857,7 +2883,18 @@ var __ornament = (() => {
     return { reach: 1 - (1 - t) ** 2, weight: (1 - t) ** 1.6 };
   }
 
-  // ../codincodv2/assets/js/ornament/rays.ts
+  // ../../codincodv2/assets/js/ornament/plenty.ts
+  var LEAN = 0.55;
+  var RANGE2 = 1.75;
+  var BIAS = 2;
+  function thriving(seed, at = 0) {
+    const random = makeRandom((seed ^ 24301) + at * 40503);
+    random();
+    random();
+    return LEAN + RANGE2 * random() ** BIAS;
+  }
+
+  // ../../codincodv2/assets/js/ornament/rays.ts
   var SPREAD = 2.4;
   function fade(down) {
     const along2 = Math.min(Math.max(down, 0), 1);
@@ -2926,7 +2963,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/reef.ts
+  // ../../codincodv2/assets/js/ornament/reef.ts
   var SORTS = {
     /** Soft, sheltered, and the only thing here anything lives inside. */
     anemone: {
@@ -3122,7 +3159,7 @@ var __ornament = (() => {
   var REACH2 = 0.34;
   var TIER = 0.55;
   var HEADROOM = 0.9;
-  var LEAN = 0.22;
+  var LEAN2 = 0.22;
   var GROWTH = 72e-4;
   var COLUMN = 16;
   var GIRTH = 0.15;
@@ -3211,7 +3248,7 @@ var __ornament = (() => {
           girth: tentacles ? COLUMN * GIRTH : 0,
           kind,
           lane: roll() * Math.PI * 2,
-          lean: (roll() - 0.5) * LEAN * 2,
+          lean: (roll() - 0.5) * LEAN2 * 2,
           points: tentacles ? [ROOT2, MOUTH] : [],
           scale,
           span,
@@ -3347,7 +3384,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/relics.ts
+  // ../../codincodv2/assets/js/ornament/relics.ts
   var ODDS2 = {
     block: 0.34,
     chest: 0.1,
@@ -3360,7 +3397,7 @@ var __ornament = (() => {
     smoker: [38, 66],
     wreck: [95, 170]
   };
-  var LEAN2 = {
+  var LEAN3 = {
     block: 0.6,
     chest: 0.12,
     smoker: 0.05,
@@ -3402,7 +3439,7 @@ var __ornament = (() => {
         relics.push({
           depth,
           kind,
-          lean: (roll() - 0.5) * LEAN2[kind] * 2,
+          lean: (roll() - 0.5) * LEAN3[kind] * 2,
           scale: (least + roll() * (most - least)) * depth,
           x,
           // Its own distance, which is the whole of the point. The ground is a
@@ -3483,7 +3520,7 @@ var __ornament = (() => {
     "M-0.3 -1.5 L-0.08 -1.53 L-0.08 -1.45 L-0.3 -1.42 Z"
   ];
 
-  // ../codincodv2/assets/js/ornament/seabed.ts
+  // ../../codincodv2/assets/js/ornament/seabed.ts
   var FLOOR_SEAT = 0.01;
   var FLOOR_ROLL = 0.085;
   var HORIZON_SEAT = 0.36;
@@ -3648,7 +3685,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/sun.ts
+  // ../../codincodv2/assets/js/ornament/sun.ts
   var RAD = Math.PI / 180;
   var J2000_OFFSET_DAYS = 10957.5;
   var DAY_MS = 864e5;
@@ -3735,7 +3772,7 @@ var __ornament = (() => {
     return Math.min(high, Math.max(low, value));
   }
 
-  // ../codincodv2/assets/js/ornament/swarm.ts
+  // ../../codincodv2/assets/js/ornament/swarm.ts
   var LAYOUTS = {
     ball: {
       churn: 0.05,
@@ -3965,7 +4002,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../codincodv2/assets/js/ornament/visitors.ts
+  // ../../codincodv2/assets/js/ornament/visitors.ts
   var HABITS2 = {
     dolphin: {
       beat: 1.05,
@@ -4040,8 +4077,8 @@ var __ornament = (() => {
   };
   var FADE3 = 0.14;
   var OFFING3 = 0.22;
-  var REST_LEAST2 = 150;
-  var REST_SPAN2 = 260;
+  var REST_LEAST2 = 360;
+  var REST_SPAN2 = 540;
   var OPENING2 = 0.35;
   var WING_BACK = 1.6;
   var WING_SIDE = 0.6;
@@ -4444,7 +4481,7 @@ var __ornament = (() => {
     turtle: turtleBody
   };
 
-  // ../codincodv2/assets/js/ornament/walkers.ts
+  // ../../codincodv2/assets/js/ornament/walkers.ts
   var CRAB_SMALLEST = 9;
   var CRAB_LARGEST = 17;
   var STARFISH_SMALLEST = 15;
@@ -4783,6 +4820,7 @@ var SUBMARINE = __ornament.SUBMARINE
 var SUB_SCREW = __ornament.SUB_SCREW
 var createPassers = __ornament.createPassers
 var ringAt = __ornament.ringAt
+var thriving = __ornament.thriving
 var SPREAD = __ornament.SPREAD
 var createRays = __ornament.createRays
 var fade = __ornament.fade

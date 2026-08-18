@@ -353,9 +353,19 @@ Item {
   // Counted against the box rather than set outright, so the same component
   // fills a laptop panel and a wall without being retuned for either.
 
-  property real pxPerFish: 105000
+  property real pxPerFish: 62000
   property int minFish: 6
-  property int maxFish: 22
+  property int maxFish: 44
+
+  /**
+   * How much of the day's shoal is still about at night.
+   *
+   * Fish are not nocturnal in equal numbers. Reef fish shelter after dark and
+   * what is left over the sand is thinner, so the water empties out rather than
+   * changing over. It is a share of the day rather than a count of its own,
+   * because the day's count already knows how big the picture is.
+   */
+  property real nightShoal: 0.55
 
   property real pxPerMote: 12500
   property int minMotes: 40
@@ -834,6 +844,14 @@ Item {
   property int flurry: 0
   property int beams: 0
 
+  /**
+   * How much this day grew, as a share of an ordinary one; see `Ornament.thriving`.
+   *
+   * Read once per seed rather than per build, so a window being dragged does
+   * not reroll the sea, and so two screens on one machine grow the same bed.
+   */
+  property real lushness: 1
+
   /** The box the scene was last built or refitted at; see `refit`. */
   property size fitted: Qt.size(0, 0)
 
@@ -1148,8 +1166,33 @@ Item {
     return Math.max(leastOfEach, Math.min(most, Math.round(width * perThousand / 1000)))
   }
 
+  /**
+   * The same, for anything alive, which is as thick as the day decided.
+   *
+   * The rock does not go through here. A cliff is not thicker on a good year,
+   * and a scene whose geology breathed with its planting would read as the box
+   * changing size rather than as a season.
+   *
+   * `most` still caps it, and on this renderer it caps hard: the bed is
+   * tessellated on the processor every frame, so the richest days are asking
+   * for more than this can draw and get what it can afford instead.
+   */
+  function lush(perThousand, most) {
+    return spread(perThousand * lushness, most)
+  }
+
+  /**
+   * How many fish, for this hour of this day.
+   *
+   * The day's own number is taken as a root rather than whole. A shoal is what
+   * the reader watches, so it is the count with the least room to be wrong in
+   * either direction: swung as far as the bed is, a lean day reads as an empty
+   * sea rather than a quiet one.
+   */
   function fishCount() {
-    return Math.max(minFish, Math.min(maxFish, Math.round(width * height / pxPerFish)))
+    const full = Math.max(minFish, Math.min(maxFish, Math.round(width * height / pxPerFish)))
+    const hour = nightShoal + (1 - nightShoal) * daylight
+    return Math.max(minFish, Math.round(full * hour * Math.sqrt(lushness)))
   }
 
   function moteCount() {
@@ -1159,6 +1202,7 @@ Item {
   function build() {
     if (width < 2 || height < 2) return
 
+    lushness = Ornament.thriving(seed)
     herd = fishCount()
     flurry = moteCount()
     beams = shafts
@@ -1176,13 +1220,13 @@ Item {
 
     flora = Ornament.createFlora({
       about: water.about,
-      anemones: spread(anemonesPerK, mostAnemones),
-      corals: spread(coralsPerK, mostCorals),
-      fans: spread(fansPerK, mostFans),
+      anemones: lush(anemonesPerK, mostAnemones),
+      corals: lush(coralsPerK, mostCorals),
+      fans: lush(fansPerK, mostFans),
       floor: seabed.floorAt,
-      grasses: spread(grassesPerK, mostGrasses),
+      grasses: lush(grassesPerK, mostGrasses),
       height: height,
-      kelps: spread(kelpsPerK, mostKelps),
+      kelps: lush(kelpsPerK, mostKelps),
       seed: seed,
       tolerance: tolerance,
       width: width,
@@ -1190,10 +1234,10 @@ Item {
 
     walkers = Ornament.createWalkers({
       about: water.about,
-      crabs: spread(crabsPerK, mostCrabs),
+      crabs: lush(crabsPerK, mostCrabs),
       floor: seabed.floorAt,
       seed: seed,
-      starfish: spread(starfishPerK, mostStarfish),
+      starfish: lush(starfishPerK, mostStarfish),
       tolerance: tolerance,
       width: width,
     })
@@ -1991,6 +2035,16 @@ Item {
 
   onSeedChanged: adopt()
   onRunningChanged: adopt()
+
+  /**
+   * The shoal is told the hour's number, not made to be it.
+   *
+   * `hold` is worked towards from the edges over minutes, which is what dawn
+   * and dusk take anyway. Setting the count outright here would fill the water
+   * in a single frame, in the middle of the picture, at the one hour somebody
+   * is most likely to be watching it.
+   */
+  onDaylightChanged: if (shoal) shoal.hold(fishCount())
   onWidthChanged: refit()
   onHeightChanged: refit()
   Component.onCompleted: build()

@@ -168,6 +168,18 @@ the one thing that surface may not be.
   one meant whatever that number held was all anybody ever saw, and the rarest
   thing down there falls to about one sea in ten. A screen takes the new day up only once it is
   covered, so the ground never moves while somebody is looking at it.
+- The day decides how much grew as well as where. Every count of a living thing
+  goes through one multiplier off the same seed, weighted so that most water is
+  ordinary and the bed you cannot see the floor through is something you wait
+  for. The rock does not go through it: a cliff is not thicker on a good year.
+  What a renderer can afford stays its own, and the caps here are the QML
+  renderer's honest answer, which is why a rich day shows as thicker rather than
+  as twice as thick.
+- The shoal follows the light. Reef fish shelter after dark and the water over
+  the sand thins out, so the count is a share of the day's, and the shoal is
+  told the number rather than made to be it: it is worked towards from the edges
+  over the minutes dawn takes anyway, because a fish appearing in the middle of
+  the picture is the one thing the water promises never to do.
 - The scene opens at the hour of the actual clock, wound forward and wrapped, so
   a machine that has been off comes back to water that carried on rather than to
   water that has been rewound.

@@ -51,6 +51,7 @@ WANTED=(
   "flora CORAL createFlora"
   "nemos createNemos"
   "passers FROTH_MOST HULL PING_RINGS SCREWS SUBMARINE SUB_SCREW createPassers ringAt"
+  "plenty thriving"
   "rays SPREAD createRays fade"
   "reef KINDS SHAPES createReef"
   "relics BLOCK_CARD BLOCK_LINES CHEST_BANDS CHEST_BODY CHEST_LOCK LAPTOP_BASE LAPTOP_LINES LAPTOP_SCREEN SMOKER SMOKER_LIP WRECK WRECK_SPAR createRelics"
