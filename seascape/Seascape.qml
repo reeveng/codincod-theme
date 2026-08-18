@@ -436,6 +436,22 @@ Item {
    * it: a wreck at the weight of a fish would be the subject of the picture, and
    * this picture is about the water.
    */
+  /**
+   * How dark near rock and an island go, as a share of the way to black.
+   *
+   * The one pair of weights in this scene that run the other way; see
+   * `shadowed`. Near rock is nearly all of the way there, because what a wall
+   * an arm's length off actually looks like is the absence of anything.
+   */
+  property real cragInk: 0.94
+  property real isleInk: 0.88
+
+  /** px per unit of a perch's drawing, before its own size is applied. */
+  property real perchScale: 1.15
+
+  /** How far off its own rock's weight the things growing on it are drawn. */
+  property real perchShade: 0.72
+
   property real relicInk: 0.24
   property real plumeInk: 0.2
 
@@ -570,6 +586,7 @@ Item {
   property var wreckage: null
   property var passers: null
   property var walkers: null
+  property var crags: null
 
   property int herd: 0
   property int flurry: 0
@@ -622,6 +639,8 @@ Item {
   property var hills: []
   property var scarp: []
   property var rocks: []
+  property var masonry: []
+  property var island: null
   /** The plants, republished every tick, because they lean. */
   property var growth: []
 
@@ -771,6 +790,37 @@ Item {
   }
 
   /**
+   * A weight towards the dark, at a height in the box.
+   *
+   * The one thing in this water drawn away from the ink rather than towards it.
+   * Everything else here is a shape with water behind it, so it is painted
+   * brighter than the water and the far ones less so, and that is right for
+   * every one of them: they are lit from the same place you are looking from.
+   *
+   * Near rock is the other case. It is between the light and the picture, and
+   * what there is to see of it is that none of the light came back. Painted the
+   * usual way a wall an arm's length off came out the brightest green in the
+   * scene, which is a wall made of algae. Run towards the surface colour and it
+   * is a silhouette instead, which is what somebody looking out of a
+   * swim-through has in front of them: black rock, lit water past it, and the
+   * whole depth of the picture stated in the one edge between them.
+   */
+  function shadowed(y, weight) {
+    var w = Math.max(0, Math.min(1, weight))
+    var base = waterAt(y)
+
+    return Qt.rgba(base.r + (surface.r - base.r) * w,
+                   base.g + (surface.g - base.g) * w,
+                   base.b + (surface.b - base.b) * w,
+                   1)
+  }
+
+  /** The dark at a share of the way down the box, for a gradient's stops. */
+  function shade(at, weight) {
+    return shadowed(at * height, weight)
+  }
+
+  /**
    * What a weight is worth at a distance, for anything standing on the bottom.
    *
    * The bed used to scale its weights by depth outright, which sounds like the
@@ -872,6 +922,13 @@ Item {
       width: width,
     })
 
+    crags = Ornament.createCrags({
+      floor: seabed.floorAt,
+      height: height,
+      seed: seed,
+      width: width,
+    })
+
     drift = Ornament.createDrift({
       floor: seabed.floorAt,
       height: height,
@@ -953,6 +1010,7 @@ Item {
     wreckage.resize(width, height, seabed.floorAt)
     passers.resize(width, height)
     walkers.resize(width, height, seabed.floorAt)
+    crags.resize(width, height, seabed.floorAt)
     cutGround()
     publish()
     report()
@@ -1029,6 +1087,35 @@ Item {
     flora.wind(steps * windStep)
   }
 
+  /**
+   * A face of near rock, closed off past the edge it hangs from.
+   *
+   * The ground closes downwards because the ground is what the box is standing
+   * on. A wall is not: it comes in from the side and the mass of it is off the
+   * picture, so closing it under the box would fill the water in front of it as
+   * well. The roof is the same statement turned on its end.
+   */
+  function faced(points, edge) {
+    var out = []
+    for (var i = 0; i < points.length; i++) out.push(Qt.point(points[i].x, points[i].y))
+    if (!points.length) return out
+
+    var first = points[0]
+    var last = points[points.length - 1]
+    var past = 60
+
+    if (edge === "top") {
+      out.push(Qt.point(last.x, -past))
+      out.push(Qt.point(first.x, -past))
+      return out
+    }
+
+    var side = edge === "left" ? -past : width + past
+    out.push(Qt.point(side, last.y))
+    out.push(Qt.point(side, first.y))
+    return out
+  }
+
   /** Points as QML wants them, with the box's floor closed off underneath. */
   function polygon(points, closed) {
     var out = []
@@ -1079,6 +1166,22 @@ Item {
       })
     }
     rocks = lying
+
+    var near = []
+    for (var n = 0; n < crags.rocks.length; n++) {
+      var crag = crags.rocks[n]
+      near.push({
+        depth: crag.depth,
+        edge: crag.edge,
+        perches: crag.perches,
+        points: faced(crag.outline, crag.edge),
+      })
+    }
+    masonry = near
+
+    island = crags.isle
+      ? { depth: crags.isle.depth, points: polygon(crags.isle.outline, true) }
+      : null
   }
 
   function publish() {
@@ -1566,6 +1669,53 @@ Item {
     { cratered: 0, hue: root.sunlight, passage: root.sun, show: root.daylight },
     { cratered: 1, hue: root.moonlight, passage: root.moon, show: 1 - root.daylight },
   ]
+
+  /**
+   * An island, where the ground climbed the whole way and came out.
+   *
+   * Drawn over the two bodies in the sky and under everything in the water,
+   * which is the one place it can go. It is the furthest thing in the picture,
+   * so nothing down here should be behind it; it is also the only thing here
+   * that is out of the water, so the sun has to be able to go behind it. Those
+   * two want opposite ends of the stack and the sun is the one that matters,
+   * because a sun setting into a shore is the whole reason to have one. What it
+   * costs is the foot of it lying over the far bands, which is a hand's breadth
+   * of the faintest ground there is.
+   *
+   * It goes dark rather than bright for the reason near rock does; see
+   * `shadowed`. A shore lit from behind is a silhouette, and everybody has seen
+   * that one.
+   */
+  Repeater {
+    model: root.island ? 1 : 0
+
+    delegate: Shape {
+      id: shore
+
+      readonly property real weight: root.isleInk
+
+      anchors.fill: parent
+      preferredRendererType: Shape.CurveRenderer
+      z: -1.15
+
+      ShapePath {
+        fillGradient: LinearGradient {
+          x1: 0
+          y1: 0
+          x2: 0
+          y2: root.height
+
+          GradientStop { position: 0; color: root.shade(0, shore.weight) }
+          GradientStop { position: 0.35; color: root.shade(0.35, shore.weight) }
+          GradientStop { position: 0.62; color: root.shade(0.62, shore.weight) }
+          GradientStop { position: 1; color: root.shade(1, shore.weight) }
+        }
+        strokeColor: "transparent"
+
+        PathPolyline { path: root.island ? root.island.points : [] }
+      }
+    }
+  }
 
   // The disc above the water, and the light coming off it. Behind everything
   // that swims, because it is up there and they are down here.
@@ -2623,5 +2773,109 @@ Item {
                    root.nightInk * (1 - root.daylight))
     visible: root.daylight < 1
     z: 3.1
+  }
+
+  /**
+   * The rock you are among, and what is living on it.
+   *
+   * Last, and over everything including the boats: on the days this water has
+   * a roof, the roof is between the picture and the surface, and a hull drawn
+   * through it would be a hull inside the rock. Each mass carries its own
+   * distance into its z, so a stack sorts itself into the water and the far
+   * ones sit among the fish where they belong.
+   *
+   * The growth is drawn inside the mass rather than in a layer of its own, so
+   * a fan on the near wall is never accidentally behind the wall behind it.
+   */
+  Repeater {
+    model: root.masonry.length
+
+    delegate: Item {
+      id: crag
+      required property int index
+
+      readonly property var one: root.masonry[index] || null
+      readonly property real weight: one ? root.cragInk * one.depth : 0
+
+      anchors.fill: parent
+      visible: one !== null
+      z: one ? one.depth * 1.5 : 0
+
+      Shape {
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+          fillGradient: LinearGradient {
+            x1: 0
+            y1: 0
+            x2: 0
+            y2: root.height
+
+            GradientStop { position: 0; color: root.shade(0, crag.weight) }
+            GradientStop { position: 0.35; color: root.shade(0.35, crag.weight) }
+            GradientStop { position: 0.62; color: root.shade(0.62, crag.weight) }
+            GradientStop { position: 0.82; color: root.shade(0.82, crag.weight) }
+            GradientStop { position: 1; color: root.shade(1, crag.weight) }
+          }
+          strokeColor: "transparent"
+
+          PathPolyline { path: crag.one ? crag.one.points : [] }
+        }
+      }
+
+      // What is growing on it, one colony at a time. A perch is a place and a
+      // heading and nothing else; which drawing goes there is `SPRIGS`, and it
+      // is the same table the website reads, so a fan is the same fan.
+      //
+      // Drawn a shade off the rock rather than in the rock's own weight. A
+      // silhouette on a silhouette is a silhouette, and the whole reason these
+      // are here is that a bare wall is a shape somebody cut out of paper.
+      Repeater {
+        model: crag.one ? crag.one.perches.length : 0
+
+        delegate: Item {
+          id: perch
+          required property int index
+
+          readonly property var it: crag.one.perches[index]
+
+          x: it.x
+          y: it.y
+
+          transform: [
+            Scale {
+              xScale: perch.it.size * root.perchScale
+              yScale: perch.it.size * root.perchScale
+            },
+            // The drawing grows up out of nothing; the perch says which way is
+            // out of the rock. A quarter turn is the difference between them.
+            Rotation { angle: perch.it.lean * 180 / Math.PI + 90 },
+          ]
+
+          Repeater {
+            model: Ornament.SPRIGS[perch.it.kind].length
+
+            delegate: Shape {
+              id: sprig
+              required property int index
+
+              readonly property var twig: Ornament.SPRIGS[perch.it.kind][index]
+
+              preferredRendererType: Shape.CurveRenderer
+
+              ShapePath {
+                capStyle: ShapePath.RoundCap
+                fillColor: "transparent"
+                strokeColor: root.shadowed(perch.it.y, crag.weight * root.perchShade)
+                strokeWidth: sprig.twig.width
+
+                PathSvg { path: sprig.twig.d }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // ../../../../../../tmp/tmp.lnI8bYkMuD/entry.ts
+  // ../../../../../../tmp/tmp.z5WXcIJ4mi/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -69,6 +69,7 @@ var __ornament = (() => {
     SPAN: () => SPAN,
     SPECIES: () => SPECIES,
     SPREAD: () => SPREAD,
+    SPRIGS: () => SPRIGS,
     STEPS: () => STEPS,
     SUBMARINE: () => SUBMARINE,
     SUB_SCREW: () => SUB_SCREW,
@@ -1101,6 +1102,34 @@ var __ornament = (() => {
     sponge: 2,
     tuft: 4
   };
+  var SPRIGS = {
+    fan: [
+      { d: "M0 0 C1 -6 0 -10 -1 -15", width: 2.6 },
+      { d: "M-1 -15 C-5 -19 -9 -21 -13 -27", width: 1.8 },
+      { d: "M-1 -15 C-1 -21 -1 -25 -2 -31", width: 1.8 },
+      { d: "M-1 -15 C3 -19 7 -21 10 -26", width: 1.8 },
+      { d: "M-6 -19 C-9 -23 -12 -24 -16 -24", width: 1.2 },
+      { d: "M4 -18 C7 -22 11 -23 14 -22", width: 1.2 },
+      { d: "M-2 -22 C-4 -26 -5 -29 -6 -33", width: 1.2 },
+      { d: "M0 -22 C2 -26 4 -29 6 -32", width: 1.2 }
+    ],
+    frond: [
+      { d: "M0 0 C4 -8 3 -16 6 -25 C7 -29 6 -31 4 -33", width: 2.2 },
+      { d: "M0 0 C-3 -7 -4 -14 -3 -21 C-3 -25 -4 -27 -6 -29", width: 1.8 },
+      { d: "M1 -6 C-4 -10 -7 -15 -8 -21", width: 1.4 }
+    ],
+    sponge: [
+      { d: "M-3 -4 C-4 -9 -3 -12 -2 -14", width: 9 },
+      { d: "M4 -3 C5 -7 5 -10 4 -12", width: 7 }
+    ],
+    tuft: [
+      { d: "M0 0 L-8 -11", width: 1.6 },
+      { d: "M0 0 L-4 -15", width: 1.6 },
+      { d: "M0 0 L1 -17", width: 1.6 },
+      { d: "M0 0 L6 -14", width: 1.6 },
+      { d: "M0 0 L10 -9", width: 1.6 }
+    ]
+  };
   var COLONIES_PER_K = 11;
   var COLONY_LEAST = 3;
   var COLONY_MOST = 9;
@@ -1117,7 +1146,7 @@ var __ornament = (() => {
   var MIN_SPAN2 = 1;
   function createCrags(options) {
     var _a, _b;
-    const random = makeRandom(options.seed ^ 15529);
+    const random = makeRandom(stir(options.seed ^ 15529) | 0);
     const rough = makeNoise2(options.seed ^ 39441);
     const bite = makeNoise2(options.seed ^ 2839);
     const bedding = makeNoise2(options.seed ^ 32307);
@@ -2115,7 +2144,7 @@ var __ornament = (() => {
   // ../../codincodv2/assets/js/ornament/nemos.ts
   var GROUP_LEAST = 2;
   var GROUP_SPAN = 3;
-  var BODY = 0.55;
+  var BODY = 0.4;
   var BODY_SPAN = 0.3;
   var PACE = 2.6;
   var HOVER2 = 0.35;
@@ -2131,7 +2160,8 @@ var __ornament = (() => {
   var FLIP = 7;
   var FLIP_BELOW = 0.9;
   var FRIGHT_FADE = 4.5;
-  var SCARE_REACH = 230;
+  var NOTICE = 7;
+  var MINDS = 1.6;
   var FRIGHT_HOME = 0.3;
   var COVER_IN = 2.4;
   var COVER_OUT = 0.7;
@@ -2226,6 +2256,17 @@ var __ornament = (() => {
       one.face += Math.min(Math.max(want2 - one.face, -step), step);
       one.tilt = drawnTilt(Math.atan2(one.vy, Math.abs(one.vx)), Math.sign(one.face) || 1);
     }
+    function minded(one, water) {
+      let worst = 0;
+      for (const thing of water) {
+        if (thing.size < one.length * MINDS) continue;
+        const reach2 = thing.size * NOTICE;
+        const away2 = Math.hypot(one.x - thing.x, one.y - thing.y);
+        if (away2 >= reach2) continue;
+        worst = Math.max(worst, 1 - away2 / reach2);
+      }
+      return worst;
+    }
     function hide(one, dt) {
       const home = Math.hypot(one.x - one.host.x, one.y - one.host.y) < COVER_NEAR * one.length;
       const want2 = one.fright > FRIGHT_HOME && home ? 1 : 0;
@@ -2238,17 +2279,12 @@ var __ornament = (() => {
       resettle() {
         populate();
       },
-      scare(x, y) {
-        for (const one of nemos) {
-          const away2 = Math.hypot(one.x - x, one.y - y);
-          if (away2 > SCARE_REACH) continue;
-          one.fright = Math.max(one.fright, 1 - away2 / SCARE_REACH);
-        }
-      },
       step(seconds) {
+        var _a, _b;
         const dt = Math.min(Math.max(seconds, 0), 0.1);
+        const water = (_b = (_a = options.about) == null ? void 0 : _a.call(options)) != null ? _b : [];
         for (const one of nemos) {
-          one.fright = Math.max(0, one.fright - dt / FRIGHT_FADE);
+          one.fright = Math.max(0, Math.max(one.fright - dt / FRIGHT_FADE, minded(one, water)));
           one.hold -= dt;
           if (one.fright > FRIGHT_HOME) {
             one.aim = { x: one.host.x, y: one.host.y - CLEAR * one.length };
@@ -2573,10 +2609,10 @@ var __ornament = (() => {
       flow: [0, 0.78],
       perch: [0.15, 0.9],
       room: 1.6,
-      size: [0.5, 0.9],
-      sway: 0.16,
+      size: [1, 1.5],
+      sway: 0.07,
       weight: 3,
-      width: 32
+      width: 28
     },
     /** A dome that holds anywhere, and the one shape here with a body. */
     brain: {
@@ -2680,15 +2716,8 @@ var __ornament = (() => {
   };
   var KINDS = Object.keys(SORTS);
   var SHAPES = {
-    anemone: [
-      { d: "M0 0 C-9 -1 -13 -2 -16 -4", width: 3 },
-      { d: "M0 0 C-6 -2 -10 -5 -13 -9", width: 3.4 },
-      { d: "M0 0 C-4 -4 -6 -8 -7 -13", width: 3.4 },
-      { d: "M0 0 C0 -5 0 -10 -1 -15", width: 3.4 },
-      { d: "M0 0 C3 -4 6 -8 7 -13", width: 3.4 },
-      { d: "M0 0 C6 -3 10 -5 13 -8", width: 3.4 },
-      { d: "M0 0 C9 -1 13 -2 16 -3", width: 3 }
-    ],
+    /** None. It is the one animal on the rock, and an animal is not a stamp. */
+    anemone: [],
     brain: [
       { d: "M-13 0 C-13 -8 -8 -13 -1 -14", width: 7 },
       { d: "M-6 0 C-7 -7 -4 -11 0 -12", width: 7 },
@@ -2770,10 +2799,15 @@ var __ornament = (() => {
   var HEADROOM = 0.9;
   var LEAN = 0.22;
   var GROWTH = 72e-4;
+  var COLUMN = 16;
+  var GIRTH = 0.15;
+  var CROWN_RATE = 1.1;
   var DEPTH_SIZE4 = 0.4;
   var SWELL_RATE = 0.55;
   var SWELL_CELLS = 1.8;
   var SWELL_SHARE = 0.6;
+  var ROOT2 = { x: 0, y: 0 };
+  var MOUTH = { x: 0, y: -COLUMN };
   var MIN_SPAN7 = 1;
   function createReef(options) {
     const noise = makeNoise2(options.seed ^ 11153);
@@ -2787,6 +2821,7 @@ var __ornament = (() => {
     let rise = height * RISE_LEAST;
     let depth = DEPTH_FAR5;
     const heads = [];
+    const crowns = [];
     let bounds = [0, 0];
     let health = 0;
     function climb(t) {
@@ -2822,12 +2857,16 @@ var __ornament = (() => {
         const span = sort.width * scale;
         const y = surfaceAt(x, stand);
         if (!room(x, y, span * sort.room)) continue;
+        const tentacles = kind === "anemone" ? crown(stir(roll() * 16777215), COLUMN * scale) : null;
         const head = {
           bend: 0,
+          blades: [],
           depth: stand,
+          girth: tentacles ? COLUMN * GIRTH : 0,
           kind,
           lane: roll() * Math.PI * 2,
           lean: (roll() - 0.5) * LEAN * 2,
+          points: tentacles ? [ROOT2, MOUTH] : [],
           scale,
           span,
           twigs: SHAPES[kind],
@@ -2835,6 +2874,7 @@ var __ornament = (() => {
           y
         };
         heads.push(head);
+        crowns.push(tentacles);
         return head;
       }
       return null;
@@ -2856,6 +2896,7 @@ var __ornament = (() => {
       rise = Math.min(height * (RISE_LEAST + roll() * RISE_SPAN), half2 * TALLEST);
       depth = DEPTH_FAR5 + roll() * (DEPTH_NEAR5 - DEPTH_FAR5);
       heads.length = 0;
+      crowns.length = 0;
       crest.length = 0;
       bounds = [middle - half2, middle + half2];
       for (let step = 0; step <= CREST_STEPS; step++) {
@@ -2897,7 +2938,11 @@ var __ornament = (() => {
       return sway * (passing * SWELL_SHARE + own * (1 - SWELL_SHARE));
     }
     function breathe() {
-      for (const one of heads) one.bend = lean(one);
+      for (const [at, one] of heads.entries()) {
+        one.bend = lean(one);
+        const tentacles = crowns[at];
+        if (tentacles) one.blades = crownAt(MOUTH, tentacles, COLUMN, clock * CROWN_RATE + one.lane);
+      }
     }
     const crest = [];
     raise();
@@ -4188,6 +4233,7 @@ var octopusArms = __ornament.octopusArms
 var octopusHead = __ornament.octopusHead
 var squidArms = __ornament.squidArms
 var squidBody = __ornament.squidBody
+var SPRIGS = __ornament.SPRIGS
 var createCrags = __ornament.createCrags
 var createDrift = __ornament.createDrift
 var frameAt = __ornament.frameAt

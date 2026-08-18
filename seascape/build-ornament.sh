@@ -31,7 +31,7 @@ trap 'rm -rf "$entry"' EXIT
 # until something is quietly missing from the scene.
 WANTED=(
   "cephalopods OCTOPUS_HEAD createCephalopods octopusArms octopusHead squidArms squidBody"
-  "crags createCrags"
+  "crags SPRIGS createCrags"
   "drift createDrift"
   "fish_shape frameAt SPAN STEPS"
   "flora CORAL createFlora"
