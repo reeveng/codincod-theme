@@ -438,6 +438,20 @@ Item {
   /** How thick a blade is drawn against the strand it belongs to. */
   property real bladeGirth: 0.8
 
+  /**
+   * How much finer than its strand a leaf has to come out before it is worth a
+   * path of its own, in px.
+   *
+   * The bed's own level of detail, made about a stroke width rather than a
+   * count. A leaf a fifth finer than a strand two px wide is a leaf four tenths
+   * of a px finer, and nothing sees that; drawn in the strand's own path it
+   * costs one path for the plant instead of two. The curve renderer charges by
+   * the path and the bed is most of the paths in the scene, so at a desktop's
+   * size that is about a fifth of the frame. A near kelp is over the line and
+   * keeps its finer leaf.
+   */
+  property real bladeSplit: 0.5
+
   property real anemonesPerK: 18
   property real cliffsPerK: 5.5
   property real coralsPerK: 22
@@ -2195,12 +2209,19 @@ Item {
       // costs more than that hangs off it. See `root.pulse`.
       readonly property int rev: { root.pulse; return one ? one.cut : -1 }
 
+      /** Whether this plant's leaves are worth a path of their own. */
+      readonly property bool parted:
+        one !== null && one.girth * (1 - root.bladeGirth) >= root.bladeSplit
+
       anchors.fill: parent
       visible: one !== null
       z: one ? one.depth : 0
 
       // A strand is stroked rather than filled: it is a line with a thickness,
       // and giving it an outline to fill would double every plant.
+      //
+      // It carries the leaves as well wherever they are not drawn finer than it
+      // is, which is most of the bed; see `bladeSplit`.
       Shape {
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
@@ -2215,7 +2236,10 @@ Item {
           PathSvg {
             path: {
               sprout.rev
-              return sprout.one && sprout.one.kind !== "coral" ? sprout.one.points : ""
+              if (!sprout.one || sprout.one.kind === "coral") return ""
+              return sprout.parted
+                ? sprout.one.points
+                : sprout.one.points + " " + sprout.one.blades
             }
           }
         }
@@ -2228,6 +2252,8 @@ Item {
       //
       // All of them in one path, because they are all that same weight in that
       // same ink and the curve renderer charges by the path. See `strokes`.
+      // Empty for a plant whose leaves the strand above is already drawing,
+      // which costs nothing: a path with no line in it is not a path.
       Shape {
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
@@ -2242,7 +2268,7 @@ Item {
           PathSvg {
             path: {
               sprout.rev
-              return sprout.one ? sprout.one.blades : ""
+              return sprout.one && sprout.parted ? sprout.one.blades : ""
             }
           }
         }
