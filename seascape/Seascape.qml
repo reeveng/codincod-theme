@@ -291,6 +291,63 @@ Item {
   property real farBlur: 0.34
   property real nearBlur: 0.24
 
+  /**
+   * How far the frame wanders, as a share of the box's short side, and how far it
+   * rolls, in radians.
+   *
+   * Nobody holds a camera still. A picture that does not move at all is a picture
+   * on a tripod, and a tripod is the thing every one of these scenes is trying not
+   * to be: the water is alive and the frame around it was bolted to the wall.
+   *
+   * A twentieth of one percent, which is a few px on any screen, over a wander
+   * that takes the better part of a minute to come round. It is meant to be a
+   * thing nobody can point at and everybody would miss. Set either to 0 for the
+   * tripod back.
+   */
+  property real swayReach: 0.005
+  property real swayRoll: 0.0022
+
+  /**
+   * How long the frame has been held, in seconds.
+   *
+   * Advanced with the water rather than off a clock of its own, so the frame is
+   * held still while the wallpaper is covered and a recorded clip wanders at the
+   * rate it says it does. It is not wrapped: the arithmetic below is sines, and a
+   * sine does its own wrapping.
+   */
+  property real held: 0
+
+  readonly property real swayUnit: Math.min(root.width, root.height) * root.swayReach
+
+  /**
+   * Where the frame is this moment, and how far over it is leaning.
+   *
+   * Two sines an octave and a bit apart on each axis, which is the cheapest thing
+   * that does not read as a pendulum: one of them alone is a frame swinging, and
+   * two whose periods do not divide each other never come back to the same place
+   * twice in anything like a minute. The axes are given different speeds again for
+   * the same reason, since matching ones draw a diagonal.
+   */
+  readonly property real swayX: root.swayUnit *
+    (0.62 * Math.sin(root.held * 0.11) + 0.38 * Math.sin(root.held * 0.29 + 1.7))
+  readonly property real swayY: root.swayUnit *
+    (0.62 * Math.sin(root.held * 0.13 + 2.4) + 0.38 * Math.sin(root.held * 0.23 + 0.6))
+  readonly property real swayTilt: root.swayRoll * Math.sin(root.held * 0.09 + 1.1)
+
+  /**
+   * How much bigger than its box the scene is drawn, so that a frame which has
+   * wandered is never a frame with the wallpaper showing along one edge.
+   *
+   * Overscan, and it is the reason the wander can be a transform on the whole
+   * scene rather than a thing every layer in it has to know about. The margin has
+   * to cover the roll as well as the wander: a corner of the picture is swung by
+   * the angle times its distance from the middle, which is further than the
+   * middle goes.
+   */
+  readonly property real overscan: 1 + 2 *
+    (root.swayUnit + Math.abs(root.swayRoll) * Math.hypot(root.width, root.height) / 2) /
+    Math.max(1, Math.min(root.width, root.height))
+
   // ------------------------------------------------------------------- density
   //
   // Counted against the box rather than set outright, so the same component
@@ -1331,6 +1388,7 @@ Item {
   // shark where they are this frame rather than where they were last one.
   // Everything else in here is indifferent to the order it is stepped in.
   function advance(dt) {
+    held += dt
     passers.step(dt)
     visitors.step(dt)
     flock.step(dt, felt())
@@ -1825,6 +1883,38 @@ Item {
   function adopt() {
     if (shoal && !running && seed !== sown) build()
   }
+
+  /**
+   * The hold, over everything at once.
+   *
+   * On the scene itself rather than on a wrapper around it, which means the film
+   * over the top wanders with the water instead of staying with the frame the way
+   * a real one would. That is a fault nobody can see and a wrapper is a fault
+   * everybody can read: the grain is re-drawn every frame from a hash, so a
+   * fraction of a px of drift is the same noise again, and the fall of light in
+   * the corners runs over hundreds of px and cannot be shifted by five.
+   *
+   * Rolled, then blown up about its own middle, then moved. In that order: a
+   * scene scaled about the middle it has already been moved off is a scene that
+   * moves further the more it is scaled.
+   */
+  transform: [
+    Rotation {
+      angle: root.swayTilt * 180 / Math.PI
+      origin.x: root.width / 2
+      origin.y: root.height / 2
+    },
+    Scale {
+      origin.x: root.width / 2
+      origin.y: root.height / 2
+      xScale: root.overscan
+      yScale: root.overscan
+    },
+    Translate {
+      x: root.swayX
+      y: root.swayY
+    }
+  ]
 
   onSeedChanged: adopt()
   onRunningChanged: adopt()

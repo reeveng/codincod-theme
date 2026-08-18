@@ -115,11 +115,18 @@ finished frame. `Lens.qml`, and `lens.frag` beside it.
       The near rock takes less of it than it wants to. It is nearly black on dark
       water, so past about a quarter the blur does not defocus the branches on it,
       it deletes them.
-- [ ] **Bokeh on the near snow**: a mote a hand from the glass is a soft disc
-      rather than a hard dot, which is drawn defocus rather than filtered
-      defocus, and the strongest depth cue in real footage of water.
-- [ ] **A handheld camera**: a few px of low, slow wander, so the frame is held
-      by somebody rather than bolted to a tripod.
+- [ ] **Bokeh on the near snow**: a mote a hand from the glass as a soft disc
+      rather than a hard dot. Held back rather than skipped: a mote is a couple of
+      px across, so a soft edge on one is nothing, and it only becomes bokeh if the
+      near ones are drawn several times the size they are now. That is a change to
+      what the snow is rather than to how it is drawn, and it belongs in
+      `drift.ts` with the rest of that argument.
+- [x] **A handheld camera**: a few px of wander over the better part of a minute,
+      and a fraction of a degree of roll, so the frame is held by somebody rather
+      than bolted to a tripod. Two sines per axis whose periods do not divide each
+      other, because one alone is a pendulum. The scene is drawn a little larger
+      than its box to pay for it, which is what overscan is for: a frame that has
+      wandered must never be a frame with the wallpaper showing along one edge.
 
 Not on this list and deliberately: motion blur, chromatic aberration, lens dirt,
 letterboxing, colour grading and a LUT. The first two are a blur and a fringe
