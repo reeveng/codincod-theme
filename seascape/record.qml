@@ -1,6 +1,10 @@
 // Frames of the sea, rendered offscreen and stepped by hand.
 //
-//   QT_QPA_PLATFORM=offscreen qml6 record.qml -- out=/tmp/frames frames=180 fps=15
+//   ./look.sh record.qml out=/tmp/frames frames=180 fps=15
+//
+// Through `look.sh` rather than `qml6` directly, so the clip comes off the
+// renderer the desktop uses rather than the software one the offscreen
+// platform reaches for by itself.
 //
 // The scene's own timer is off and the clip is advanced a frame at a time, so
 // what comes out is the same water at the same rate on any machine, however

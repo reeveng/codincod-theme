@@ -116,7 +116,7 @@ screenshotting it means throwing yourself onto an empty workspace and back. So
 there is a harness that mounts the same component offscreen:
 
 ```bash
-cd seascape && QT_QPA_PLATFORM=offscreen qml6 preview.qml
+cd seascape && ./look.sh preview.qml
 ```
 
 It writes `preview.png` and exits. For a moving one, `record.qml` steps the
@@ -124,9 +124,19 @@ same component by hand and grabs every frame, so a clip comes out at the rate
 it was asked for however long each grab took:
 
 ```bash
-cd seascape && QT_QPA_PLATFORM=offscreen qml6 record.qml -- \
+cd seascape && ./look.sh record.qml \
   out=/tmp/frames frames=240 fps=20 width=1280 height=800 settle=90
 ```
+
+`shapes.qml` is the third sheet, and it draws every shape in the scene large
+and on its own, which is the only way to tell a drawing that is wrong from a
+drawing that is merely small.
+
+All three go through `look.sh` rather than `qml6`, and that is not a
+convenience. `QT_QPA_PLATFORM=offscreen` by itself loads Qt's software scene
+graph, which paints with QPainter and ignores `preferredRendererType`
+altogether, so the harness would answer every question about a renderer the
+desktop never runs.
 
 ## Making windows opaque
 

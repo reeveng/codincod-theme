@@ -1,6 +1,10 @@
 // A still of the sea, rendered offscreen.
 //
-//   QT_QPA_PLATFORM=offscreen qml6 preview.qml
+//   ./look.sh preview.qml
+//
+// Through `look.sh` rather than `qml6` directly: the offscreen platform on its
+// own loads the software scene graph, and a sheet drawn by QPainter is not the
+// picture the desktop is drawing.
 //
 // Writes preview.png next to this file, and exits.
 //
@@ -46,7 +50,7 @@ Window {
   }
 
   /**
-   * `qml6 preview.qml -- seed=42 settle=14 out=boat.png`
+   * `./look.sh preview.qml seed=42 settle=14 out=boat.png`
    *
    * `seed` picks which water to look at, which matters now that most of what is
    * down there is placed by a roll of the dice: the only way to see the chest is

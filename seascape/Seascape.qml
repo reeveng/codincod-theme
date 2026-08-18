@@ -2863,11 +2863,15 @@ Item {
       required property int index
 
       readonly property var one: root.walking[index] || null
-      readonly property real unit: one ? one.size : 1
       readonly property real weight: one ? root.farInk(root.crawlerInk, one.depth) : 0
 
       // The gate, as the bed has it. See `root.pulse`.
       readonly property int rev: { root.pulse; return one ? one.cut : -1 }
+
+      // Behind the gate with everything else the stand-in carries: the object
+      // outlives the animal in it, so a size read once is the size of whoever
+      // held the slot first.
+      readonly property real unit: { crawl.rev; return crawl.one ? crawl.one.size : 1 }
 
       visible: one !== null && weight > 0.002
       x: { crawl.rev; return crawl.one ? crawl.one.x : 0 }

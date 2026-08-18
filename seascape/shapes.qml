@@ -17,11 +17,25 @@ import "Ornament.js" as Ornament
 Window {
   id: win
   width: 1500
-  height: 1360
+  height: 1700
   visible: true
 
   readonly property color ink: "#8fe0ac"
   readonly property color paper: "#0a1210"
+
+  /**
+   * The size to draw a unit drawing at, as a scale on the path itself.
+   *
+   * `Seascape.qml`'s reason, and this sheet has one of its own on top of it.
+   * Qt tessellates a `ShapePath` in the coordinates the path is written in, so
+   * a drawing blown up by a transform above it comes apart at the size it is
+   * seen. The whole job here is showing a drawing large enough to judge, which
+   * is exactly the condition that breaks it: every plate on this sheet was
+   * built to be the worst case for the fault it was meant to rule out.
+   */
+  function drawn(unit) {
+    return Qt.size(unit, unit)
+  }
 
   Rectangle {
     anchors.fill: parent
@@ -68,7 +82,6 @@ Window {
         x: parent.width / 2
         y: parent.height / 2 + 60
 
-        transform: Scale { xScale: 150; yScale: 150 }
 
         Shape {
           preferredRendererType: Shape.CurveRenderer
@@ -76,6 +89,7 @@ Window {
           ShapePath {
             fillColor: win.ink
             fillRule: ShapePath.WindingFill
+            scale: win.drawn(150)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.WRECK }
@@ -84,8 +98,9 @@ Window {
           ShapePath {
             capStyle: ShapePath.RoundCap
             fillColor: "transparent"
+            scale: win.drawn(150)
             strokeColor: win.ink
-            strokeWidth: 0.03
+            strokeWidth: 0.03 * 150
 
             PathMove { x: Ornament.WRECK_SPAR[0].x; y: Ornament.WRECK_SPAR[0].y }
             PathLine { x: Ornament.WRECK_SPAR[1].x; y: Ornament.WRECK_SPAR[1].y }
@@ -102,7 +117,6 @@ Window {
         x: parent.width / 2
         y: parent.height / 2 + 110
 
-        transform: Scale { xScale: 85; yScale: 85 }
 
         Shape {
           preferredRendererType: Shape.CurveRenderer
@@ -110,6 +124,7 @@ Window {
           ShapePath {
             fillColor: win.ink
             fillRule: ShapePath.WindingFill
+            scale: win.drawn(85)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SMOKER }
@@ -126,7 +141,6 @@ Window {
         x: parent.width / 2
         y: parent.height / 2 + 90
 
-        transform: Scale { xScale: 70; yScale: 70 }
 
         Shape {
           preferredRendererType: Shape.CurveRenderer
@@ -134,6 +148,7 @@ Window {
           ShapePath {
             fillColor: win.ink
             fillRule: ShapePath.WindingFill
+            scale: win.drawn(70)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.CHEST_BODY }
@@ -151,6 +166,7 @@ Window {
 
             ShapePath {
               fillColor: win.paper
+              scale: win.drawn(70)
               strokeColor: "transparent"
 
               PathSvg { path: Ornament.CHEST_BANDS[band.index] }
@@ -163,6 +179,7 @@ Window {
 
           ShapePath {
             fillColor: win.paper
+            scale: win.drawn(70)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.CHEST_LOCK }
@@ -170,6 +187,7 @@ Window {
 
           ShapePath {
             fillColor: win.ink
+            scale: win.drawn(70)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.LAPTOP_BASE }
@@ -177,6 +195,7 @@ Window {
 
           ShapePath {
             fillColor: win.ink
+            scale: win.drawn(70)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.LAPTOP_SCREEN }
@@ -194,6 +213,7 @@ Window {
 
             ShapePath {
               fillColor: win.paper
+              scale: win.drawn(70)
               strokeColor: "transparent"
 
               PathSvg { path: Ornament.LAPTOP_LINES[row.index] }
@@ -211,13 +231,13 @@ Window {
         x: parent.width / 2
         y: parent.height / 2 + 20
 
-        transform: Scale { xScale: 90; yScale: 90 }
 
         Shape {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
             fillColor: win.ink
+            scale: win.drawn(90)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.BLOCK_CARD }
@@ -235,6 +255,7 @@ Window {
 
             ShapePath {
               fillColor: win.paper
+              scale: win.drawn(90)
               strokeColor: "transparent"
 
               PathSvg { path: Ornament.BLOCK_LINES[line.index] }
@@ -257,13 +278,13 @@ Window {
         x: parent.width / 2
         y: parent.height / 2
 
-        transform: Scale { xScale: 100; yScale: 100 }
 
         Shape {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
             fillColor: win.ink
+            scale: win.drawn(100)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.HULL }
@@ -271,6 +292,7 @@ Window {
 
           ShapePath {
             fillColor: win.ink
+            scale: win.drawn(100)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SCREWS }
@@ -287,7 +309,6 @@ Window {
         x: parent.width / 2
         y: parent.height / 2
 
-        transform: Scale { xScale: 100; yScale: 100 }
 
         Shape {
           preferredRendererType: Shape.CurveRenderer
@@ -295,6 +316,7 @@ Window {
           ShapePath {
             fillColor: win.ink
             fillRule: ShapePath.WindingFill
+            scale: win.drawn(100)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SUBMARINE }
@@ -302,6 +324,7 @@ Window {
 
           ShapePath {
             fillColor: win.ink
+            scale: win.drawn(100)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.SUB_SCREW }
@@ -339,13 +362,13 @@ Window {
         x: parent.width / 2
         y: parent.height / 2 - 20
 
-        transform: Scale { xScale: 110; yScale: 110 }
 
         Shape {
           preferredRendererType: Shape.CurveRenderer
 
           ShapePath {
             fillColor: win.ink
+            scale: win.drawn(110)
             strokeColor: "transparent"
 
             PathSvg { path: Ornament.octopusHead(0.5) }
@@ -364,8 +387,9 @@ Window {
             ShapePath {
               capStyle: ShapePath.RoundCap
               fillColor: "transparent"
+              scale: win.drawn(110)
               strokeColor: win.ink
-              strokeWidth: 0.075
+              strokeWidth: 0.075 * 110
 
               PathPolyline {
                 path: {
@@ -405,6 +429,39 @@ Window {
         }
       }
     }
+
+    // The big animals, mid-stroke. Here for the reason the sheet exists: these
+    // are the largest things this water ever draws, so whatever a drawing gets
+    // wrong it gets wrong at four hundred px here and at an inch out there,
+    // and an inch of dark green is where a torn fin goes to hide.
+    Repeater {
+      model: ["dolphin", "manta", "shark", "turtle"]
+
+      delegate: Plate {
+        id: guest
+        required property string modelData
+
+        label: guest.modelData
+
+        Item {
+          x: parent.width / 2
+          y: parent.height / 2 + 20
+
+          Shape {
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+              fillColor: win.ink
+              fillRule: ShapePath.WindingFill
+              scale: win.drawn(95)
+              strokeColor: "transparent"
+
+              PathSvg { path: Ornament.BODIES[guest.modelData](0.35) }
+            }
+          }
+        }
+      }
+    }
   }
 
   /** One octopus at one of its behaviours, drawn the way `Seascape.qml` does. */
@@ -421,7 +478,6 @@ Window {
       crawl: pus.crawl, doing: pus.doing, facing: 1, haul: pus.haul, reach: pus.reach,
     })
 
-    transform: Scale { xScale: 110; yScale: 110 }
 
     Shape {
       preferredRendererType: Shape.CurveRenderer
@@ -429,6 +485,7 @@ Window {
       ShapePath {
         fillColor: pus.ink
         fillRule: ShapePath.WindingFill
+        scale: win.drawn(110)
         strokeColor: "transparent"
 
         PathSvg { path: Ornament.octopusHead(0.5) }
@@ -447,8 +504,9 @@ Window {
         ShapePath {
           capStyle: ShapePath.RoundCap
           fillColor: "transparent"
+          scale: win.drawn(110)
           strokeColor: pus.ink
-          strokeWidth: 0.075
+          strokeWidth: 0.075 * 110
 
           PathPolyline {
             path: {
@@ -472,43 +530,41 @@ Window {
     width: 1
     height: 1
 
-    Item {
-      transform: Scale { xScale: 260; yScale: 260 }
+    Shape {
+      preferredRendererType: Shape.CurveRenderer
 
-      Shape {
+      ShapePath {
+        fillColor: squid.ink
+        fillRule: ShapePath.WindingFill
+        scale: win.drawn(260)
+        strokeColor: "transparent"
+
+        PathSvg { path: Ornament.squidBody(squid.squeeze) }
+      }
+    }
+
+    Repeater {
+      model: Ornament.squidArms(squid.squeeze).length
+
+      delegate: Shape {
+        id: arm
+        required property int index
+
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-          fillColor: squid.ink
-          fillRule: ShapePath.WindingFill
-          strokeColor: "transparent"
+          capStyle: ShapePath.RoundCap
+          fillColor: "transparent"
+          scale: win.drawn(260)
+          strokeColor: squid.ink
+          strokeWidth: 0.035 * 260
 
-          PathSvg { path: Ornament.squidBody(squid.squeeze) }
-        }
-      }
-
-      Repeater {
-        model: Ornament.squidArms(squid.squeeze).length
-
-        delegate: Shape {
-          id: arm
-          required property int index
-
-          preferredRendererType: Shape.CurveRenderer
-
-          ShapePath {
-            capStyle: ShapePath.RoundCap
-            fillColor: "transparent"
-            strokeColor: squid.ink
-            strokeWidth: 0.035
-
-            PathPolyline {
-              path: {
-                var one = Ornament.squidArms(squid.squeeze)[arm.index]
-                var out = []
-                for (var i = 0; i < one.length; i++) out.push(Qt.point(one[i].x, one[i].y))
-                return out
-              }
+          PathPolyline {
+            path: {
+              var one = Ornament.squidArms(squid.squeeze)[arm.index]
+              var out = []
+              for (var i = 0; i < one.length; i++) out.push(Qt.point(one[i].x, one[i].y))
+              return out
             }
           }
         }
