@@ -22,7 +22,20 @@ OUT="$(cd "$(dirname "$0")" && pwd)/Ornament.js"
 [[ -d $ORNAMENT ]] || { echo "no ornament sources at $ORNAMENT" >&2; exit 1; }
 [[ -x $ESBUILD ]] || { echo "no esbuild at $ESBUILD" >&2; exit 1; }
 
-entry=$(mktemp -d)
+# Beside the bundle rather than in a temp directory, and the reason is
+# reproducibility rather than tidiness. esbuild writes the entry file's path
+# into the output as a comment, relative to the outfile, so a `mktemp -d` name
+# lands in the bundle and two builds of identical sources differ by one line.
+#
+# That costs the only cheap check there is on whether a committed bundle
+# matches the sources it claims to come from: rebuild it and see whether git
+# says the tree is dirty. With a random name in there the answer is always yes,
+# which is a false alarm that trains everybody to ignore a real one.
+#
+# The directory is removed on the way out, whichever way out it is.
+entry="$(cd "$(dirname "$0")" && pwd)/.ornament-entry"
+rm -rf "$entry"
+mkdir -p "$entry"
 trap 'rm -rf "$entry"' EXIT
 
 # What the desktop takes from each module, as `module export export ...`. The

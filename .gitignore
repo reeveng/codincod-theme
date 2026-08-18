@@ -1,2 +1,8 @@
 # Written by seascape/preview.qml.
 seascape/preview.png
+
+# Written by seascape/build-ornament.sh, which removes it on the way out. Here
+# for the way out it cannot trap: a build killed outright leaves it behind, and
+# a stray directory in `git status` is the thing that makes somebody stop
+# trusting `git status`.
+seascape/.ornament-entry/
