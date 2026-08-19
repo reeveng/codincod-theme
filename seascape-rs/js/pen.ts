@@ -27,6 +27,16 @@ export const FORM = { fill: 0, light: 2, stroke: 1, wash: 3 } as const
  */
 export const TONE = { dusk: 4, ink: 6, moon: 3, shadow: 1, sun: 2, surface: 5, water: 0 } as const
 
+/**
+ * A light that gives out the way a shaft of sunlight in water does.
+ *
+ * `Ornament.fade`, which no single exponent draws: it holds most of its
+ * strength for the first half of its length and then goes quickly. Added to a
+ * tone rather than named as one, since it says how a thing fades rather than
+ * what colour it is.
+ */
+export const SPENT = 0x200
+
 /** Read the water at the height the fragment itself is at. */
 export const OWN = -1
 
@@ -37,6 +47,18 @@ export interface Mark {
   fade?: readonly [number, number]
   /** How fast it gives out, whether down the box or out from a middle. */
   fall?: number
+  /**
+   * How far out of focus it is, in pixels of blur.
+   *
+   * Rock only, and it is the lens rather than the water: what is a hand from
+   * the glass is further outside the field than what is a long way behind the
+   * subject. Anything with this set is drawn on its own and softened before it
+   * is laid in, so drawings meant to be softened together, a mass of rock and
+   * what is growing on it, have to be written one after another.
+   */
+  soft?: number
+  /** Whether it ends on the light's own curve rather than on an exponent. */
+  spent?: boolean
   lane: number
   /** The height the water under it is read at, or `OWN`. */
   shade?: number
@@ -49,6 +71,23 @@ export interface Mark {
 }
 
 export type Point = { x: number; y: number }
+
+/**
+ * Where a unit drawing is stood, since most of what swims is written about the
+ * origin and put in the water afterwards.
+ *
+ * `facing` is a mirror rather than a turn, and it is applied before the turn:
+ * the ornament works out the whole angle for an animal that is swimming left,
+ * so turning a mirrored drawing again is how every renderer here has got a
+ * leftward fish upside down at least once.
+ */
+export interface Spot {
+  facing?: number
+  scale?: number
+  tilt?: number
+  x: number
+  y: number
+}
 
 /**
  * Drawings into the block of numbers the renderer reads.
@@ -75,19 +114,20 @@ export class Pen {
     return this.at
   }
 
-  fill(points: readonly Point[], mark: Mark): void {
+  fill(parts: readonly (readonly Point[])[], mark: Mark, spot?: Spot): void {
     this.head(FORM.fill, mark)
-    this.points(points)
+    this.parts(parts, spot)
   }
 
-  line(points: readonly Point[], mark: Mark): void {
+  line(parts: readonly (readonly Point[])[], mark: Mark, spot?: Spot): void {
     this.head(FORM.stroke, mark)
-    this.points(points)
+    this.parts(parts, spot)
   }
 
   /** A round light, which is a middle and a reach rather than a shape. */
   light(x: number, y: number, mark: Mark): void {
     this.head(FORM.light, mark)
+    this.put(1)
     this.put(1)
     this.put(x)
     this.put(y)
@@ -102,7 +142,7 @@ export class Pen {
   private head(form: number, mark: Mark): void {
     this.drawn++
     this.put(form)
-    this.put(mark.tone ?? TONE.water)
+    this.put((mark.tone ?? TONE.water) | (mark.spent ? SPENT : 0))
     this.put(mark.weight ?? 0)
     this.put(mark.shade ?? OWN)
     this.put(mark.alpha ?? 1)
@@ -112,13 +152,40 @@ export class Pen {
     this.put(mark.fade ? mark.fade[0] : 0)
     this.put(mark.fade ? mark.fade[1] : 0)
     this.put(mark.thin ?? 1)
+    this.put(mark.soft ?? 0)
   }
 
-  private points(points: readonly Point[]): void {
-    this.put(points.length)
-    for (let i = 0; i < points.length; i++) {
-      this.put(points[i].x)
-      this.put(points[i].y)
+  /**
+   * Every piece of one drawing, stood where it is seen.
+   *
+   * Several pieces rather than one, because an animal is not one outline: a
+   * fish is a body, a tail swung off its joint and a fin rooted inside the
+   * back, and they are meant to overlap. Handed over as one drawing they are
+   * filled as one silhouette; handed over as three they would each be painted
+   * over the last, and every overlap would show as a seam.
+   */
+  private parts(parts: readonly (readonly Point[])[], spot?: Spot): void {
+    this.put(parts.length)
+
+    const scale = (spot?.scale ?? 1) * (1)
+    const mirror = spot?.facing ?? 1
+    const turn = spot?.tilt ?? 0
+    const cos = Math.cos(turn)
+    const sin = Math.sin(turn)
+
+    for (const points of parts) {
+      this.put(points.length)
+      for (let i = 0; i < points.length; i++) {
+        if (!spot) {
+          this.put(points[i].x)
+          this.put(points[i].y)
+          continue
+        }
+        const x = points[i].x * scale * mirror
+        const y = points[i].y * scale
+        this.put(spot.x + x * cos - y * sin)
+        this.put(spot.y + x * sin + y * cos)
+      }
     }
   }
 

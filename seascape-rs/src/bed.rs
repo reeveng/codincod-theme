@@ -53,6 +53,14 @@ const STONE_INK: f32 = 0.25;
 const ANEMONE: u8 = 2;
 const CORAL: u8 = 4;
 
+/// The one piece of ground that is not in the bed: the wall at the back, which
+/// is drawn out of focus.
+const CLIFF: u8 = 2;
+
+/// How far the lens gives up on that wall, in pixels. `Seascape.qml` says the
+/// same in a blur of 0.34 out of a `blurMax` of 24.
+pub const WALL_BLUR: f32 = 0.34 * 24.0;
+
 struct Cursor<'a> {
     at: usize,
     floats: &'a [f32],
@@ -116,6 +124,9 @@ pub struct Bed {
     /// The whole bed laid out, cut once and handed over once.
     standing: VertexBuffers<Vertex, u32>,
     ground: Vec<Cut>,
+    /// The far wall, kept out of the bed because it is drawn out of focus and a
+    /// blur is run over a layer rather than over a triangle; see `paint::Soft`.
+    wall: VertexBuffers<Vertex, u32>,
     plants: Vec<Cut>,
     kinds: Vec<u8>,
     girths: Vec<f32>,
@@ -132,6 +143,7 @@ impl Default for Bed {
         Bed {
             standing: VertexBuffers::new(),
             ground: Vec::new(),
+            wall: VertexBuffers::new(),
             plants: Vec::new(),
             kinds: Vec::new(),
             girths: Vec::new(),
@@ -148,6 +160,8 @@ impl Bed {
     /// Take the standing scene: the ground, the corals, and every plant the
     /// water only bends, cut where they stand and never cut again.
     pub fn stand(&mut self, floats: &[f32]) {
+        self.wall.vertices.clear();
+        self.wall.indices.clear();
         assert_eq!(floats[0], 3.0, "the bridge speaks a version this does not");
         let width = floats[1];
         self.height = floats[2];
@@ -184,7 +198,11 @@ impl Bed {
                 ..Default::default()
             };
             self.fill_shape(&mut cut, &ridge, weight, true);
-            self.ground.push(cut);
+            if kind == CLIFF {
+                lay(&cut, &mut self.wall);
+            } else {
+                self.ground.push(cut);
+            }
         }
         self.ground
             .sort_by(|a, b| a.depth.partial_cmp(&b.depth).unwrap());
@@ -257,6 +275,11 @@ impl Bed {
     /// The bed as it stands, which the card is handed once.
     pub fn standing(&self) -> (&[Vertex], &[u32]) {
         (&self.standing.vertices, &self.standing.indices)
+    }
+
+    /// And the wall behind it, which is handed over on its own to be softened.
+    pub fn wall(&self) -> (&[Vertex], &[u32]) {
+        (&self.wall.vertices, &self.wall.indices)
     }
 
     /// The limbs of one plant, read off the wire.

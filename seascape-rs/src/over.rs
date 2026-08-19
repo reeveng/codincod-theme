@@ -39,10 +39,22 @@ const WASH: u8 = 3;
 pub struct Over {
     solid: VertexBuffers<Vertex, u32>,
     glass: VertexBuffers<Vertex, u32>,
+    /// And the rock the lens has given up on, one mass to a layer, because a
+    /// blur is run over a picture rather than over a triangle. Drawings that
+    /// are meant to be softened together arrive one after another and say the
+    /// same blur, which is how a wall and what is growing on it stay one thing.
+    soft: Vec<Layer>,
     fill: FillTessellator,
     stroke: StrokeTessellator,
     height: f32,
     width: f32,
+}
+
+/// One mass of rock, drawn on its own so that it can be softened on its own.
+pub struct Layer {
+    pub blur: f32,
+    pub lane: f32,
+    pub geo: VertexBuffers<Vertex, u32>,
 }
 
 /// One drawing, as it comes off the wire.
@@ -57,6 +69,7 @@ struct Drawing {
     fall: f32,
     fade: [f32; 2],
     thin: f32,
+    soft: f32,
 }
 
 struct Cursor<'a> {
@@ -84,6 +97,7 @@ impl Over {
         self.solid.indices.clear();
         self.glass.vertices.clear();
         self.glass.indices.clear();
+        self.soft.clear();
         if floats.is_empty() {
             return;
         }
@@ -103,15 +117,21 @@ impl Over {
                 fall: cursor.next(),
                 fade: [cursor.next(), cursor.next()],
                 thin: cursor.next(),
+                soft: cursor.next(),
             };
-            let n = cursor.next() as usize;
-            let mut points = Vec::with_capacity(n);
-            for _ in 0..n {
-                let x = cursor.next();
-                let y = cursor.next();
-                points.push((x, y));
+            let parts = cursor.next() as usize;
+            let mut pieces: Vec<Vec<(f32, f32)>> = Vec::with_capacity(parts);
+            for _ in 0..parts {
+                let n = cursor.next() as usize;
+                let mut points = Vec::with_capacity(n);
+                for _ in 0..n {
+                    let x = cursor.next();
+                    let y = cursor.next();
+                    points.push((x, y));
+                }
+                pieces.push(points);
             }
-            self.cut(&drawing, &points);
+            self.cut(&drawing, &pieces);
         }
     }
 
@@ -129,12 +149,41 @@ impl Over {
         }
     }
 
-    fn cut(&mut self, drawing: &Drawing, points: &[(f32, f32)]) {
+    pub fn soft(&self) -> &[Layer] {
+        &self.soft
+    }
+
+    /// Where one drawing's triangles go: its own layer if it is out of focus,
+    /// and the layer the last drawing opened if that one is the same blur at
+    /// the same distance.
+    fn bin(&mut self, drawing: &Drawing) -> &mut VertexBuffers<Vertex, u32> {
+        if drawing.soft > 0.0 {
+            let carry = self
+                .soft
+                .last()
+                .is_some_and(|l| l.blur == drawing.soft && l.lane == drawing.lane);
+            if !carry {
+                self.soft.push(Layer {
+                    blur: drawing.soft,
+                    lane: drawing.lane,
+                    geo: VertexBuffers::new(),
+                });
+            }
+            return &mut self.soft.last_mut().unwrap().geo;
+        }
+        if self.into(drawing) {
+            &mut self.glass
+        } else {
+            &mut self.solid
+        }
+    }
+
+    fn cut(&mut self, drawing: &Drawing, parts: &[Vec<(f32, f32)>]) {
         match drawing.form {
-            LIGHT => self.light(drawing, points),
+            LIGHT => self.light(drawing, parts.first().map(|p| p.as_slice()).unwrap_or(&[])),
             WASH => self.wash(drawing),
-            STROKE => self.line(drawing, points),
-            _ => self.shape(drawing, points),
+            STROKE => self.line(drawing, parts),
+            _ => self.shape(drawing, parts),
         }
     }
 
@@ -158,16 +207,23 @@ impl Over {
         drawing.alpha < 0.999 || drawing.form == LIGHT || drawing.form == WASH
     }
 
-    fn shape(&mut self, drawing: &Drawing, points: &[(f32, f32)]) {
-        if points.len() < 3 {
+    fn shape(&mut self, drawing: &Drawing, parts: &[Vec<(f32, f32)>]) {
+        let mut builder = Path::builder();
+        let mut drawn = false;
+        for points in parts {
+            if points.len() < 3 {
+                continue;
+            }
+            drawn = true;
+            builder.begin(point(points[0].0, points[0].1));
+            for p in &points[1..] {
+                builder.line_to(point(p.0, p.1));
+            }
+            builder.close();
+        }
+        if !drawn {
             return;
         }
-        let mut builder = Path::builder();
-        builder.begin(point(points[0].0, points[0].1));
-        for p in &points[1..] {
-            builder.line_to(point(p.0, p.1));
-        }
-        builder.close();
         let path = builder.build();
 
         let seed = self.seed(drawing);
@@ -184,20 +240,26 @@ impl Over {
                 ..seed
             }),
         );
-        let glass = self.into(drawing);
-        join(&mut geo, if glass { &mut self.glass } else { &mut self.solid });
+        join(&mut geo, self.bin(drawing));
     }
 
-    fn line(&mut self, drawing: &Drawing, points: &[(f32, f32)]) {
-        if points.len() < 2 {
+    fn line(&mut self, drawing: &Drawing, parts: &[Vec<(f32, f32)>]) {
+        let mut builder = Path::builder();
+        let mut drawn = false;
+        for points in parts {
+            if points.len() < 2 {
+                continue;
+            }
+            drawn = true;
+            builder.begin(point(points[0].0, points[0].1));
+            for p in &points[1..] {
+                builder.line_to(point(p.0, p.1));
+            }
+            builder.end(false);
+        }
+        if !drawn {
             return;
         }
-        let mut builder = Path::builder();
-        builder.begin(point(points[0].0, points[0].1));
-        for p in &points[1..] {
-            builder.line_to(point(p.0, p.1));
-        }
-        builder.end(false);
         let path = builder.build();
 
         let seed = self.seed(drawing);
@@ -212,8 +274,7 @@ impl Over {
                 ..seed
             }),
         );
-        let glass = self.into(drawing);
-        join(&mut geo, if glass { &mut self.glass } else { &mut self.solid });
+        join(&mut geo, self.bin(drawing));
     }
 
     /// A round light: one quad, with the falling off done in the shader.

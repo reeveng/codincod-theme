@@ -207,6 +207,10 @@ impl Wall {
         let (vertices, indices) = scene.geometry();
         let (over, glass) = scene.over();
         paint.sky(&scene.sky(self.ink, self.surface_hue));
+
+        // After the sky, because the rock is drawn into a picture of its own
+        // and a picture drawn under last frame's sky is last frame's rock.
+        paint.soften(&scene.soft());
         paint.draw(&view, vertices, indices, spent.redrawn, over, glass);
 
         // Asked for before the frame is handed over, which is what keeps the

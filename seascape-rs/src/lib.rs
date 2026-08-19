@@ -35,6 +35,9 @@ pub struct Frame {
     pub tilt: f32,
     pub overscan: f32,
     pub turn: f32,
+    /// How light it is above the water, which is what the column's own lid is
+    /// a function of.
+    pub daylight: f32,
 }
 
 /// Where a frame's time went, in milliseconds.
@@ -49,7 +52,30 @@ pub struct Spent {
 
 impl Scene {
     pub fn new(width: u32, height: u32, seed: f64, tolerance: f64, settle: f64) -> Self {
+        Scene::asked(width, height, seed, tolerance, settle, None)
+    }
+
+    /// The same scene, for the harness that takes stills of it.
+    ///
+    /// Two differences from the background, both of them the harness's: the
+    /// rare things are wound on rather than left waiting, so a still has a boat
+    /// and a shark in it, and the sky can be asked for rather than read off the
+    /// clock, since the sky is a function of the minute the still was taken in
+    /// and two stills taken in different minutes cannot be compared at all.
+    /// `preview.qml` next to `Seascape.qml` has both, under the same names.
+    pub fn asked(
+        width: u32,
+        height: u32,
+        seed: f64,
+        tolerance: f64,
+        settle: f64,
+        hour: Option<[f64; 4]>,
+    ) -> Self {
         let mut sim = sim::Sim::new(include_str!("../js/scene.js"));
+        sim.call("rush", &[1.0]);
+        if let Some([daylight, dusk, march, lit]) = hour {
+            sim.call("pretend", &[daylight, dusk, march, lit]);
+        }
         sim.call("build", &[width as f64, height as f64, seed, tolerance]);
         sim.call("wind", &[settle]);
 
@@ -113,8 +139,9 @@ impl Scene {
             tilt: told[2],
             overscan: told[3],
             turn: told[4],
+            daylight: told[5],
         };
-        self.over.take(&told[5..]);
+        self.over.take(&told[6..]);
 
         Spent {
             step,
@@ -128,6 +155,37 @@ impl Scene {
     /// water is seen through.
     pub fn over(&self) -> (paint::Batch, paint::Batch) {
         (self.over.solid(), self.over.glass())
+    }
+
+    /// And the rock the lens has given up on, a mass to a layer: the wall at
+    /// the back of the water, and whatever near rock the frame is hanging off.
+    pub fn soft(&self) -> Vec<paint::Soft<'_>> {
+        let mut layers = Vec::new();
+        let (vertices, indices) = self.bed.wall();
+
+        if !indices.is_empty() {
+            layers.push(paint::Soft {
+                batch: paint::Batch { vertices, indices },
+                blur: bed::WALL_BLUR,
+                // One distance for the whole wall rather than one a cliff, the
+                // way `Seascape.qml` hangs every cliff off one item: a blur run
+                // over two pieces of the same wall separately shows the join.
+                lane: WALL_LANE,
+            });
+        }
+
+        for mass in self.over.soft() {
+            layers.push(paint::Soft {
+                batch: paint::Batch {
+                    vertices: &mass.geo.vertices,
+                    indices: &mass.geo.indices,
+                },
+                blur: mass.blur,
+                lane: mass.lane,
+            });
+        }
+
+        layers
     }
 
     /// Where the camera is holding the picture this frame.
@@ -144,7 +202,11 @@ impl Scene {
     pub fn sky(&self, ink: [f32; 4], surface: [f32; 4]) -> paint::Sky {
         paint::Sky {
             size: [self.width, self.height],
-            lit: LIT,
+            // Not the day's strength at midnight. A night sea is not a black
+            // rectangle: there is a moon on it for half the month and a sky
+            // behind that, and what reaches this far down is little rather than
+            // nothing.
+            lit: LIT * (NIGHT_LID + (1.0 - NIGHT_LID) * self.frame.daylight),
             sinkage: SINKAGE,
             ink,
             surface,
@@ -173,7 +235,12 @@ impl Scene {
 /// The lid on the water, out of `Seascape.qml`: how much light the surface
 /// holds and how fast the column gives it up.
 const LIT: f32 = 0.13;
+const NIGHT_LID: f32 = 0.24;
 const SINKAGE: f32 = 2.1;
+
+/// How far back the wall at the back stands, which is one distance for all of
+/// it: the item every cliff hangs off in `Seascape.qml` carries this z.
+const WALL_LANE: f32 = -3.3;
 
 /// The film the water lands on, and how much light a corner gives up.
 const GRAIN: f32 = 0.03;

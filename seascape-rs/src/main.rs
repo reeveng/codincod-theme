@@ -12,7 +12,18 @@ fn main() {
     let tolerance: f64 = arg("tolerance", "0.25").parse().unwrap();
     let out = arg("out", "bed.png");
 
-    let mut scene = Scene::new(width, height, seed, tolerance, settle);
+    // `daylight=` asks for an hour rather than taking the one it is; the rest
+    // of the sky follows it. Without it the still is the sky outside.
+    let daylight: f64 = arg("daylight", "-1").parse().unwrap();
+    let hour = (daylight >= 0.0).then(|| {
+        [
+            daylight,
+            arg("dusk", "0").parse().unwrap(),
+            arg("march", "0.5").parse().unwrap(),
+            arg("lit", "0.62").parse().unwrap(),
+        ]
+    });
+    let mut scene = Scene::asked(width, height, seed, tolerance, settle, hour);
     let paint = paint::Paint::headless(width, height);
     let view = paint.own_view();
     let ink = hue(&arg("ink", "#35c26d"));
@@ -23,11 +34,20 @@ fn main() {
     let (standing, held) = scene.standing();
     paint.stand(standing, held);
 
+    // The QML harness grabs three seconds after it opens, and a manta covers a
+    // couple of hundred pixels in three seconds. Two stills of the same sea can
+    // only be held against each other on the same moment of it.
+    let after: f64 = arg("after", "3").parse().unwrap();
+    for _ in 0..(after * 60.0) as usize {
+        scene.advance(1.0 / 60.0);
+    }
+
     let spent = scene.advance(0.0);
     paint.sway(scene.swings());
     paint.sky(&scene.sky(ink, surface));
     let (vertices, indices) = scene.geometry();
     let (over, glass) = scene.over();
+    paint.soften(&scene.soft());
     let t = std::time::Instant::now();
     paint.draw(&view, vertices, indices, true, over, glass);
     paint.settle();
@@ -51,6 +71,7 @@ fn main() {
             paint.sky(&scene.sky(ink, surface));
             let (vertices, indices) = scene.geometry();
             let (over, glass) = scene.over();
+            paint.soften(&scene.soft());
             paint.draw(&view, vertices, indices, spent.redrawn, over, glass);
         }
         let (mut step, mut publish, mut cut, mut drawn) = (0.0, 0.0, 0.0, 0.0);
@@ -61,6 +82,7 @@ fn main() {
             let t = std::time::Instant::now();
             paint.sway(scene.swings());
             paint.sky(&scene.sky(ink, surface));
+            paint.soften(&scene.soft());
             paint.draw(&view, vertices, indices, spent.redrawn, over, glass);
             paint.settle();
             drawn += t.elapsed().as_secs_f64() * 1000.0;
@@ -83,6 +105,7 @@ fn main() {
 
     let (vertices, indices) = scene.geometry();
     let (over, glass) = scene.over();
+    paint.soften(&scene.soft());
     paint.draw(&view, vertices, indices, true, over, glass);
     let pixels = paint.read();
     let file = std::fs::File::create(&out).expect("cannot write the still");

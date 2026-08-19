@@ -74,6 +74,28 @@ export interface Box {
 }
 
 /**
+ * An hour asked for rather than read off the clock, for the harness that holds
+ * this renderer against the other one.
+ *
+ * The two renderers can only be compared on the same sky, and the sky is a
+ * function of the minute the still was taken in. `preview.qml` next to
+ * `Seascape.qml` takes the same four numbers for the same reason.
+ */
+export interface Asked {
+  daylight: number
+  dusk: number
+  lit: number
+  march: number
+  waxing: boolean
+}
+
+let asked: Asked | null = null
+
+export function pretend(hour: Asked | null): void {
+  asked = hour
+}
+
+/**
  * The sky, drawn.
  *
  * Both bodies every time, not the one that happens to be up: a single disc that
@@ -82,7 +104,20 @@ export interface Box {
  * other side is what actually happens, and it costs one more circle.
  */
 export function paintSky(pen: Pen, box: Box): { daylight: number; dusk: number } {
-  const sky = sunNow()
+  const sky = asked
+    ? {
+        daylight: asked.daylight,
+        dusk: asked.dusk,
+        moon: {
+          arc: Math.sin(asked.march * Math.PI),
+          lit: asked.lit,
+          march: asked.march,
+          up: 1,
+          waxing: asked.waxing,
+        },
+        sun: { arc: Math.sin(asked.march * Math.PI), march: asked.march, up: 1 },
+      }
+    : sunNow()
   const bodies = [
     { moon: false, passage: sky.sun, phase: null as Phase | null, show: sky.daylight, tone: TONE.sun },
     {
@@ -163,10 +198,12 @@ function paintBody(
   // disc is at that height, and the light appears to come out of its sides.
   pen.fill(
     [
-      { x: cx - r, y: cy },
-      { x: cx + r, y: cy },
-      { x: cx + box.width * (lean + SPREAD), y: box.height },
-      { x: cx + box.width * (lean - SPREAD), y: box.height },
+      [
+        { x: cx - r, y: cy },
+        { x: cx + r, y: cy },
+        { x: cx + box.width * (lean + SPREAD), y: box.height },
+        { x: cx + box.width * (lean - SPREAD), y: box.height },
+      ],
     ],
     {
       alpha: DISC_INK * glow,
@@ -177,7 +214,7 @@ function paintBody(
     },
   )
 
-  pen.fill(phase ? crescent(cx, cy, r, phase) : disc(cx, cy, r), {
+  pen.fill([phase ? crescent(cx, cy, r, phase) : disc(cx, cy, r)], {
     alpha: show,
     lane: LANE.body,
     tone,
@@ -193,7 +230,7 @@ function paintBody(
     const clear = sunlit(x, y, phase) / size - 1
     if (clear <= 0) continue
 
-    pen.fill(disc(cx + r * x, cy + r * y, r * size), {
+    pen.fill([disc(cx + r * x, cy + r * y, r * size)], {
       alpha: CRATER_INK * show * Math.min(1, clear),
       lane: LANE.body,
       tone: TONE.surface,

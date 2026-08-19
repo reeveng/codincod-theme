@@ -36,6 +36,35 @@ fn tied(
     })
 }
 
+/// A picture for one mass of rock, half the size of the box on each side.
+///
+/// Half, because a blur is most of the way to being one before it runs and the
+/// picture is only ever seen through it. `Seascape.qml` asks for the same size
+/// in `layer.textureSize`, for the same reason.
+fn folded(
+    device: &wgpu::Device,
+    format: wgpu::TextureFormat,
+    width: u32,
+    height: u32,
+) -> wgpu::TextureView {
+    device
+        .create_texture(&wgpu::TextureDescriptor {
+            label: Some("soft"),
+            size: wgpu::Extent3d {
+                width: (width / 2).max(1),
+                height: (height / 2).max(1),
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        })
+        .create_view(&Default::default())
+}
+
 /// A buffer with room to spare, so a frame that grows does not want a new one.
 fn room(device: &wgpu::Device, bytes: usize, usage: wgpu::BufferUsages) -> wgpu::Buffer {
     device.create_buffer(&wgpu::BufferDescriptor {
@@ -115,6 +144,14 @@ pub const TONE_INK: u32 = 6;
 
 /// A light that gives out from the middle rather than down the box.
 pub const ROUND: u32 = 0x100;
+
+/// A light that gives out the way a shaft of sunlight in water does.
+///
+/// `Ornament.fade`, which is not a curve a single exponent can draw: it holds
+/// most of its strength for the first half and then goes quickly. The site and
+/// the QML renderer both end their light on it, so this one does too rather
+/// than on the nearest power it could find.
+pub const SPENT: u32 = 0x200;
 
 /// A vertex nothing bends: the ground, a coral, a crown already drawn where the
 /// water left it.
@@ -241,6 +278,7 @@ struct Limb {
 
 const STIFF: u32 = 0xffffffffu;
 const ROUND: u32 = 0x100u;
+const SPENT: u32 = 0x200u;
 
 /// How far along the box a limb has carried the point this far up it.
 ///
@@ -391,6 +429,10 @@ fn left(in: VsOut) -> f32 {
   }
   if (in.fade.y > 0.0) {
     let down = clamp((in.world.y - in.fade.x) / in.fade.y, 0.0, 1.0);
+    if ((in.tone & SPENT) != 0u) {
+      let held = 1.0 - down * down;
+      return in.alpha * held * held;
+    }
     return in.alpha * pow(1.0 - down, in.fade.z);
   }
   return in.alpha;
@@ -414,6 +456,68 @@ fn fs(in: VsOut) -> @location(0) vec4f {
   }
 
   return vec4f(hue, left(in));
+}
+
+/// A layer of rock the lens has given up on: blurred, then laid back in.
+///
+/// `Seascape.qml` says this as a `MultiEffect` over a layer, which is the same
+/// three steps: draw the mass on its own, run a blur over the picture of it,
+/// and put the picture back where the mass was. It has to be a picture rather
+/// than a triangle, because a blur is a thing done to pixels.
+struct Fold {
+  /// How far one tap is from the next, in the texture's own coordinates.
+  step: vec2f,
+  lane: f32,
+  pad: f32,
+};
+@group(1) @binding(0) var<uniform> fold: Fold;
+@group(1) @binding(1) var layer: texture_2d<f32>;
+@group(1) @binding(2) var soften: sampler;
+
+struct FoldOut {
+  @builtin(position) pos: vec4f,
+  @location(0) uv: vec2f,
+};
+
+@vertex
+fn fold_vs(@builtin(vertex_index) at: u32) -> FoldOut {
+  var corners = array<vec2f, 3>(vec2f(-1.0, -3.0), vec2f(-1.0, 1.0), vec2f(3.0, 1.0));
+  let corner = corners[at];
+
+  var out: FoldOut;
+  out.pos = vec4f(corner, clamp((4.0 - fold.lane) / 16.0, 0.0, 1.0), 1.0);
+  out.uv = vec2f((corner.x + 1.0) * 0.5, (1.0 - corner.y) * 0.5);
+  return out;
+}
+
+/// Nine taps along one axis, run twice: a blur of a blur across is a blur, and
+/// two passes of nine is a great deal less work than one pass of eighty-one.
+@fragment
+fn blur_fs(in: FoldOut) -> @location(0) vec4f {
+  var weights = array<f32, 4>(0.1945946, 0.1216216, 0.0540541, 0.0162162);
+  var sum = textureSample(layer, soften, in.uv) * 0.2270270;
+
+  for (var i = 1; i < 5; i = i + 1) {
+    let off = fold.step * f32(i);
+    sum = sum
+      + (textureSample(layer, soften, in.uv + off) + textureSample(layer, soften, in.uv - off))
+        * weights[i - 1];
+  }
+
+  return sum;
+}
+
+/// And the picture back where the mass was, at the mass's own distance, so the
+/// water in front of it is still in front of it.
+@fragment
+fn fold_fs(in: FoldOut) -> @location(0) vec4f {
+  let held = textureSample(layer, soften, in.uv);
+
+  // Nothing where the rock is not: a full-screen quad that wrote its depth
+  // everywhere would be a pane of glass across the whole picture.
+  if (held.a < 0.004) { discard; }
+
+  return held;
 }
 
 /// The glass the water is looked at through, and the film it lands on.
@@ -482,6 +586,22 @@ pub struct Paint {
     /// one pass over the top that is the camera rather than the sea.
     blended: wgpu::RenderPipeline,
     film: wgpu::RenderPipeline,
+    /// A mass of rock on its own, the blur run over it, and the picture laid
+    /// back in at the mass's own distance; see `Soft`.
+    bake: wgpu::RenderPipeline,
+    blur: wgpu::RenderPipeline,
+    laid: wgpu::RenderPipeline,
+    folds: wgpu::BindGroupLayout,
+    /// One slot of a fold's own numbers per pass, at the spacing the card wants
+    /// between two things it is handed by offset.
+    folded: std::cell::RefCell<wgpu::Buffer>,
+    soften: wgpu::Sampler,
+    /// The picture a blur is read out of and written back into, since a blur is
+    /// two passes and the second one cannot read what it is writing.
+    scratch: wgpu::TextureView,
+    /// One picture per mass, kept between frames because there are much the
+    /// same number of masses every time.
+    layers: std::cell::RefCell<Vec<Layer>>,
     layout: wgpu::BindGroupLayout,
     bind: std::cell::RefCell<wgpu::BindGroup>,
     uniforms: wgpu::Buffer,
@@ -516,6 +636,38 @@ pub struct Batch<'a> {
     pub vertices: &'a [Vertex],
     pub indices: &'a [u32],
 }
+
+/// A mass of rock the lens has given up on: what it is, how far out of focus,
+/// and how far back it stands.
+///
+/// The near rock is softer than the far wall, which is how a lens behaves: what
+/// is a hand from the glass is further outside the field than what is a long
+/// way behind the subject. Each mass is drawn on its own, because a blur run
+/// over two masses at once is one mass.
+#[derive(Clone, Copy)]
+pub struct Soft<'a> {
+    pub batch: Batch<'a>,
+    /// How far the blur runs, in pixels of the finished frame.
+    pub blur: f32,
+    pub lane: f32,
+}
+
+/// One mass, as the card holds it between frames.
+struct Layer {
+    view: wgpu::TextureView,
+    /// The same picture bound to be read: the blur reads it, and so does the
+    /// pass that lays it back in.
+    own: wgpu::BindGroup,
+    /// And the scratch picture bound to be read, which is the blur's way back.
+    through: wgpu::BindGroup,
+    vertices: wgpu::Buffer,
+    indices: wgpu::Buffer,
+    count: u32,
+    lane: f32,
+}
+
+/// How far apart two sets of a fold's own numbers sit, which the card decides.
+const SLOT: u64 = 256;
 
 pub const SAMPLES: u32 = 4;
 pub const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -707,6 +859,171 @@ impl Paint {
             cache: None,
         });
 
+        // The rock the lens has given up on: the same shader onto a picture of
+        // its own, a blur along one axis run twice, and the picture laid back
+        // in where the rock was.
+        //
+        // The picture is half the size of the box on each side, which is a
+        // quarter of the memory and most of the way to the blur before the blur
+        // runs. `Seascape.qml` says the same in `layer.textureSize`.
+        let folds = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("fold"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        min_binding_size: wgpu::BufferSize::new(16),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+        let folding = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("fold"),
+            bind_group_layouts: &[&layout, &folds],
+            push_constant_ranges: &[],
+        });
+
+        // Onto nothing rather than onto the water, so what the blur spreads at
+        // the edge of the mass is the mass giving out rather than the water
+        // creeping in. Written already multiplied by how much of it there is,
+        // which is the only way a blur of an edge is not a dark rim.
+        let bake = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("bake"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs"),
+                compilation_options: Default::default(),
+                buffers: std::slice::from_ref(&laid),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                        alpha: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::One,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                    }),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
+        });
+
+        let blur = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("blur"),
+            layout: Some(&folding),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("fold_vs"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("blur_fs"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
+        });
+
+        // Back into the picture at the mass's own distance, so the water in
+        // front of it is still in front of it and the sunset over the top of
+        // the whole box still falls on it.
+        let laid_back = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("fold"),
+            layout: Some(&folding),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("fold_vs"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fold_fs"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: wgpu::MultisampleState {
+                count: SAMPLES,
+                ..Default::default()
+            },
+            multiview: None,
+            cache: None,
+        });
+
+        let soften = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("soften"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+        let scratch = folded(&device, format, width, height);
+        let folded = std::cell::RefCell::new(room(
+            &device,
+            SLOT as usize * 3 * 8,
+            wgpu::BufferUsages::UNIFORM,
+        ));
+
         let size = wgpu::Extent3d {
             width,
             height,
@@ -772,6 +1089,14 @@ impl Paint {
             pipeline,
             blended,
             film,
+            bake,
+            blur,
+            laid: laid_back,
+            folds,
+            folded,
+            soften,
+            scratch,
+            layers: std::cell::RefCell::new(Vec::new()),
             layout,
             bind,
             uniforms,
@@ -859,6 +1184,178 @@ impl Paint {
     }
 
     /// The standing bed, handed over once. Nothing here is sent again.
+    /// Draw every mass of rock the lens has given up on, run the blur over each
+    /// of them, and keep the pictures for `draw` to lay back in.
+    ///
+    /// Every frame rather than once, because the camera never holds still and
+    /// the picture is taken through it. What is saved by doing it here is the
+    /// blur itself, which is run over a quarter of the pixels of the frame and
+    /// only over the rock.
+    pub fn soften(&self, layers: &[Soft]) {
+        // What each of the three passes over a mass is told: how far one tap is
+        // from the next, and how far back the mass stands. A run of water with
+        // more rock in it than the last one wants more room, and every picture
+        // is then tied to the new numbers rather than the old ones.
+        let slots = (layers.len() * 3).max(1);
+        let mut fresh = false;
+        {
+            let mut folded = self.folded.borrow_mut();
+            if (folded.size() as usize) < slots * SLOT as usize {
+                *folded = room(
+                    &self.device,
+                    slots * SLOT as usize,
+                    wgpu::BufferUsages::UNIFORM,
+                );
+                fresh = true;
+            }
+        }
+
+        let mut held = self.layers.borrow_mut();
+        if fresh {
+            for at in 0..held.len() {
+                held[at] = self.layer();
+            }
+        }
+        while held.len() < layers.len() {
+            held.push(self.layer());
+        }
+        let folded = self.folded.borrow();
+
+        let across = 1.0 / (self.width / 2).max(1) as f32;
+        let down = 1.0 / (self.height / 2).max(1) as f32;
+        let mut enc = self.device.create_command_encoder(&Default::default());
+
+        for (at, soft) in layers.iter().enumerate() {
+            let layer = &mut held[at];
+            layer.lane = soft.lane;
+            layer.count = soft.batch.indices.len() as u32;
+
+            let want = bytemuck::cast_slice::<Vertex, u8>(soft.batch.vertices);
+            let holds = bytemuck::cast_slice::<u32, u8>(soft.batch.indices);
+            if (layer.vertices.size() as usize) < want.len() {
+                layer.vertices = room(&self.device, want.len() * 2, wgpu::BufferUsages::VERTEX);
+            }
+            if (layer.indices.size() as usize) < holds.len() {
+                layer.indices = room(&self.device, holds.len() * 2, wgpu::BufferUsages::INDEX);
+            }
+            self.queue.write_buffer(&layer.vertices, 0, want);
+            self.queue.write_buffer(&layer.indices, 0, holds);
+
+            // A tap a quarter of the blur apart, four of them either side of
+            // the middle, which is the width the weights the shader carries
+            // were made for. In the picture's own pixels, which are half the
+            // box's, so what is asked for in pixels lands twice as wide: the
+            // same thing `MultiEffect` does with a blur over a half-size layer.
+            let reach = soft.blur * 0.25;
+            let steps = [
+                [reach * across, 0.0, soft.lane, 0.0],
+                [0.0, reach * down, soft.lane, 0.0],
+                [0.0, 0.0, soft.lane, 0.0],
+            ];
+            for (turn, step) in steps.iter().enumerate() {
+                self.queue.write_buffer(
+                    &folded,
+                    (at * 3 + turn) as u64 * SLOT,
+                    bytemuck::cast_slice(step),
+                );
+            }
+
+            if layer.count == 0 {
+                continue;
+            }
+
+            self.over_picture(&mut enc, &layer.view, |pass| {
+                pass.set_pipeline(&self.bake);
+                pass.set_bind_group(0, &*self.bind.borrow(), &[]);
+                pass.set_vertex_buffer(0, layer.vertices.slice(..));
+                pass.set_index_buffer(layer.indices.slice(..), wgpu::IndexFormat::Uint32);
+                pass.draw_indexed(0..layer.count, 0, 0..1);
+            });
+
+            for (turn, into, from) in [
+                (0, &self.scratch, &layer.own),
+                (1, &layer.view, &layer.through),
+            ] {
+                self.over_picture(&mut enc, into, |pass| {
+                    pass.set_pipeline(&self.blur);
+                    pass.set_bind_group(0, &*self.bind.borrow(), &[]);
+                    pass.set_bind_group(1, from, &[(at * 3 + turn) as u32 * SLOT as u32]);
+                    pass.draw(0..3, 0..1);
+                });
+            }
+        }
+
+        for layer in held.iter_mut().skip(layers.len()) {
+            layer.count = 0;
+        }
+        self.queue.submit(Some(enc.finish()));
+    }
+
+    /// One pass over one picture and nothing else, since a blur is three of
+    /// them and they differ only in what they draw.
+    fn over_picture(
+        &self,
+        enc: &mut wgpu::CommandEncoder,
+        into: &wgpu::TextureView,
+        draw: impl FnOnce(&mut wgpu::RenderPass),
+    ) {
+        let mut pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("soft"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: into,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        draw(&mut pass);
+    }
+
+    /// A picture for one more mass than there were last frame.
+    fn layer(&self) -> Layer {
+        let view = folded(&self.device, self.format, self.width, self.height);
+        let folded = self.folded.borrow();
+        let tied = |of: &wgpu::TextureView| {
+            self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("fold"),
+                layout: &self.folds,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: &folded,
+                            offset: 0,
+                            size: wgpu::BufferSize::new(16),
+                        }),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::TextureView(of),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: wgpu::BindingResource::Sampler(&self.soften),
+                    },
+                ],
+            })
+        };
+
+        Layer {
+            own: tied(&view),
+            through: tied(&self.scratch),
+            view,
+            vertices: room(&self.device, 1 << 12, wgpu::BufferUsages::VERTEX),
+            indices: room(&self.device, 1 << 12, wgpu::BufferUsages::INDEX),
+            count: 0,
+            lane: 0.0,
+        }
+    }
+
     pub fn stand(&self, vertices: &[Vertex], indices: &[u32]) {
         let want = bytemuck::cast_slice::<Vertex, u8>(vertices);
         let holds = bytemuck::cast_slice::<u32, u8>(indices);
@@ -957,6 +1454,21 @@ impl Paint {
                 pass.set_vertex_buffer(0, held.0.slice(..));
                 pass.set_index_buffer(held.1.slice(..), wgpu::IndexFormat::Uint32);
                 pass.draw_indexed(0..over.indices.len() as u32, 0, 0..1);
+            }
+
+            // The rock the lens gave up on, back at its own distance: after the
+            // water that is solid, because the depth it writes is what keeps a
+            // fish behind it behind it, and before the light, because a shaft
+            // falls on rock as well as on water.
+            let held = self.layers.borrow();
+            for (at, layer) in held.iter().enumerate() {
+                if layer.count == 0 {
+                    continue;
+                }
+                pass.set_pipeline(&self.laid);
+                pass.set_bind_group(0, &*self.bind.borrow(), &[]);
+                pass.set_bind_group(1, &layer.own, &[(at * 3 + 2) as u32 * SLOT as u32]);
+                pass.draw(0..3, 0..1);
             }
 
             if !glass.indices.is_empty() {

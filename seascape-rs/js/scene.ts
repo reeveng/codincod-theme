@@ -11,12 +11,35 @@
  * Nothing here decides how anything looks. It says where the ground is, where
  * the plants stand and which way they are bending, and stops.
  */
+import { createBiome } from "../../../codincodv2/assets/js/ornament/biome.ts"
+import { createCephalopods } from "../../../codincodv2/assets/js/ornament/cephalopods.ts"
+import { createCrags } from "../../../codincodv2/assets/js/ornament/crags.ts"
+import { createDrift } from "../../../codincodv2/assets/js/ornament/drift.ts"
 import { createFlora, type Plant } from "../../../codincodv2/assets/js/ornament/flora.ts"
+import { createNemos } from "../../../codincodv2/assets/js/ornament/nemos.ts"
+import { createPassers } from "../../../codincodv2/assets/js/ornament/passers.ts"
 import { thriving } from "../../../codincodv2/assets/js/ornament/plenty.ts"
+import { createRays } from "../../../codincodv2/assets/js/ornament/rays.ts"
 import { createReef, type Reef } from "../../../codincodv2/assets/js/ornament/reef.ts"
+import { createRelics } from "../../../codincodv2/assets/js/ornament/relics.ts"
 import { createSeabed, type Seabed } from "../../../codincodv2/assets/js/ornament/seabed.ts"
+import { createShoal, WILD } from "../../../codincodv2/assets/js/ornament/shoal.ts"
+import { createSwarm } from "../../../codincodv2/assets/js/ornament/swarm.ts"
+import { createVisitors } from "../../../codincodv2/assets/js/ornament/visitors.ts"
+import { createWalkers } from "../../../codincodv2/assets/js/ornament/walkers.ts"
+import { paintRays, paintSnow } from "./light.ts"
+import {
+  paintInklings,
+  paintNemos,
+  paintPassers,
+  paintShoal,
+  paintSwarm,
+  paintVisitors,
+  paintWalkers,
+} from "./life.ts"
 import { Pen } from "./pen.ts"
-import { paintSky } from "./sky.ts"
+import { paintCrags, paintHeads, paintRelics, paintStones } from "./rock.ts"
+import { paintSky, pretend as askSky } from "./sky.ts"
 
 /** Mirrors of the densities `Seascape.qml` sows the bed at, so both renderers
  *  draw the same water from the same seed. */
@@ -88,6 +111,50 @@ let reef: Reef | null = null
 let seabed: Seabed | null = null
 let box = { height: 0, width: 0 }
 
+/**
+ * Everything else in the water, which is everything that will not stand still.
+ *
+ * Held apart from the bed because the bed goes over the wire once and these go
+ * over it every frame; see `over`. All of them are the ornament's, made with
+ * the numbers `Seascape.qml` makes them with, so the desktop and the site are
+ * the same sea and not two seas with a family resemblance.
+ */
+let crags: ReturnType<typeof createCrags> | null = null
+let drift: ReturnType<typeof createDrift> | null = null
+let flock: ReturnType<typeof createSwarm> | null = null
+let inklings: ReturnType<typeof createCephalopods> | null = null
+let light: ReturnType<typeof createRays> | null = null
+let nemos: ReturnType<typeof createNemos> | null = null
+let passers: ReturnType<typeof createPassers> | null = null
+let rushed = false
+let shoal: ReturnType<typeof createShoal> | null = null
+let visitors: ReturnType<typeof createVisitors> | null = null
+let walkers: ReturnType<typeof createWalkers> | null = null
+let wreckage: ReturnType<typeof createRelics> | null = null
+
+/** How many of each the box is worth, and the ceilings on them. */
+const FISH = { least: 6, most: 44, night: 0.55, per: 62_000 }
+const MOTES = { least: 40, most: 280, per: 12_500 }
+const CRAWLERS = { crabs: 11, mostCrabs: 28, mostStarfish: 24, starfish: 9 }
+const SHAFTS = 5
+const VENTS = 3
+const SPECKS = 420
+const SQUIDS = 2
+const OCTOPUSES = 2
+
+/** How long a fish is, and how much of its length it swims in a second. */
+const CRUISE = 0.8
+const SHORTEST = 52
+const LONGEST = 92
+
+/**
+ * How far the water is wound on before anybody sees it, in steps of a tenth.
+ *
+ * Nothing opens on a row of fish abreast on their starting line or on snow that
+ * has not yet had time to spread through the water.
+ */
+const WIND_STEP = 1 / 10
+
 function spread(perThousand: number, most: number, width: number): number {
   return Math.max(LEAST, Math.min(most, Math.round((width * perThousand) / 1000)))
 }
@@ -97,11 +164,37 @@ function lush(perThousand: number, most: number, width: number, day: number): nu
   return spread(perThousand * day, most, width)
 }
 
+/**
+ * Wind the rare things on with everything else, for the still harness.
+ *
+ * A passer keeps an appointment rather than a stopwatch and a shark is out
+ * once in an evening, so a still of a sea taken the way the desktop opens one
+ * is a still of empty water. `preview.qml` carries the same switch under the
+ * same name, and the two renderers can only be held against each other on a
+ * sea that has something in it.
+ */
+export function rush(on: number): void {
+  rushed = on !== 0
+}
+
+/**
+ * An hour asked for rather than read off the clock; see `sky.ts`.
+ *
+ * `-1` for daylight hands the sky back to the clock, since the host has
+ * numbers rather than nulls to hand over.
+ */
+export function pretend(daylight: number, dusk: number, march: number, lit: number): void {
+  askSky(
+    daylight < 0 ? null : { daylight, dusk, lit: Math.abs(lit), march, waxing: lit >= 0 },
+  )
+}
+
 export function build(width: number, height: number, seed: number, tolerance: number): void {
   box = { height, width }
   handed.length = 0
 
   const day = thriving(seed)
+  const water = createBiome()
 
   seabed = createSeabed({
     cliffs: spread(PER_K.cliffs, MOST.cliffs, width),
@@ -122,6 +215,7 @@ export function build(width: number, height: number, seed: number, tolerance: nu
   })
 
   flora = createFlora({
+    about: water.about,
     anemones: lush(PER_K.anemones, MOST.anemones, width, day),
     corals: lush(PER_K.corals, MOST.corals, width, day),
     // The crowns and nothing else. Everything the water only bends is handed
@@ -136,14 +230,151 @@ export function build(width: number, height: number, seed: number, tolerance: nu
     tolerance,
     width,
   })
+
+  walkers = createWalkers({
+    about: water.about,
+    crabs: lush(CRAWLERS.crabs, CRAWLERS.mostCrabs, width, day),
+    floor: seabed.floorAt,
+    seed,
+    starfish: lush(CRAWLERS.starfish, CRAWLERS.mostStarfish, width, day),
+    tolerance,
+    width,
+  })
+
+  shoal = createShoal({
+    count: fishCount(width, height, day),
+    cruise: CRUISE,
+    height,
+    longest: LONGEST,
+    seed,
+    shortest: SHORTEST,
+    species: WILD,
+    width,
+  })
+
+  inklings = createCephalopods({
+    floor: seabed.floorAt,
+    height,
+    octopuses: OCTOPUSES,
+    seed,
+    squids: SQUIDS,
+    width,
+  })
+
+  // The cephalopods, entered from out here rather than from inside their own
+  // file, exactly as `Seascape.qml` enters them. An octopus is measured across
+  // its arms rather than its head, which is twice the size it is drawn at and
+  // is the honest number: what a crab sees coming over a stone is the reach.
+  const seen = inklings
+  water.enter(() => {
+    const about = []
+    for (const pus of seen.octopuses) {
+      if (pus.lift > 0) {
+        about.push({ depth: pus.depth, menace: 0.55, size: pus.size * 2, x: pus.x, y: pus.y })
+      }
+    }
+    for (const squid of seen.squids) {
+      about.push({ depth: squid.depth, menace: 0.3, size: squid.size, x: squid.x, y: squid.y })
+    }
+    return about
+  })
+
+  wreckage = createRelics({ floor: seabed.floorAt, height, seed, width })
+  passers = createPassers({ eager: rushed, height, seed, width })
+  visitors = createVisitors({ eager: rushed, height, seed, water, width })
+  flock = createSwarm({ count: SPECKS, eager: rushed, height, seed, water, width })
+  nemos = createNemos({ about: water.about, reef, seed })
+  crags = createCrags({ floor: seabed.floorAt, height, seed, width })
+  drift = createDrift({
+    floor: seabed.floorAt,
+    height,
+    motes: moteCount(width, height),
+    seed,
+    tolerance,
+    vents: VENTS,
+    width,
+  })
+  light = createRays({ count: SHAFTS, height, seed, width })
 }
 
+/**
+ * How many fish this box is worth at this hour.
+ *
+ * Fewer at night, because a shoal is a daylight thing: what is out after dark
+ * is the animals that were always out after dark.
+ */
+function fishCount(width: number, height: number, day: number): number {
+  const full = Math.max(FISH.least, Math.min(FISH.most, Math.round((width * height) / FISH.per)))
+  const hour = FISH.night + (1 - FISH.night) * daylight
+  return Math.max(FISH.least, Math.round(full * hour * Math.sqrt(day)))
+}
+
+function moteCount(width: number, height: number): number {
+  return Math.max(MOTES.least, Math.min(MOTES.most, Math.round((width * height) / MOTES.per)))
+}
+
+/** Whatever the water is most frightened of this frame. */
+function felt() {
+  const above = passers?.startle ?? null
+  const among = visitors?.startle ?? null
+  if (!above) return among
+  if (!among) return above
+  return among.force > above.force ? among : above
+}
+
+/**
+ * Carry the whole water forward by a stretch of time, as cheaply as it can be.
+ *
+ * Everything that swims has to be swum: where a fish is after a minute is the
+ * minute it spent getting there. The bed is the exception, because a plant has
+ * no memory: a stretch of time is an addition to its clock and one recut at the
+ * end. The passers are the other exception, and for the opposite reason: they
+ * keep appointments rather than a stopwatch, and winding them here would spend
+ * the day's boat on the two minutes of water that exist to be skipped.
+ */
 export function wind(seconds: number): void {
-  flora?.wind(seconds)
+  const steps = Math.round(Math.max(0, seconds) / WIND_STEP)
+
+  for (let i = 0; i < steps; i++) {
+    // The still harness only, and the one caller allowed to spend a passer:
+    // see the note above. A boat crosses once in a day, so a background that
+    // wound one here would open on water that had already had its boat.
+    if (rushed) passers?.step(WIND_STEP)
+
+    visitors?.step(WIND_STEP)
+    flock?.step(WIND_STEP, felt())
+    shoal?.step(WIND_STEP, null, felt())
+    drift?.step(WIND_STEP)
+    light?.step(WIND_STEP)
+    inklings?.step(WIND_STEP, rushed ? (passers?.startle ?? null) : null)
+    walkers?.step(WIND_STEP)
+    nemos?.step(WIND_STEP)
+    wreckage?.step(WIND_STEP)
+  }
+
+  flora?.wind(steps * WIND_STEP)
+  reef?.wind(steps * WIND_STEP)
 }
 
+/**
+ * The passers and the visitors go first, so the fish answer the hull and the
+ * shark where they are this frame rather than where they were last one.
+ * Everything else here is indifferent to the order it is stepped in.
+ */
 export function step(seconds: number): void {
+  passers?.step(seconds)
+  visitors?.step(seconds)
+  flock?.step(seconds, felt())
+  shoal?.step(seconds, null, felt())
+  drift?.step(seconds)
+  light?.step(seconds)
   flora?.step(seconds)
+  inklings?.step(seconds, passers?.startle ?? null)
+  walkers?.step(seconds)
+  reef?.step(seconds)
+  nemos?.step(seconds)
+  wreckage?.step(seconds)
+
   held += seconds
   turn = (turn + 1) % 512
 }
@@ -203,12 +434,45 @@ export function over(): number {
   const reach = unit + Math.abs(SWAY_ROLL) * Math.hypot(box.width, box.height) / 2
   put(1 + (2 * reach) / Math.max(1, Math.min(box.width, box.height)))
   put(turn)
+  daylightAt = at
+  put(daylight)
 
   const pen = new Pen(geometry, at)
-  paintSky(pen, box)
+  const sky = paintSky(pen, box)
+  daylight = sky.daylight
+  put_at(daylightAt, daylight)
+
+  if (crags) paintCrags(pen, crags, box)
+  if (seabed) paintStones(pen, seabed)
+  if (reef) paintHeads(pen, reef)
+  if (wreckage) paintRelics(pen, wreckage)
+  if (light) paintRays(pen, light, daylight)
+  if (drift) paintSnow(pen, drift)
+  if (shoal) paintShoal(pen, shoal)
+  if (nemos) paintNemos(pen, nemos)
+  if (flock) paintSwarm(pen, flock)
+  if (inklings) paintInklings(pen, inklings)
+  if (walkers) paintWalkers(pen, walkers)
+  if (visitors) paintVisitors(pen, visitors)
+  if (passers) paintPassers(pen, passers)
 
   at = pen.close()
   return at
+}
+
+/**
+ * How light it is above the water, which the renderer needs as well as the sky.
+ *
+ * The lit top of the water's own column is a function of it, and that is the
+ * card's business rather than this file's, so it goes over with the wander.
+ * Written after the sky is drawn, into a slot kept for it, because nothing
+ * knows the hour until `sunNow` has been asked.
+ */
+let daylight = 1
+let daylightAt = 0
+
+function put_at(slot: number, value: number): void {
+  geometry[slot] = value
 }
 
 let at = 0
