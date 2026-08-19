@@ -94,6 +94,7 @@ var __ornament = (() => {
     createSwarm: () => createSwarm,
     createVisitors: () => createVisitors,
     createWalkers: () => createWalkers,
+    crescent: () => crescent,
     daySeed: () => daySeed,
     fade: () => fade,
     frameAt: () => frameAt,
@@ -105,6 +106,7 @@ var __ornament = (() => {
     squidBody: () => squidBody,
     starfishBody: () => starfishBody,
     sunNow: () => sunNow,
+    sunlit: () => sunlit,
     thriving: () => thriving
   });
 
@@ -609,7 +611,7 @@ var __ornament = (() => {
     const roll = random();
     return (_d = (_c = mix2.find(([, upto]) => roll < upto)) == null ? void 0 : _c[0]) != null ? _d : mix2[mix2.length - 1][0];
   }
-  function pair(shoal, reach2 = Number.POSITIVE_INFINITY, place2 = true) {
+  function pair(shoal, reach2 = Number.POSITIVE_INFINITY, place = true) {
     const spare = shoal.filter((one) => one.kind === "escort" && !one.mate);
     for (const one of spare) {
       if (one.mate) continue;
@@ -624,7 +626,7 @@ var __ornament = (() => {
       if (!leader) continue;
       if (shoal.some((other) => other.mate === leader)) continue;
       one.mate = leader;
-      if (!place2) continue;
+      if (!place) continue;
       one.x = leader.x - leader.facing * leader.size * STATION_BACK;
       one.y = leader.y + leader.size * STATION_SIDE;
     }
@@ -1134,8 +1136,8 @@ var __ornament = (() => {
     const open = Math.min(Math.max(pose.reach, 0), 1.2);
     for (let made = 0; made < count; made++) {
       const side = made / (count - 1) - 0.5;
-      const phase = pose.crawl + (side > 0 ? 0 : Math.PI) + made * 0.12;
-      const work = Math.sin(phase) * held.work;
+      const phase2 = pose.crawl + (side > 0 ? 0 : Math.PI) + made * 0.12;
+      const work = Math.sin(phase2) * held.work;
       const ahead2 = Math.sign(side * pose.facing) || 1;
       const grown = held.reach * open * (1 + ahead2 * held.lead * 0.35);
       const reach2 = grown * (0.9 + Math.abs(side) * 0.5) * (0.88 + work * 0.12);
@@ -1146,7 +1148,7 @@ var __ornament = (() => {
       for (let step = 0; step <= 6; step++) {
         const t = step / 6;
         const along2 = side * fan * reach2 * t;
-        const wave2 = Math.sin(phase + t * 2.2) * 0.14 * t * (1 - t) * 4 * held.work;
+        const wave2 = Math.sin(phase2 + t * 2.2) * 0.14 * t * (1 - t) * 4 * held.work;
         points.push({
           x: along2 + stream * t * reach2 - ahead2 * curl * t * t * 0.28,
           y: (t * t * held.drop + t * 0.1) * (1 - drive * 0.7) - wave2 * 0.22 - curl * t * t * 0.5
@@ -1374,14 +1376,14 @@ var __ornament = (() => {
     if (kind === "kelp") return KELP_GIRTH * ((_a = weed == null ? void 0 : weed.girth) != null ? _a : 1) * shrunk(depth);
     return GRASS_GIRTH * shrunk(depth);
   }
-  function feeler(x, y, span, open, phase, steps) {
+  function feeler(x, y, span, open, phase2, steps) {
     const points = [{ x, y }];
     const pace = span / steps;
     let atX = x;
     let atY = y;
     for (let step = 1; step <= steps; step++) {
       const u = step / steps;
-      const heading = open * (1 + CROWN_CURL * u) + Math.sin(phase + u * CROWN_WAVES) * CROWN_WAVE * u;
+      const heading = open * (1 + CROWN_CURL * u) + Math.sin(phase2 + u * CROWN_WAVES) * CROWN_WAVE * u;
       atX += pace * Math.sin(heading);
       atY -= pace * Math.cos(heading);
       points.push({ x: atX, y: atY });
@@ -1410,14 +1412,14 @@ var __ornament = (() => {
   function crownSwept(span, turned) {
     return span * SWEEP2.anemone * turned;
   }
-  function crownAt(mouth, tentacles, span, phase) {
+  function crownAt(mouth, tentacles, span, phase2) {
     return tentacles.map(
       (one) => feeler(
         mouth.x + one.shift * span,
         mouth.y,
         one.span * span,
         one.slant,
-        phase * one.beat + one.own,
+        phase2 * one.beat + one.own,
         one.steps
       )
     );
@@ -1772,14 +1774,14 @@ var __ornament = (() => {
       const up = Math.round(seat * (line.length - 1));
       return (_a2 = line[Math.min(line.length - 1, Math.max(0, up))]) != null ? _a2 : { x: 0, y: 0 };
     }
-    function strand(x, y, span, phase, amp, slant, steps) {
+    function strand(x, y, span, phase2, amp, slant, steps) {
       const lean = Math.sin(slant);
       const rise = Math.cos(slant);
       const points = [];
       for (let step = 0; step <= steps; step++) {
         const t = step / steps;
         points.push({
-          x: x + span * t * lean + amp * Math.sin(phase + t * 2.4) * t,
+          x: x + span * t * lean + amp * Math.sin(phase2 + t * 2.4) * t,
           y: y - span * t * rise
         });
       }
@@ -2309,7 +2311,7 @@ var __ornament = (() => {
   var WAVES = 0.85;
   var TWIST = 2 * Math.PI * WAVES;
   var envelope = (u) => 0.2 - 0.8 * u + 1.6 * u * u;
-  var wave = (u, phase) => envelope(u) * Math.sin(TWIST * u - phase);
+  var wave = (u, phase2) => envelope(u) * Math.sin(TWIST * u - phase2);
   var SLOPE = 0.6;
   var FLUKE_BACK = -9;
   var FLUKE_SPREAD = 7;
@@ -2319,8 +2321,8 @@ var __ornament = (() => {
     let low = Number.POSITIVE_INFINITY;
     let high = Number.NEGATIVE_INFINITY;
     for (let at = 0; at < SAMPLES; at++) {
-      const phase = at / SAMPLES * 2 * Math.PI;
-      const sway = (x) => amp * wave(1 - x / NOSE, phase);
+      const phase2 = at / SAMPLES * 2 * Math.PI;
+      const sway = (x) => amp * wave(1 - x / NOSE, phase2);
       const angle = Math.atan2(sway(SLOPE) - sway(-SLOPE), 2 * SLOPE);
       const tip = sway(0) + FLUKE_BACK * Math.sin(angle);
       low = Math.min(low, tip);
@@ -2334,19 +2336,19 @@ var __ornament = (() => {
     return amp;
   }
   var AMP = fitted();
-  function spine(x, phase) {
-    return AMP * wave(1 - x / NOSE, phase);
+  function spine(x, phase2) {
+    return AMP * wave(1 - x / NOSE, phase2);
   }
-  function station2(x, phase) {
-    const back = spine(x - SLOPE, phase);
-    const front = spine(x + SLOPE, phase);
-    return { angle: Math.atan2(front - back, 2 * SLOPE), x, y: spine(x, phase) };
+  function station2(x, phase2) {
+    const back = spine(x - SLOPE, phase2);
+    const front = spine(x + SLOPE, phase2);
+    return { angle: Math.atan2(front - back, 2 * SLOPE), x, y: spine(x, phase2) };
   }
   var clear = (on, lift) => [
     on.x + Math.sin(on.angle) * lift,
     on.y - Math.cos(on.angle) * lift
   ];
-  var above = (x, lift, phase) => clear(station2(x, phase), lift);
+  var above = (x, lift, phase2) => clear(station2(x, phase2), lift);
   var fixed = (value) => value.toFixed(2);
   function rounded(points) {
     const mid = (a, b) => `${fixed((a[0] + b[0]) / 2)} ${fixed((a[1] + b[1]) / 2)}`;
@@ -2360,22 +2362,22 @@ var __ornament = (() => {
     return `${d}Z`;
   }
   var fin = (points) => `M${points.map(([x, y]) => `${fixed(x)} ${fixed(y)}`).join("L")}Z`;
-  function dorsal(phase) {
+  function dorsal(phase2) {
     const foot = (t, over) => {
       const x = along(t);
-      return clear(station2(x, phase), half(t) + over);
+      return clear(station2(x, phase2), half(t) + over);
     };
     return fin([foot(0.38, -SET), foot(0.52, TIP), foot(0.66, -SET)]);
   }
   var SET = 0.8;
   var TIP = 5;
-  function outline(phase) {
+  function outline(phase2) {
     const top = [];
     const bottom = [];
     for (let at = 0; at <= STATIONS; at++) {
       const t = at / STATIONS;
       const x = along(t);
-      const on = station2(x, phase);
+      const on = station2(x, phase2);
       const lift = half(t);
       top.push(clear(on, lift));
       bottom.push(clear(on, -lift));
@@ -2383,8 +2385,8 @@ var __ornament = (() => {
     return [...top, ...bottom.reverse()];
   }
   var ROOT = 2.5;
-  function tail(phase) {
-    const joint = station2(0, phase);
+  function tail(phase2) {
+    const joint = station2(0, phase2);
     const cos = Math.cos(joint.angle);
     const sin = Math.sin(joint.angle);
     const carry = ([x, y]) => [
@@ -2404,18 +2406,18 @@ var __ornament = (() => {
   var EYE_X = 22;
   var EYE_LIFT = 2;
   function build(at) {
-    const phase = at / STEPS2 * 2 * Math.PI;
-    const [x, y] = above(EYE_X, EYE_LIFT, phase);
-    const d = rounded(outline(phase)) + tail(phase) + dorsal(phase);
+    const phase2 = at / STEPS2 * 2 * Math.PI;
+    const [x, y] = above(EYE_X, EYE_LIFT, phase2);
+    const d = rounded(outline(phase2)) + tail(phase2) + dorsal(phase2);
     return {
       at,
-      billed: d + bill(phase),
+      billed: d + bill(phase2),
       d,
       eye: { r: EYE_R, x, y }
     };
   }
-  function bill(phase) {
-    const nose = station2(NOSE, phase);
+  function bill(phase2) {
+    const nose = station2(NOSE, phase2);
     const cos = Math.cos(nose.angle);
     const sin = Math.sin(nose.angle);
     const carry = ([x, y]) => [
@@ -2431,8 +2433,8 @@ var __ornament = (() => {
   var BILL_REACH = 15;
   var BILL_GIRTH = 1.1;
   var BILL_ROOT = 3;
-  function frameAt(phase) {
-    const at = (Math.round(phase / (2 * Math.PI) * STEPS2) % STEPS2 + STEPS2) % STEPS2;
+  function frameAt(phase2) {
+    const at = (Math.round(phase2 / (2 * Math.PI) * STEPS2) % STEPS2 + STEPS2) % STEPS2;
     const had = drawn[at];
     if (had) return had;
     const made = build(at);
@@ -3325,23 +3327,23 @@ var __ornament = (() => {
       const own = Math.sin(clock * Math.PI * 2 * SWELL_RATE + one.lane);
       return sway * (passing * SWELL_SHARE + own * (1 - SWELL_SHARE));
     }
-    function wander(at, bend2, phase) {
+    function wander(at, bend2, phase2) {
       var _a2;
       const one = heads[at];
       const was = held[at];
       if (!one || !was) return Number.POSITIVE_INFINITY;
-      return ((_a2 = reaches[at]) != null ? _a2 : 0) * Math.abs(bend2 - was.bend) + crownSwept(COLUMN * one.scale, Math.abs(phase - was.phase));
+      return ((_a2 = reaches[at]) != null ? _a2 : 0) * Math.abs(bend2 - was.bend) + crownSwept(COLUMN * one.scale, Math.abs(phase2 - was.phase));
     }
     function breathe() {
       for (const [at, one] of heads.entries()) {
         const tentacles = crowns[at];
         const bend2 = lean(one);
-        const phase = tentacles ? clock * CROWN_RATE + one.lane : 0;
-        if (wander(at, bend2, phase) < tolerance) continue;
+        const phase2 = tentacles ? clock * CROWN_RATE + one.lane : 0;
+        if (wander(at, bend2, phase2) < tolerance) continue;
         one.bend = bend2;
-        if (tentacles) one.blades = crownAt(MOUTH, tentacles, COLUMN, phase);
+        if (tentacles) one.blades = crownAt(MOUTH, tentacles, COLUMN, phase2);
         one.cut++;
-        held[at] = { bend: bend2, phase };
+        held[at] = { bend: bend2, phase: phase2 };
       }
     }
     const crest = [];
@@ -3427,7 +3429,7 @@ var __ornament = (() => {
     let drift = 0;
     const relics = [];
     const plume = [];
-    function place2() {
+    function place() {
       const roll = makeRandom(options.seed ^ 36369);
       for (let spun = 0; spun < WARMUP; spun++) roll();
       relics.length = 0;
@@ -3452,7 +3454,7 @@ var __ornament = (() => {
       }
     }
     const smoker = () => relics.find((one) => one.kind === "smoker");
-    place2();
+    place();
     return {
       plume,
       relics,
@@ -3461,7 +3463,7 @@ var __ornament = (() => {
         height = Math.max(MIN_SPAN8, nextHeight);
         floor = nextFloor;
         plume.length = 0;
-        place2();
+        place();
       },
       step(seconds) {
         const dt = Math.min(Math.max(seconds, 0), 0.1);
@@ -3732,15 +3734,34 @@ var __ornament = (() => {
     const region = (_b = zone.split("/")[0]) != null ? _b : "";
     return { latitude: (_c = REGION_LATITUDE[region]) != null ? _c : 45, longitude };
   }
-  function place(now, { latitude, longitude }) {
-    const days = now.getTime() / DAY_MS - J2000_OFFSET_DAYS;
+  function epochDays(now) {
+    return now.getTime() / DAY_MS - J2000_OFFSET_DAYS;
+  }
+  function sunEcliptic(days) {
     const meanAnomaly = (357.5291 + 0.98560028 * days) * RAD;
-    const eclipticLongitude = meanAnomaly + (1.9148 * Math.sin(meanAnomaly) + 0.02 * Math.sin(2 * meanAnomaly) + 3e-4 * Math.sin(3 * meanAnomaly)) * RAD + 102.9372 * RAD + Math.PI;
-    const declination = Math.asin(Math.sin(eclipticLongitude) * Math.sin(OBLIQUITY));
-    const rightAscension = Math.atan2(
-      Math.sin(eclipticLongitude) * Math.cos(OBLIQUITY),
-      Math.cos(eclipticLongitude)
-    );
+    return meanAnomaly + (1.9148 * Math.sin(meanAnomaly) + 0.02 * Math.sin(2 * meanAnomaly) + 3e-4 * Math.sin(3 * meanAnomaly)) * RAD + 102.9372 * RAD + Math.PI;
+  }
+  function moonEcliptic(days) {
+    const argument = (93.272 + 13.22935 * days) * RAD;
+    const meanAnomaly = (134.963 + 13.064993 * days) * RAD;
+    const meanLongitude = (218.316 + 13.176396 * days) * RAD;
+    return {
+      latitude: 5.128 * RAD * Math.sin(argument),
+      longitude: meanLongitude + 6.289 * RAD * Math.sin(meanAnomaly)
+    };
+  }
+  function equatorial(longitude, latitude) {
+    return {
+      declination: Math.asin(
+        Math.sin(latitude) * Math.cos(OBLIQUITY) + Math.cos(latitude) * Math.sin(OBLIQUITY) * Math.sin(longitude)
+      ),
+      rightAscension: Math.atan2(
+        Math.sin(longitude) * Math.cos(OBLIQUITY) - Math.tan(latitude) * Math.sin(OBLIQUITY),
+        Math.cos(longitude)
+      )
+    };
+  }
+  function horizon(days, { latitude, longitude }, { declination, rightAscension }) {
     const siderealTime = (280.16 + 360.9856235 * days) * RAD + longitude * RAD;
     const hourAngle = siderealTime - rightAscension;
     const phi = latitude * RAD;
@@ -3749,10 +3770,28 @@ var __ornament = (() => {
     );
     return { altitude: altitude / RAD, hourAngle };
   }
-  function passage(hourAngle) {
-    const wrapped = Math.atan2(Math.sin(hourAngle), Math.cos(hourAngle));
+  function passage({ altitude, hourAngle }) {
+    const wrapped = wrap(hourAngle);
     const march = clamp2(0.5 + wrapped / Math.PI, 0, 1);
-    return { arc: Math.sin(march * Math.PI), march };
+    return { arc: Math.sin(march * Math.PI), march, up: clamp2((altitude + 1) / 6, 0, 1) };
+  }
+  function phase(now) {
+    const days = epochDays(now);
+    const elongation = wrap(moonEcliptic(days).longitude - sunEcliptic(days));
+    return { lit: (1 - Math.cos(elongation)) / 2, waxing: elongation > 0 };
+  }
+  function crescent(x, y, radius, { lit, waxing }) {
+    const limb = waxing ? 1 : 0;
+    const terminator = lit > 0.5 ? limb : 1 - limb;
+    const waist = round(radius * Math.abs(2 * lit - 1));
+    const r = round(radius);
+    const top = `${round(x)} ${round(y - radius)}`;
+    const foot = `${round(x)} ${round(y + radius)}`;
+    return `M${top}A${r} ${r} 0 0 ${limb} ${foot}A${waist} ${r} 0 0 ${terminator} ${top}Z`;
+  }
+  function sunlit(x, y, { lit, waxing }) {
+    const across = waxing ? x : -x;
+    return across + (2 * lit - 1) * Math.sqrt(Math.max(0, 1 - y * y));
   }
   function light(altitude) {
     return {
@@ -3762,14 +3801,23 @@ var __ornament = (() => {
   }
   function sunNow() {
     const now = /* @__PURE__ */ new Date();
-    const { altitude, hourAngle } = place(now, position(now));
-    return __spreadProps(__spreadValues({}, light(altitude)), {
-      moon: passage(hourAngle + Math.PI),
-      sun: passage(hourAngle)
+    const here = position(now);
+    const days = epochDays(now);
+    const sun = horizon(days, here, equatorial(sunEcliptic(days), 0));
+    const moon = moonEcliptic(days);
+    return __spreadProps(__spreadValues({}, light(sun.altitude)), {
+      moon: __spreadValues(__spreadValues({}, passage(horizon(days, here, equatorial(moon.longitude, moon.latitude)))), phase(now)),
+      sun: passage(sun)
     });
   }
   function clamp2(value, low, high) {
     return Math.min(high, Math.max(low, value));
+  }
+  function wrap(angle) {
+    return Math.atan2(Math.sin(angle), Math.cos(angle));
+  }
+  function round(value) {
+    return Math.round(value * 1e3) / 1e3;
   }
 
   // ../../codincodv2/assets/js/ornament/swarm.ts
@@ -3873,7 +3921,7 @@ var __ornament = (() => {
         }
       ];
     });
-    function place2() {
+    function place() {
       const u = random() * 2 - 1;
       const v = random() * 2 - 1;
       const w = random() * 2 - 1;
@@ -3890,7 +3938,7 @@ var __ornament = (() => {
           long: SHORTEST2 + random() * (LONGEST2 - SHORTEST2),
           pushX: 0,
           pushY: 0
-        }, place2()));
+        }, place()));
         pool.push({ depth: 1, size: 1, tilt: 0, x: 0, y: 0 });
       }
     }
@@ -4277,13 +4325,13 @@ var __ornament = (() => {
     if (points.length === 0) return "";
     return `M${points.map(([x, y]) => `${fixed2(x)} ${fixed2(y)}`).join("L")}Z`;
   }
-  function bend(kind, phase) {
+  function bend(kind, phase2) {
     const { sweep, waves } = SWEEP4[kind];
     const joint = JOINTS[kind];
     const run = 1 - joint;
     const at = (x) => {
       const u = Math.max(0, Math.min(1, (1 - x) / run));
-      return sweep * envelope2(u) * Math.sin(2 * Math.PI * waves * u - phase);
+      return sweep * envelope2(u) * Math.sin(2 * Math.PI * waves * u - phase2);
     };
     const angleAt = (x) => Math.atan2(at(x + SLOPE2) - at(x - SLOPE2), 2 * SLOPE2);
     return {
@@ -4296,8 +4344,8 @@ var __ornament = (() => {
       joint
     };
   }
-  function swimmer(kind, table, phase, fins) {
-    const spine2 = bend(kind, phase);
+  function swimmer(kind, table, phase2, fins) {
+    const spine2 = bend(kind, phase2);
     const over = [];
     const under = [];
     for (const station3 of table) {
@@ -4394,12 +4442,12 @@ var __ornament = (() => {
   function turtleBody(stroke) {
     const near = turtleBeat(stroke).phase;
     const far = turtleBeat(stroke + 0.5).phase;
-    const oar = (root, phase, reach2, wide) => {
-      const feather = Math.cos(phase);
+    const oar = (root, phase2, reach2, wide) => {
+      const feather = Math.cos(phase2);
       const turned = 1 - TURTLE_FEATHER * feather;
       return blade(
         root,
-        TURTLE_SEAT - TURTLE_SWING * Math.sin(phase) * (0.62 + 0.38 * feather),
+        TURTLE_SEAT - TURTLE_SWING * Math.sin(phase2) * (0.62 + 0.38 * feather),
         reach2 * turned,
         wide * turned,
         0.06 * (1 - feather * 0.6)
@@ -4846,6 +4894,8 @@ var WILD = __ornament.WILD
 var createShoal = __ornament.createShoal
 var daySeed = __ornament.daySeed
 var freshSeed = __ornament.freshSeed
+var crescent = __ornament.crescent
+var sunlit = __ornament.sunlit
 var sunNow = __ornament.sunNow
 var createSwarm = __ornament.createSwarm
 var BODIES = __ornament.BODIES

@@ -47,12 +47,14 @@ Item {
   /**
    * Where each of the two bodies has got to across its own sky.
    *
-   * `{ arc, march }` each, 0 to 1 from one horizon to the other. The sun
-   * crosses through the day and the moon crosses through the night, because
-   * the moon is put opposite the sun; see `sunNow`.
+   * `{ arc, march, up }` each, 0 to 1 from one horizon to the other and whether
+   * it is over the horizon at all. The moon carries `lit` and `waxing` as well,
+   * which are the shape tonight has left of it: both bodies are worked out from
+   * the real sky rather than the moon being hung wherever the sun is not. See
+   * `sunNow`.
    */
-  property var sun: ({ arc: 0.8, march: 0.5 })
-  property var moon: ({ arc: 0.8, march: 0.5 })
+  property var sun: ({ arc: 0.8, march: 0.5, up: 1 })
+  property var moon: ({ arc: 0.8, lit: 0.62, march: 0.5, up: 1, waxing: true })
 
   /**
    * Which sea today is.

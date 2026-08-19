@@ -74,6 +74,17 @@ Window {
   readonly property real daylight: Number(win.arg("daylight", "1"))
   readonly property real dusk: Number(win.arg("dusk", "0"))
   readonly property real march: Number(win.arg("march", "0.5"))
+
+  /**
+   * `daylight=0 lit=0.1` is a new moon and `lit=1 waxing=0` is a full one.
+   *
+   * The real sky hands these over from the calendar, so the only way to look at
+   * a shape that is three weeks off is to ask for it. `up=0` is the other half
+   * of the month, when there is no moon over the water at all.
+   */
+  readonly property real lit: Number(win.arg("lit", "0.62"))
+  readonly property real up: Number(win.arg("up", "1"))
+  readonly property bool waxing: win.arg("waxing", "1") !== "0"
   readonly property int seed: Number(win.arg("seed", "1956"))
   readonly property real settle: Number(win.arg("settle", "40"))
 
@@ -91,8 +102,14 @@ Window {
     daylight: win.daylight
     dusk: win.dusk
     ink: win.ink
-    moon: ({ arc: Math.sin(win.march * Math.PI), march: win.march })
-    sun: ({ arc: Math.sin(win.march * Math.PI), march: win.march })
+    moon: ({
+      arc: Math.sin(win.march * Math.PI),
+      lit: win.lit,
+      march: win.march,
+      up: win.up,
+      waxing: win.waxing,
+    })
+    sun: ({ arc: Math.sin(win.march * Math.PI), march: win.march, up: 1 })
     rushed: true
     seed: win.seed
     settle: win.settle

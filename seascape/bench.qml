@@ -98,7 +98,7 @@ Window {
     daylight: 1
     dusk: 0
     ink: win.ink
-    moon: ({ arc: 1, march: 0.5 })
+    moon: ({ arc: 1, lit: 0.62, march: 0.5, up: 1, waxing: true })
     running: false
     rushed: true
     seed: Number(win.arg("seed", "1956"))

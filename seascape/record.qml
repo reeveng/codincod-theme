@@ -32,6 +32,7 @@ Window {
   readonly property real fps: Number(win.arg("fps", "15"))
   readonly property real daylight: Number(win.arg("daylight", "1"))
   readonly property real dusk: Number(win.arg("dusk", "0"))
+  readonly property real lit: Number(win.arg("lit", "0.62"))
   readonly property real march: Number(win.arg("march", "0.5"))
 
   /**
@@ -78,7 +79,13 @@ Window {
     daylight: win.daylight
     dusk: win.dusk
     ink: win.ink
-    moon: ({ arc: Math.sin(win.march * Math.PI), march: win.march })
+    moon: ({
+      arc: Math.sin(win.march * Math.PI),
+      lit: win.lit,
+      march: win.march,
+      up: 1,
+      waxing: true,
+    })
     running: false
     rushed: true
     seed: Number(win.arg("seed", "1956"))

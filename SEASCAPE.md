@@ -18,6 +18,11 @@ renders them. Both the website and the desktop get all of it.
       same shaft of light under it, from the sun's real altitude at the reader's
       own longitude. Dusk is warm and falls off with depth; night is a wash over
       everything. `sun.ts`
+- [x] **The month**: the moon keeps its own hours and its own shape. It rises
+      about fifty minutes later each night, is a different sliver every one of
+      them, comes back to the same shape after 29.53, and for the nights it is
+      under the ground there is no moon over the water at all. The craters go
+      out one at a time as the terminator crosses them. `sun.ts`
 
 ## The bottom
 

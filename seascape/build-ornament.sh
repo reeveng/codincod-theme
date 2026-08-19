@@ -57,7 +57,7 @@ WANTED=(
   "relics BLOCK_CARD BLOCK_LINES CHEST_BANDS CHEST_BODY CHEST_LOCK LAPTOP_BASE LAPTOP_LINES LAPTOP_SCREEN SMOKER SMOKER_LIP WRECK WRECK_SPAR createRelics"
   "seabed createSeabed"
   "shoal SPECIES WILD createShoal daySeed freshSeed"
-  "sun sunNow"
+  "sun crescent sunlit sunNow"
   "swarm createSwarm"
   "visitors BODIES createVisitors"
   "walkers CRAB_SHELL crabLegs crabShell createWalkers starfishBody"
