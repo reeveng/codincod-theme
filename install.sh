@@ -73,13 +73,26 @@ install_plugin() {
   return 1
 }
 
-# The plugin off, so that the two of them are never both on the background
-# layer. Disabled rather than removed: the way back is one command.
+# Every wallpaper the shell would draw, off, so that the water is the only
+# thing on the background layer. Disabled rather than removed: the way back is
+# one command.
+#
+# Both of them, and that is not belt and braces. This plugin is a clone of
+# `omarchy.background`, and disabling a clone hands the built-in back its job:
+# turn off only the sea and the shell paints the wallpaper image over it, on the
+# same layer, after it, which is to say on top of it.
 stop_plugin() {
-  omarchy plugin list --json 2>/dev/null |
-    jq -e --arg id "$ID" 'any(.[]; .id == $id and .state == "enabled")' >/dev/null || return 0
-  omarchy plugin disable "$ID" >/dev/null
-  restart_shell
+  local off=0
+
+  for id in "$ID" omarchy.background; do
+    omarchy plugin list --json 2>/dev/null |
+      jq -e --arg id "$id" 'any(.[]; .id == $id and .enabled)' >/dev/null || continue
+    omarchy plugin disable "$id" >/dev/null
+    off=1
+  done
+
+  ((off)) && restart_shell
+  return 0
 }
 
 stop_wall() {

@@ -55,7 +55,13 @@ nothing loops.
 
 That builds `seascape-rs/`, which draws the water on the graphics card, and
 starts it as a service of your session. It wants `cargo`, and the first build
-takes a few minutes.
+takes a few minutes. The water is drawn in this theme's own two colours, which
+`SEASCAPE_INK=` and `SEASCAPE_SURFACE=` at install time will change.
+
+It turns off every wallpaper the shell would otherwise draw, since two of them
+on the background layer is a coin toss over which one you see. `systemctl --user
+disable --now seascape.service` and `omarchy plugin enable omarchy.background`
+is the way back to the wallpaper you had.
 
 **A different sea every day.** The calendar day decides where the seabed is,
 what grows on it, how much of it grew, whether there is a wreck down there and
