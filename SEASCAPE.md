@@ -23,6 +23,12 @@ renders them. Both the website and the desktop get all of it.
       them, comes back to the same shape after 29.53, and for the nights it is
       under the ground there is no moon over the water at all. The craters go
       out one at a time as the terminator crosses them. `sun.ts`
+- [x] **Weather**, over both of them and under the whole sea: masses that cross
+      the sky on headings of their own, some tracking flat across it and some
+      rising and falling in place. What they take is the halo they cover and a
+      share of the shaft below it, and what they give back is the light they
+      took, drawn smaller than the mass that took it. Native renderer only; the
+      plugin has a clear sky. `cloud.ts`
 
 ## The bottom
 
