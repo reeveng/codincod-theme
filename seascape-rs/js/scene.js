@@ -1073,7 +1073,7 @@ var Sea = (() => {
   }
 
   // ../../../codincodv2/assets/js/ornament/cloud.ts
-  var SKY = 0.24;
+  var SKY = 0.3;
   var SPAN_LEAST = 0.14;
   var SPAN_SPAN = 0.3;
   var SQUAT = 0.14;
@@ -1092,6 +1092,7 @@ var Sea = (() => {
   var MIN_SPAN2 = 1;
   function createClouds(options) {
     const random = makeRandom(options.seed ^ 23783);
+    const overhead = options.sky ?? SKY;
     let width = Math.max(MIN_SPAN2, options.width);
     let height = Math.max(MIN_SPAN2, options.height);
     let clock = 0;
@@ -1112,7 +1113,7 @@ var Sea = (() => {
       return lobes;
     }
     function born() {
-      const band = height * SKY;
+      const band = height * overhead;
       const span = width * (SPAN_LEAST + random() * SPAN_SPAN);
       const lean = (random() - 0.5) * 2 * LEAN;
       const pace = width * (PACE_LEAST + random() * PACE_SPAN);
@@ -1151,21 +1152,22 @@ var Sea = (() => {
         }
         return held2;
       },
+      /**
+       * A box of another shape is another sky.
+       *
+       * Everything about a cloud is a share of the box it is in: how wide it is,
+       * how far it travels in a second, how far down it may sit. Carrying the
+       * old ones over would be masses of the old box's width drifting at the old
+       * box's pace, so they are made again. Nothing here is watched closely
+       * enough for that to show.
+       */
       resize(nextWidth, nextHeight, count) {
-        const scaleX = Math.max(MIN_SPAN2, nextWidth) / width;
-        const scaleY = Math.max(MIN_SPAN2, nextHeight) / height;
         width = Math.max(MIN_SPAN2, nextWidth);
         height = Math.max(MIN_SPAN2, nextHeight);
-        for (const one of clouds2) {
-          one.x *= scaleX;
-          one.y *= scaleY;
-        }
-        if (count == null) return;
-        while (clouds2.length > count) {
-          clouds2.pop();
-          drifts.pop();
-        }
-        while (clouds2.length < count) clouds2.push(born());
+        const many = count ?? clouds2.length;
+        clouds2.length = 0;
+        drifts.length = 0;
+        for (let made = 0; made < Math.max(0, many); made++) clouds2.push(born());
       },
       step(seconds) {
         clock += Math.min(Math.max(seconds, 0), 0.1);
@@ -1457,7 +1459,9 @@ var Sea = (() => {
     const plants = [];
     const sways = [];
     const tolerance = Math.max(0, options.tolerance ?? TOLERANCE);
-    const cutting = new Set(options.cutting ?? ["anemone", "coral", "fan", "grass", "kelp"]);
+    const cutting = new Set(
+      options.cutting ?? ["anemone", "coral", "fan", "grass", "kelp"]
+    );
     const drawn2 = [];
     const frames = [];
     const swinging = [];
@@ -1657,8 +1661,8 @@ var Sea = (() => {
           shift: 0,
           slant: 0,
           span: span * STEMS[one.kind],
-          steps: sway.steps,
-          stem: -1
+          stem: -1,
+          steps: sway.steps
         }
       ];
       if (one.kind === "grass") {
@@ -1671,8 +1675,8 @@ var Sea = (() => {
             shift: mate.shift,
             slant: mate.slant,
             span: mate.span,
-            steps: cuts(sway.steps, mate.span),
-            stem: -1
+            stem: -1,
+            steps: cuts(sway.steps, mate.span)
           });
         }
         return { leaves: [], limbs };
@@ -1689,8 +1693,8 @@ var Sea = (() => {
             shift: 0,
             slant: mate.slant,
             span: mate.span,
-            steps,
-            stem: 0
+            stem: 0,
+            steps
           });
           if (mate.span < RIB_TWIGGED) continue;
           limbs.push({
@@ -1701,8 +1705,8 @@ var Sea = (() => {
             shift: 0,
             slant: mate.slant * RIB_SPLAY,
             span: mate.span * RIB_TWIG,
-            steps: 2,
-            stem: rib
+            stem: rib,
+            steps: 2
           });
         }
         return { leaves: [], limbs };
@@ -1717,8 +1721,8 @@ var Sea = (() => {
           shift: 0,
           slant: (made % 2 === 0 ? 1 : -1) * FORK_SPLAY,
           span: span * (1 - up) * FORK_REACH,
-          steps: Math.max(FEWEST_STEPS, Math.round(sway.steps * (1 - up))),
-          stem: 0
+          stem: 0,
+          steps: Math.max(FEWEST_STEPS, Math.round(sway.steps * (1 - up)))
         });
       });
       return { leaves: leafage(weed, limbs, span), limbs };
