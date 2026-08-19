@@ -309,6 +309,15 @@ that size. A screen that changes how dense it is gets the same water out of a
 different number of pixels: the sea is laid out in the units a desktop is laid
 out in, and the buffer is as many pixels as the screen actually has.
 
+### What it does not do
+
+Two things the plugin has, both of them about the picture rather than the water.
+A wallpaper that changes wipes across underneath the fish on the plugin, because
+the shell owns two images and a mask; here it is swapped between frames. And a
+screen set to a fraction of a scale is drawn at the whole number above it and
+handed to the compositor to bring down, since nothing here speaks
+`wp_fractional_scale_v1` yet.
+
 ## Looking at it
 
 Neither renderer can be judged at the weight it ships at, which is the lesson
