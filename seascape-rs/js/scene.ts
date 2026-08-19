@@ -101,6 +101,13 @@ function twigOf(d: string): number[] {
 /** What a plant's kind comes to on the wire. */
 const KINDS: Record<string, number> = { anemone: 2, coral: 4, fan: 3, grass: 1, kelp: 0 }
 
+/**
+ * How far apart two openings of the same water can be, in seconds. Past this
+ * the scene is a scene anybody has seen, so there is nothing to be gained by
+ * winding further and a wind is not free.
+ */
+const CYCLE = 150
+
 /** Sand, a hill and a cliff, on the wire. */
 const GROUND = { cliff: 2, hill: 1, mound: 3, sand: 0 } as const
 
@@ -344,6 +351,23 @@ function felt() {
  * keep appointments rather than a stopwatch, and winding them here would spend
  * the day's boat on the two minutes of water that exist to be skipped.
  */
+/**
+ * Where the water is in its own day when this scene opens, in seconds.
+ *
+ * The wall clock, wrapped at `CYCLE`, on top of the settling every scene owes
+ * itself. Nothing is written down and nothing is read back: a clock is a clock
+ * on every machine and after every reboot, so two screens opening together open
+ * on the same moment of the same water for free, and a screen that opens an
+ * hour later does not open on the same picture. `Seascape.qml` says the same in
+ * `opening`.
+ *
+ * The still harness is the exception, because its whole job is to hand back the
+ * same picture twice.
+ */
+export function open(settle: number): void {
+  wind(rushed ? settle : settle + (Math.floor(Date.now() / 1000) % CYCLE))
+}
+
 export function wind(seconds: number): void {
   const steps = Math.round(Math.max(0, seconds) / WIND_STEP)
 

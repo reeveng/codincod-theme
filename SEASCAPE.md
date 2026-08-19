@@ -282,6 +282,21 @@ here. That is the boundary rather than the engine: QML's V4 copies values across
 into QML types, and V8 writes floats into a buffer the renderer reads straight
 out of.
 
+### What it reads off the desktop
+
+Three things, and none of them are in the water. Which sea today is, out of the
+same ornament the plugin asks. Whether anybody can see it, above. And the two
+colours it draws in, which are the accent and the background of the theme the
+desktop is wearing, read off `omarchy/current/theme/colors.toml` and re-read
+when that file changes, so a theme switch recolours the sea rather than leaving
+one theme's water on another theme's desktop. `ink=` and `surface=` on the
+command line take it out of that arrangement, since an argument is somebody
+having decided.
+
+A screen that changes size is fitted again from nothing rather than stretched:
+the bed is cut to fit the box it grew in, and every texture the card holds is
+that size.
+
 ### What it does not do
 
 One screen. The plugin puts water on every monitor on the desk, and this makes

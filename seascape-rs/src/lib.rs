@@ -101,7 +101,7 @@ impl Scene {
         // the same question the site's own shoal answers.
         let seed = if seed < 0.0 { sim.call("today", &[]) } else { seed };
         sim.call("build", &[width as f64, height as f64, seed, tolerance]);
-        sim.call("wind", &[settle]);
+        sim.call("open", &[settle]);
 
         let mut scene = Scene {
             sim,

@@ -49,8 +49,13 @@ fn main() {
     let seed: f64 = arg("seed", "-1").parse().unwrap();
     let settle: f64 = arg("settle", "40").parse().unwrap();
     let tolerance: f64 = arg("tolerance", "0.25").parse().unwrap();
-    let ink = hue(&arg("ink", "#35c26d"));
-    let surface_hue = hue(&arg("surface", "#0e1712"));
+    // The theme's own two colours, unless somebody named them. Read rather than
+    // written down, so that a desktop that changes theme changes the water with
+    // it, which is what the plugin gets for free by binding to the shell's.
+    let told = (arg("ink", ""), arg("surface", ""));
+    let painted = paint_pot();
+    let ink = hue(if told.0.is_empty() { &painted.0 } else { &told.0 });
+    let surface_hue = hue(if told.1.is_empty() { &painted.1 } else { &told.1 });
 
     let conn = Connection::connect_to_env().expect("no Wayland to draw on");
     let (globals, mut queue) = registry_queue_init(&conn).unwrap();
@@ -109,6 +114,8 @@ fn main() {
         height: 0,
         beat: None,
         asked: None,
+        wore: repainted(),
+        told,
         hidden: false,
         shown: false,
         gone: false,
@@ -117,6 +124,53 @@ fn main() {
     while !wall.gone {
         queue.blocking_dispatch(&mut wall).unwrap();
     }
+}
+
+/// The colours the desktop is wearing: its accent, and what it is written on.
+///
+/// Omarchy keeps the theme it is on as a file rather than a broadcast, so this
+/// is where the water gets its two colours and how it follows a theme being
+/// changed under it. `Background.qml` binds to `Color.accent` and
+/// `Color.background`, which are the same two lines read by the shell.
+///
+/// This theme's own pair when there is no file to read, since a wallpaper with
+/// nothing to draw in is a black rectangle.
+fn paint_pot() -> (String, String) {
+    let mut pot = ("#35c26d".to_string(), "#0e1712".to_string());
+    let Ok(said) = std::fs::read_to_string(painted()) else {
+        return pot;
+    };
+
+    for line in said.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let value = value.trim().trim_matches('"').to_string();
+        match key.trim() {
+            "accent" => pot.0 = value,
+            "background" => pot.1 = value,
+            _ => {}
+        }
+    }
+
+    pot
+}
+
+/// Where that file is.
+fn painted() -> std::path::PathBuf {
+    let state = std::env::var("XDG_STATE_HOME").unwrap_or_else(|_| {
+        format!(
+            "{}/.local/state",
+            std::env::var("HOME").unwrap_or_default()
+        )
+    });
+
+    std::path::PathBuf::from(state).join("omarchy/current/theme/colors.toml")
+}
+
+/// When the desktop last changed what it is wearing.
+fn repainted() -> Option<std::time::SystemTime> {
+    std::fs::metadata(painted()).ok()?.modified().ok()
 }
 
 /// Whether a window is over the water, asked of the compositor.
@@ -155,7 +209,8 @@ struct Wall {
     layer: LayerSurface,
     target: wgpu::Surface<'static>,
     adapter: wgpu::Adapter,
-    /// Handed to the paint on the first configure, when the size is known.
+    /// Handed to the paint on the first configure, when the size is known, and
+    /// taken back off it whenever the screen changes size.
     device: Option<wgpu::Device>,
     queue: Option<wgpu::Queue>,
     paint: Option<Paint>,
@@ -172,6 +227,11 @@ struct Wall {
     /// When the compositor was last asked whether anybody can see it, and what
     /// it said.
     asked: Option<std::time::Instant>,
+    /// And when the desktop last changed what it is wearing.
+    wore: Option<std::time::SystemTime>,
+    /// Whether the colours were named on the command line, in which case the
+    /// theme is none of this water's business.
+    told: (String, String),
     hidden: bool,
     /// Whether a frame has ever been handed over. Until one has, the surface
     /// has no buffer and is not on the screen at all, so the water is drawn
@@ -184,8 +244,15 @@ struct Wall {
 impl Wall {
     /// The water at the size the compositor has settled on.
     fn fit(&mut self) {
-        let device = self.device.take().expect("the water was already fitted");
-        let queue = self.queue.take().unwrap();
+        // The card back off whatever was drawing with it, since a screen that
+        // changes size wants everything held at the old size thrown away.
+        let (device, queue) = match self.paint.take() {
+            Some(paint) => (paint.device, paint.queue),
+            None => (
+                self.device.take().expect("no card to draw with"),
+                self.queue.take().unwrap(),
+            ),
+        };
 
         let caps = self.target.get_capabilities(&self.adapter);
         // The scene is drawn in the colours a theme writes, which are sRGB the
@@ -267,6 +334,18 @@ impl Wall {
         if stale {
             self.asked = Some(now);
             let hidden = covered().unwrap_or(false);
+
+            // And whether the desktop changed what it is wearing, which costs a
+            // look at one file's date and recolours the whole sea when it did.
+            // Only if nobody named the colours: an argument is somebody having
+            // decided, and a decision does not want overruling every second.
+            let wore = repainted();
+            if wore != self.wore && self.told.0.is_empty() && self.told.1.is_empty() {
+                self.wore = wore;
+                let pot = paint_pot();
+                self.ink = hue(&pot.0);
+                self.surface_hue = hue(&pot.1);
+            }
 
             // A day is a different sea, and the change of one is a seabed
             // rearranging itself, so it happens behind whatever window is
@@ -396,12 +475,15 @@ impl LayerShellHandler for Wall {
             return;
         }
 
+        // A screen that changes size is a different picture: the bed is cut to
+        // fit the box it grew in and every texture the card holds is that size.
+        // So the whole thing is fitted again rather than stretched, and the sea
+        // is a new sea, which is what a monitor changing mode looks like anyway.
         self.width = width;
         self.height = height;
-        if self.paint.is_none() {
-            self.fit();
-            self.draw(qh);
-        }
+        self.shown = false;
+        self.fit();
+        self.draw(qh);
     }
 }
 

@@ -113,6 +113,13 @@ install_wall() {
   mkdir -p "$(dirname "$BIN")" "$(dirname "$UNIT")"
   install -m 755 "$HERE/seascape-rs/target/release/wall" "$BIN"
 
+  # Nothing about colour unless somebody asked for one. Left alone, the water
+  # reads the two colours off the theme the desktop is wearing and follows it
+  # when that changes, which is what the plugin gets by binding to the shell's.
+  told=""
+  if [[ -n ${SEASCAPE_INK:-} ]]; then told+=" ink=$SEASCAPE_INK"; fi
+  if [[ -n ${SEASCAPE_SURFACE:-} ]]; then told+=" surface=$SEASCAPE_SURFACE"; fi
+
   # A service of the graphical session rather than something Hyprland starts,
   # so that it comes up with the desktop, goes down with it, and says why in
   # the journal when it will not start at all.
@@ -124,7 +131,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=$BIN ink=${SEASCAPE_INK:-#35c26d} surface=${SEASCAPE_SURFACE:-#0e1712}
+ExecStart=$BIN$told
 Restart=on-failure
 RestartSec=2
 
@@ -133,7 +140,10 @@ WantedBy=graphical-session.target
 UNITFILE
 
   systemctl --user daemon-reload
-  systemctl --user enable --now seascape.service
+  systemctl --user enable seascape.service >/dev/null
+  # Restarted rather than started, since a second install with the same unit
+  # already running is the one that goes on drawing with the old binary.
+  systemctl --user restart seascape.service
   echo "Installed. The desktop is water now, and the card is drawing it."
 }
 

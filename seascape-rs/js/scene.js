@@ -23,6 +23,7 @@ var Sea = (() => {
     build: () => build2,
     geometry: () => geometry,
     layout: () => layout,
+    open: () => open,
     over: () => over,
     pretend: () => pretend2,
     publish: () => publish,
@@ -1045,17 +1046,17 @@ var Sea = (() => {
     const arms = [];
     const drive = Math.min(Math.max(pose.haul, 0), 1);
     const held2 = POSTURES[pose.doing] ?? POSTURES.crawl;
-    const open = Math.min(Math.max(pose.reach, 0), 1.2);
+    const open2 = Math.min(Math.max(pose.reach, 0), 1.2);
     for (let made = 0; made < count; made++) {
       const side = made / (count - 1) - 0.5;
       const phase2 = pose.crawl + (side > 0 ? 0 : Math.PI) + made * 0.12;
       const work = Math.sin(phase2) * held2.work;
       const ahead2 = Math.sign(side * pose.facing) || 1;
-      const grown = held2.reach * open * (1 + ahead2 * held2.lead * 0.35);
+      const grown = held2.reach * open2 * (1 + ahead2 * held2.lead * 0.35);
       const reach2 = grown * (0.9 + Math.abs(side) * 0.5) * (0.88 + work * 0.12);
       const curl = held2.curl * (1 - ahead2 * held2.lead * 0.8);
       const stream = -pose.facing * (TRAIL_HELD + drive * TRAIL_DRIVEN);
-      const fan = held2.fan * (1 - drive * 0.62) * open;
+      const fan = held2.fan * (1 - drive * 0.62) * open2;
       const points = [];
       for (let step2 = 0; step2 <= 6; step2++) {
         const t = step2 / 6;
@@ -1287,14 +1288,14 @@ var Sea = (() => {
     if (kind === "kelp") return KELP_GIRTH * (weed?.girth ?? 1) * shrunk(depth);
     return GRASS_GIRTH * shrunk(depth);
   }
-  function feeler(x, y, span, open, phase2, steps) {
+  function feeler(x, y, span, open2, phase2, steps) {
     const points = [{ x, y }];
     const pace = span / steps;
     let atX = x;
     let atY = y;
     for (let step2 = 1; step2 <= steps; step2++) {
       const u = step2 / steps;
-      const heading = open * (1 + CROWN_CURL * u) + Math.sin(phase2 + u * CROWN_WAVES) * CROWN_WAVE * u;
+      const heading = open2 * (1 + CROWN_CURL * u) + Math.sin(phase2 + u * CROWN_WAVES) * CROWN_WAVE * u;
       atX += pace * Math.sin(heading);
       atY -= pace * Math.cos(heading);
       points.push({ x: atX, y: atY });
@@ -5461,6 +5462,7 @@ var Sea = (() => {
     return cut;
   }
   var KINDS2 = { anemone: 2, coral: 4, fan: 3, grass: 1, kelp: 0 };
+  var CYCLE = 150;
   var GROUND = { cliff: 2, hill: 1, mound: 3, sand: 0 };
   var geometry = new Float32Array(1 << 23);
   var flora = null;
@@ -5616,6 +5618,9 @@ var Sea = (() => {
     if (!above2) return among;
     if (!among) return above2;
     return among.force > above2.force ? among : above2;
+  }
+  function open(settle) {
+    wind(rushed ? settle : settle + Math.floor(Date.now() / 1e3) % CYCLE);
   }
   function wind(seconds) {
     const steps = Math.round(Math.max(0, seconds) / WIND_STEP);
