@@ -29,6 +29,19 @@ fn main() {
     let ink = hue(&arg("ink", "#35c26d"));
     let surface = hue(&arg("surface", "#0e1712"));
 
+    // `wall=` hangs a picture behind the water, which is what the desktop has
+    // there. A still without one is water over nothing, since nothing is what
+    // a harness has on it.
+    let wall = arg("wall", "");
+    if !wall.is_empty() {
+        let through: f32 = arg("through", &seascape::THROUGH.to_string())
+            .parse()
+            .unwrap();
+        if let Some((pixels, width, height)) = seascape::picture(std::path::Path::new(&wall)) {
+            paint.hang(&pixels, width, height, through);
+        }
+    }
+
     // The standing bed goes over once; a frame is the sway after that.
     paint.plant(scene.limbs());
     let (standing, held) = scene.standing();

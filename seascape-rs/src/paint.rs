@@ -8,6 +8,41 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
+/// One black pixel, for the wall behind the water before anything hangs there.
+fn blank(device: &wgpu::Device, queue: &wgpu::Queue) -> wgpu::TextureView {
+    let size = wgpu::Extent3d {
+        width: 1,
+        height: 1,
+        depth_or_array_layers: 1,
+    };
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("blank"),
+        size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    queue.write_texture(
+        wgpu::ImageCopyTexture {
+            texture: &texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &[0, 0, 0, 255],
+        wgpu::ImageDataLayout {
+            offset: 0,
+            bytes_per_row: Some(4),
+            rows_per_image: Some(1),
+        },
+        size,
+    );
+    texture.create_view(&Default::default())
+}
+
 /// The bind group, which has to be made again whenever a buffer in it is.
 fn tied(
     device: &wgpu::Device,
@@ -15,6 +50,8 @@ fn tied(
     uniforms: &wgpu::Buffer,
     limbs: &wgpu::Buffer,
     swings: &wgpu::Buffer,
+    behind: &wgpu::TextureView,
+    pane: &wgpu::Sampler,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: None,
@@ -31,6 +68,14 @@ fn tied(
             wgpu::BindGroupEntry {
                 binding: 2,
                 resource: swings.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::TextureView(behind),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: wgpu::BindingResource::Sampler(pane),
             },
         ],
     })
@@ -141,6 +186,8 @@ pub const TONE_MOON: u32 = 3;
 pub const TONE_DUSK: u32 = 4;
 pub const TONE_SURFACE: u32 = 5;
 pub const TONE_INK: u32 = 6;
+/// The water column itself, which the desktop's own picture shows through.
+pub const TONE_WALL: u32 = 7;
 
 /// A light that gives out from the middle rather than down the box.
 pub const ROUND: u32 = 0x100;
@@ -214,7 +261,20 @@ pub struct Sky {
     pub turn: f32,
     /// How much of its light a corner gives up.
     pub vignette: f32,
+    /// A shader puts a four wide field on a sixteen byte line and this side
+    /// puts it where it falls, so `wall` needs the gap said out loud.
     pub pad: [f32; 3],
+    /// How the wallpaper behind the water is fitted to the box: a scale and an
+    /// offset onto the frame's own coordinates, so a picture of another shape
+    /// fills the screen by being cropped rather than by being stretched.
+    ///
+    /// Set by the paint rather than by the water, which knows nothing about a
+    /// desktop having a picture on it.
+    pub wall: [f32; 4],
+    /// And how much of that picture the water lets through. Nothing, unless
+    /// there is a picture: a wallpaper of pure water is what a still is.
+    pub through: f32,
+    pub tail: [f32; 3],
 }
 
 impl Default for Sky {
@@ -236,6 +296,9 @@ impl Default for Sky {
             turn: 0.0,
             vignette: 0.0,
             pad: [0.0; 3],
+            wall: [1.0, 1.0, 0.0, 0.0],
+            through: 0.0,
+            tail: [0.0; 3],
         }
     }
 }
@@ -257,6 +320,8 @@ struct Sky {
   grain: f32,
   turn: f32,
   vignette: f32,
+  wall: vec4f,
+  through: f32,
 };
 @group(0) @binding(0) var<uniform> u: Sky;
 
@@ -275,6 +340,9 @@ struct Limb {
 @group(0) @binding(1) var<storage, read> limbs: array<Limb>;
 /// Where each plant's sway has got to: how far it is leaning, and its own clock.
 @group(0) @binding(2) var<storage, read> swings: array<vec2f>;
+/// The picture the desktop had on it before the water arrived.
+@group(0) @binding(3) var behind: texture_2d<f32>;
+@group(0) @binding(4) var pane: sampler;
 
 const STIFF: u32 = 0xffffffffu;
 const ROUND: u32 = 0x100u;
@@ -444,6 +512,11 @@ fn fs(in: VsOut) -> @location(0) vec4f {
   let base = water_at(y);
   let w = clamp(in.weight, 0.0, 1.0);
 
+  // Read before anything is decided, because a shader may only be asked for a
+  // texture where every fragment nearby is asking too, and the tone below is
+  // whatever this triangle happens to be.
+  let seen = textureSample(behind, pane, in.pos.xy / u.size * u.wall.xy + u.wall.zw).rgb;
+
   var hue = mix(base, u.ink.rgb, w);
   switch (in.tone & 0xffu) {
     case 1u: { hue = mix(base, u.surface.rgb, w); }
@@ -452,6 +525,11 @@ fn fs(in: VsOut) -> @location(0) vec4f {
     case 4u: { hue = u.dusklight.rgb; }
     case 5u: { hue = u.surface.rgb; }
     case 6u: { hue = u.ink.rgb; }
+    // The water column, the one thing here you can see through, and what you
+    // see through it is whatever the desktop had on it. Placed in the frame's
+    // own coordinates rather than the water's, so the picture stays hung on
+    // the screen while the camera wanders over it.
+    case 7u: { hue = mix(base, seen, u.through); }
     default: {}
   }
 
@@ -596,6 +674,11 @@ pub struct Paint {
     /// between two things it is handed by offset.
     folded: std::cell::RefCell<wgpu::Buffer>,
     soften: wgpu::Sampler,
+    /// The picture the desktop had on it, which the water is drawn over, and
+    /// how it is fitted to this screen. Nothing, on a run with no desktop.
+    behind: std::cell::RefCell<wgpu::TextureView>,
+    wall: std::cell::Cell<[f32; 4]>,
+    through: std::cell::Cell<f32>,
     /// The picture a blur is read out of and written back into, since a blur is
     /// two passes and the second one cannot read what it is writing.
     scratch: wgpu::TextureView,
@@ -740,12 +823,44 @@ impl Paint {
                 },
                 told(1),
                 told(2),
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
             ],
         });
 
         let limbs = room(&device, 1 << 16, wgpu::BufferUsages::STORAGE);
         let swings = room(&device, 1 << 13, wgpu::BufferUsages::STORAGE);
-        let bind = std::cell::RefCell::new(tied(&device, &layout, &uniforms, &limbs, &swings));
+        let soften = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("soften"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+
+        // Nothing behind the water until somebody hangs something there, and a
+        // shader may not be handed nothing: one pixel of black, never read,
+        // because `through` is zero until there is a picture to let through.
+        let behind = blank(&device, &queue);
+        let bind = std::cell::RefCell::new(tied(
+            &device, &layout, &uniforms, &limbs, &swings, &behind, &soften,
+        ));
         let limbs = std::cell::RefCell::new(limbs);
         let swings = std::cell::RefCell::new(swings);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -781,40 +896,42 @@ impl Paint {
         // second pass tests against the bed's depth and leaves it alone, and
         // what settles the order between two lights is the order they are drawn
         // in, which is the order a picture is painted in.
-        let solid = |blended: bool| device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("seascape"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs"),
-                compilation_options: Default::default(),
-                buffers: std::slice::from_ref(&laid),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs"),
-                compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    blend: blended.then_some(wgpu::BlendState::ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DEPTH,
-                depth_write_enabled: !blended,
-                depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: wgpu::MultisampleState {
-                count: SAMPLES,
-                ..Default::default()
-            },
-            multiview: None,
-            cache: None,
-        });
+        let solid = |blended: bool| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("seascape"),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vs"),
+                    compilation_options: Default::default(),
+                    buffers: std::slice::from_ref(&laid),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fs"),
+                    compilation_options: Default::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format,
+                        blend: blended.then_some(wgpu::BlendState::ALPHA_BLENDING),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DEPTH,
+                    depth_write_enabled: !blended,
+                    depth_compare: wgpu::CompareFunction::LessEqual,
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: wgpu::MultisampleState {
+                    count: SAMPLES,
+                    ..Default::default()
+                },
+                multiview: None,
+                cache: None,
+            })
+        };
 
         let pipeline = solid(false);
         let blended = solid(true);
@@ -1008,15 +1125,6 @@ impl Paint {
             cache: None,
         });
 
-        let soften = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("soften"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            ..Default::default()
-        });
         let scratch = folded(&device, format, width, height);
         let folded = std::cell::RefCell::new(room(
             &device,
@@ -1095,6 +1203,9 @@ impl Paint {
             folds,
             folded,
             soften,
+            behind: std::cell::RefCell::new(behind),
+            wall: std::cell::Cell::new([1.0, 1.0, 0.0, 0.0]),
+            through: std::cell::Cell::new(0.0),
             scratch,
             layers: std::cell::RefCell::new(Vec::new()),
             layout,
@@ -1128,8 +1239,94 @@ impl Paint {
             0,
             bytemuck::bytes_of(&Sky {
                 size: [self.width as f32, self.height as f32],
+                wall: self.wall.get(),
+                through: self.through.get(),
                 ..*sky
             }),
+        );
+    }
+
+    /// Hang the desktop's own picture behind the water.
+    ///
+    /// `Background.qml` draws the wallpaper and puts the sea over it at most of
+    /// an alpha, so what is under the water is the picture the machine was
+    /// wearing rather than a flat colour. A service outside the shell has to
+    /// load the file itself, and this is where it lands.
+    ///
+    /// Fitted by cropping rather than by stretching, which is what every
+    /// desktop does with a wallpaper of the wrong shape, and `through` is how
+    /// much of it the water lets past: the plugin's water column at the alpha
+    /// it is drawn with.
+    pub fn hang(&self, pixels: &[u8], width: u32, height: u32, through: f32) {
+        if width == 0 || height == 0 || pixels.len() < (width * height * 4) as usize {
+            return;
+        }
+
+        let size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("behind"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            // Taken as written rather than as sRGB to be decoded: every colour
+            // in this shader is one a stylesheet named, and a picture that
+            // arrived in light rather than in ink would be the only thing here
+            // drawn a stop darker than it is.
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        self.queue.write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            pixels,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(width * 4),
+                rows_per_image: Some(height),
+            },
+            size,
+        );
+
+        // The short side fills and the long one is cropped, about the middle.
+        let (box_of, picture) = (
+            self.width as f32 / self.height as f32,
+            width as f32 / height as f32,
+        );
+        let across = (picture / box_of).max(1.0);
+        let down = (box_of / picture).max(1.0);
+
+        *self.behind.borrow_mut() = texture.create_view(&Default::default());
+        self.wall.set([
+            1.0 / across,
+            1.0 / down,
+            0.5 - 0.5 / across,
+            0.5 - 0.5 / down,
+        ]);
+        self.through.set(through.clamp(0.0, 1.0));
+        self.retie();
+    }
+
+    /// The one bind group everything in the water is drawn with, made again
+    /// because something it points at was replaced.
+    fn retie(&self) {
+        *self.bind.borrow_mut() = tied(
+            &self.device,
+            &self.layout,
+            &self.uniforms,
+            &self.limbs.borrow(),
+            &self.swings.borrow(),
+            &self.behind.borrow(),
+            &self.soften,
         );
     }
 
@@ -1149,6 +1346,8 @@ impl Paint {
                 &self.uniforms,
                 &held,
                 &self.swings.borrow(),
+                &self.behind.borrow(),
+                &self.soften,
             );
         }
         self.queue.write_buffer(&held, 0, want);
@@ -1170,6 +1369,8 @@ impl Paint {
                 &self.uniforms,
                 &self.limbs.borrow(),
                 &held,
+                &self.behind.borrow(),
+                &self.soften,
             );
         }
         self.queue.write_buffer(&held, 0, want);

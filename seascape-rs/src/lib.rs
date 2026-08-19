@@ -99,7 +99,11 @@ impl Scene {
         // A seed nobody chose is the one the calendar day chose. Asked of the
         // ornament rather than worked out here, since which sea today is, is
         // the same question the site's own shoal answers.
-        let seed = if seed < 0.0 { sim.call("today", &[]) } else { seed };
+        let seed = if seed < 0.0 {
+            sim.call("today", &[])
+        } else {
+            seed
+        };
         sim.call("build", &[width as f64, height as f64, seed, tolerance]);
         sim.call("open", &[settle]);
 
@@ -258,7 +262,7 @@ impl Scene {
             grain: GRAIN,
             turn: self.frame.turn,
             vignette: VIGNETTE,
-            pad: [0.0; 3],
+            ..Default::default()
         }
     }
 
@@ -281,6 +285,21 @@ const WALL_LANE: f32 = -3.3;
 const GRAIN: f32 = 0.03;
 const GRAIN_SPAN: f32 = 1.6;
 const VIGNETTE: f32 = 0.3;
+
+/// How much of the desktop's own picture the water lets through.
+///
+/// `Seascape.qml` draws the sea over the wallpaper at `waterInk`, and this is
+/// what is left: enough of somebody's picture to read as the murk having a
+/// texture, and not enough of it to still be a picture.
+pub const THROUGH: f32 = 0.12;
+
+/// A picture off the disk, as the rows a card takes.
+pub fn picture(path: &std::path::Path) -> Option<(Vec<u8>, u32, u32)> {
+    let read = image::open(path).ok()?.to_rgba8();
+    let (width, height) = read.dimensions();
+
+    Some((read.into_raw(), width, height))
+}
 
 /// A colour written the way a theme writes one.
 pub fn hue(text: &str) -> [f32; 4] {

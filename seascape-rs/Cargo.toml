@@ -14,6 +14,7 @@ smithay-client-toolkit = { version = "0.21", features = ["system"] }
 wayland-client = { version = "0.31", features = ["log"] }
 v8 = "152"
 wgpu = { version = "23", features = ["wgsl"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 
 [profile.release]
 opt-level = 3

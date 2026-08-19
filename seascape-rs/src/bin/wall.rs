@@ -54,8 +54,16 @@ fn main() {
     // it, which is what the plugin gets for free by binding to the shell's.
     let told = (arg("ink", ""), arg("surface", ""));
     let painted = paint_pot();
-    let ink = hue(if told.0.is_empty() { &painted.0 } else { &told.0 });
-    let surface_hue = hue(if told.1.is_empty() { &painted.1 } else { &told.1 });
+    let ink = hue(if told.0.is_empty() {
+        &painted.0
+    } else {
+        &told.0
+    });
+    let surface_hue = hue(if told.1.is_empty() {
+        &painted.1
+    } else {
+        &told.1
+    });
 
     let conn = Connection::connect_to_env().expect("no Wayland to draw on");
     let (globals, mut queue) = registry_queue_init(&conn).unwrap();
@@ -115,6 +123,7 @@ fn main() {
         beat: None,
         asked: None,
         wore: repainted(),
+        hung: None,
         told,
         hidden: false,
         shown: false,
@@ -158,14 +167,24 @@ fn paint_pot() -> (String, String) {
 
 /// Where that file is.
 fn painted() -> std::path::PathBuf {
-    let state = std::env::var("XDG_STATE_HOME").unwrap_or_else(|_| {
-        format!(
-            "{}/.local/state",
-            std::env::var("HOME").unwrap_or_default()
-        )
-    });
+    kept().join("omarchy/current/theme/colors.toml")
+}
 
-    std::path::PathBuf::from(state).join("omarchy/current/theme/colors.toml")
+/// And the picture it is wearing, which the water is drawn over.
+///
+/// A link the desktop moves rather than a file it rewrites, so it is followed
+/// to whatever it points at: two themes' wallpapers are two files, and the name
+/// of the one in use is how a change of picture is noticed at all.
+fn hung() -> Option<std::path::PathBuf> {
+    std::fs::canonicalize(kept().join("omarchy/current/background")).ok()
+}
+
+/// Where the desktop writes down what it is wearing.
+fn kept() -> std::path::PathBuf {
+    let state = std::env::var("XDG_STATE_HOME")
+        .unwrap_or_else(|_| format!("{}/.local/state", std::env::var("HOME").unwrap_or_default()));
+
+    std::path::PathBuf::from(state)
 }
 
 /// When the desktop last changed what it is wearing.
@@ -229,6 +248,9 @@ struct Wall {
     asked: Option<std::time::Instant>,
     /// And when the desktop last changed what it is wearing.
     wore: Option<std::time::SystemTime>,
+    /// The picture that is behind the water, so that a change of it is one
+    /// comparison rather than a decode every second.
+    hung: Option<std::path::PathBuf>,
     /// Whether the colours were named on the command line, in which case the
     /// theme is none of this water's business.
     told: (String, String),
@@ -295,6 +317,28 @@ impl Wall {
 
         self.paint = Some(paint);
         self.scene = Some(scene);
+        self.hung = None;
+        self.hang();
+    }
+
+    /// Put the desktop's own picture behind the water.
+    ///
+    /// The one thing here that is nobody's but the machine's: `Background.qml`
+    /// has the wallpaper under the sea because the sea is not opaque, and a
+    /// renderer that owns the whole background layer has to carry the picture
+    /// itself or there is nothing under the water at all.
+    fn hang(&mut self) {
+        let (Some(paint), Some(path)) = (self.paint.as_ref(), hung()) else {
+            return;
+        };
+        if self.hung.as_ref() == Some(&path) {
+            return;
+        }
+
+        self.hung = Some(path.clone());
+        if let Some((pixels, width, height)) = seascape::picture(&path) {
+            paint.hang(&pixels, width, height, seascape::THROUGH);
+        }
     }
 
     /// Today's water, in place of the day the desktop was started on.
@@ -330,7 +374,9 @@ impl Wall {
         // crosses the next time somebody is actually looking at the water. The
         // frame is still asked for, so the moment a window closes the water is
         // there rather than a second behind.
-        let stale = self.asked.map_or(true, |was| (now - was).as_secs_f64() >= ASK);
+        let stale = self
+            .asked
+            .map_or(true, |was| (now - was).as_secs_f64() >= ASK);
         if stale {
             self.asked = Some(now);
             let hidden = covered().unwrap_or(false);
@@ -350,6 +396,10 @@ impl Wall {
             // A day is a different sea, and the change of one is a seabed
             // rearranging itself, so it happens behind whatever window is
             // covering the water rather than in front of somebody.
+            // A picture is changed about as often as a theme is, and by the
+            // same hand, so it is looked at on the same second.
+            self.hang();
+
             let scene = self.scene.as_mut().unwrap();
             if hidden && !self.hidden && scene.today() != scene.planted() {
                 self.replant();

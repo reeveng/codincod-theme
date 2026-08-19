@@ -27,7 +27,7 @@ use lyon_tessellation::{
     StrokeVertex, VertexBuffers,
 };
 
-use crate::paint::{Limb, Vertex, STIFF};
+use crate::paint::{Limb, Vertex, STIFF, TONE_WALL};
 
 /// A point of a line at rest, and how far up its limb it sits.
 type Along = (f32, f32, f32);
@@ -182,6 +182,9 @@ impl Bed {
             (0.0, self.height),
         ];
         self.fill_shape(&mut sea, &box_of, 0.0, false);
+        for vertex in &mut sea.vertices {
+            vertex.tone = TONE_WALL;
+        }
         self.ground = vec![sea];
 
         for _ in 0..grounds {
