@@ -264,9 +264,10 @@ pub struct Sky {
     /// A shader puts a four wide field on a sixteen byte line and this side
     /// puts it where it falls, so `wall` needs the gap said out loud.
     pub pad: [f32; 3],
-    /// How the wallpaper behind the water is fitted to the box: a scale and an
-    /// offset onto the frame's own coordinates, so a picture of another shape
-    /// fills the screen by being cropped rather than by being stretched.
+    /// How the wallpaper behind the water is fitted to the box: what a pixel of
+    /// the frame is worth in the picture, and where the picture starts, so that
+    /// one of another shape fills the screen by being cropped rather than
+    /// stretched.
     ///
     /// Set by the paint rather than by the water, which knows nothing about a
     /// desktop having a picture on it.
@@ -515,7 +516,7 @@ fn fs(in: VsOut) -> @location(0) vec4f {
   // Read before anything is decided, because a shader may only be asked for a
   // texture where every fragment nearby is asking too, and the tone below is
   // whatever this triangle happens to be.
-  let seen = textureSample(behind, pane, in.pos.xy / u.size * u.wall.xy + u.wall.zw).rgb;
+  let seen = textureSample(behind, pane, in.pos.xy * u.wall.xy + u.wall.zw).rgb;
 
   var hue = mix(base, u.ink.rgb, w);
   switch (in.tone & 0xffu) {
@@ -656,8 +657,10 @@ fn lens_fs(in: LensOut) -> @location(0) vec4f {
 "#;
 
 pub struct Paint {
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
+    /// Shared, because a desk with two screens on it is two of everything here
+    /// and one card underneath them.
+    pub device: std::sync::Arc<wgpu::Device>,
+    pub queue: std::sync::Arc<wgpu::Queue>,
     format: wgpu::TextureFormat,
     pipeline: wgpu::RenderPipeline,
     /// The same shader again for anything the water is seen through, and the
@@ -773,12 +776,19 @@ impl Paint {
         ))
         .expect("no GPU device");
 
-        Paint::new(device, queue, FORMAT, width, height, true)
+        Paint::new(
+            std::sync::Arc::new(device),
+            std::sync::Arc::new(queue),
+            FORMAT,
+            width,
+            height,
+            true,
+        )
     }
 
     pub fn new(
-        device: wgpu::Device,
-        queue: wgpu::Queue,
+        device: std::sync::Arc<wgpu::Device>,
+        queue: std::sync::Arc<wgpu::Queue>,
         format: wgpu::TextureFormat,
         width: u32,
         height: u32,
@@ -1238,7 +1248,6 @@ impl Paint {
             &self.uniforms,
             0,
             bytemuck::bytes_of(&Sky {
-                size: [self.width as f32, self.height as f32],
                 wall: self.wall.get(),
                 through: self.through.get(),
                 ..*sky
