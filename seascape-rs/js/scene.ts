@@ -15,6 +15,8 @@ import { createFlora, type Plant } from "../../../codincodv2/assets/js/ornament/
 import { thriving } from "../../../codincodv2/assets/js/ornament/plenty.ts"
 import { createReef, type Reef } from "../../../codincodv2/assets/js/ornament/reef.ts"
 import { createSeabed, type Seabed } from "../../../codincodv2/assets/js/ornament/seabed.ts"
+import { Pen } from "./pen.ts"
+import { paintSky } from "./sky.ts"
 
 /** Mirrors of the densities `Seascape.qml` sows the bed at, so both renderers
  *  draw the same water from the same seed. */
@@ -142,6 +144,71 @@ export function wind(seconds: number): void {
 
 export function step(seconds: number): void {
   flora?.step(seconds)
+  held += seconds
+  turn = (turn + 1) % 512
+}
+
+/**
+ * How long the frame has been held, and which frame of grain it is.
+ *
+ * Both are advanced with the water rather than off a clock of their own, so a
+ * covered wallpaper is a frame held still rather than one wandering where
+ * nobody can see it, and the grain turns over exactly when the water does.
+ */
+let held = 0
+let turn = 0
+
+/**
+ * How far the frame wanders, as a share of the box's short side, and how far it
+ * rolls, in radians.
+ *
+ * Nobody holds a camera still. A picture that does not move at all is a picture
+ * on a tripod, and a tripod is the thing this scene is trying not to be. It is
+ * meant to be a thing nobody can point at and everybody would miss.
+ */
+const SWAY_REACH = 0.005
+const SWAY_ROLL = 0.0022
+
+/**
+ * The water over the bed, and where the camera is holding it.
+ *
+ * Everything that is cut again every frame: the sky, the light in the water,
+ * and everything swimming through it. The bed is not here; it went over once
+ * and is bent on the card.
+ *
+ * ```
+ * swayX swayY tilt overscan turn
+ * count
+ * drawing: form tone weight shade alpha lane width fall fadeTop fadeSpan thin
+ *          n (x y)*n
+ * ```
+ */
+export function over(): number {
+  at = 0
+  const unit = Math.min(box.width, box.height) * SWAY_REACH
+
+  // Two sines an octave and a bit apart on each axis, which is the cheapest
+  // thing that does not read as a pendulum: one alone is a frame swinging, and
+  // two whose periods do not divide each other never come back to the same
+  // place twice in anything like a minute.
+  put(unit * (0.62 * Math.sin(held * 0.11) + 0.38 * Math.sin(held * 0.29 + 1.7)))
+  put(unit * (0.62 * Math.sin(held * 0.13 + 2.4) + 0.38 * Math.sin(held * 0.23 + 0.6)))
+  put(SWAY_ROLL * Math.sin(held * 0.09 + 1.1))
+
+  // How much bigger than its box the scene is drawn, so that a frame which has
+  // wandered is never a frame with the wallpaper showing along one edge. The
+  // margin covers the roll as well as the wander: a corner is swung by the
+  // angle times its distance from the middle, which is further than the middle
+  // goes.
+  const reach = unit + Math.abs(SWAY_ROLL) * Math.hypot(box.width, box.height) / 2
+  put(1 + (2 * reach) / Math.max(1, Math.min(box.width, box.height)))
+  put(turn)
+
+  const pen = new Pen(geometry, at)
+  paintSky(pen, box)
+
+  at = pen.close()
+  return at
 }
 
 let at = 0

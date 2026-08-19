@@ -15,9 +15,8 @@ fn main() {
     let mut scene = Scene::new(width, height, seed, tolerance, settle);
     let paint = paint::Paint::headless(width, height);
     let view = paint.own_view();
-    // The lid on the water, out of `Seascape.qml`: how much light the surface
-    // holds and how fast the column gives it up.
-    paint.water(hue("#35c26d"), hue("#0e1712"), 0.13, 2.1);
+    let ink = hue(&arg("ink", "#35c26d"));
+    let surface = hue(&arg("surface", "#0e1712"));
 
     // The standing bed goes over once; a frame is the sway after that.
     paint.plant(scene.limbs());
@@ -26,9 +25,11 @@ fn main() {
 
     let spent = scene.advance(0.0);
     paint.sway(scene.swings());
+    paint.sky(&scene.sky(ink, surface));
     let (vertices, indices) = scene.geometry();
+    let (over, glass) = scene.over();
     let t = std::time::Instant::now();
-    paint.draw(&view, vertices, indices, true);
+    paint.draw(&view, vertices, indices, true, over, glass);
     paint.settle();
     let drawn = t.elapsed().as_secs_f64() * 1000.0;
     println!(
@@ -47,16 +48,20 @@ fn main() {
         for _ in 0..20 {
             let spent = scene.advance(0.033);
             paint.sway(scene.swings());
+            paint.sky(&scene.sky(ink, surface));
             let (vertices, indices) = scene.geometry();
-            paint.draw(&view, vertices, indices, spent.redrawn);
+            let (over, glass) = scene.over();
+            paint.draw(&view, vertices, indices, spent.redrawn, over, glass);
         }
         let (mut step, mut publish, mut cut, mut drawn) = (0.0, 0.0, 0.0, 0.0);
         for _ in 0..laps {
             let spent = scene.advance(0.033);
             let (vertices, indices) = scene.geometry();
+            let (over, glass) = scene.over();
             let t = std::time::Instant::now();
             paint.sway(scene.swings());
-            paint.draw(&view, vertices, indices, spent.redrawn);
+            paint.sky(&scene.sky(ink, surface));
+            paint.draw(&view, vertices, indices, spent.redrawn, over, glass);
             paint.settle();
             drawn += t.elapsed().as_secs_f64() * 1000.0;
             step += spent.step;
@@ -77,7 +82,8 @@ fn main() {
     }
 
     let (vertices, indices) = scene.geometry();
-    paint.draw(&view, vertices, indices, true);
+    let (over, glass) = scene.over();
+    paint.draw(&view, vertices, indices, true, over, glass);
     let pixels = paint.read();
     let file = std::fs::File::create(&out).expect("cannot write the still");
     let mut png = png::Encoder::new(std::io::BufWriter::new(file), width, height);

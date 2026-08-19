@@ -162,7 +162,6 @@ impl Wall {
         );
 
         let paint = Paint::new(device, queue, format, self.width, self.height, false);
-        paint.water(self.ink, self.surface_hue, 0.13, 2.1);
 
         let scene = Scene::new(
             self.width,
@@ -206,7 +205,9 @@ impl Wall {
         };
         let view = frame.texture.create_view(&Default::default());
         let (vertices, indices) = scene.geometry();
-        paint.draw(&view, vertices, indices, spent.redrawn);
+        let (over, glass) = scene.over();
+        paint.sky(&scene.sky(self.ink, self.surface_hue));
+        paint.draw(&view, vertices, indices, spent.redrawn, over, glass);
 
         // Asked for before the frame is handed over, which is what keeps the
         // water going at the rate the screen actually refreshes rather than at

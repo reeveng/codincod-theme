@@ -23,6 +23,7 @@ var Sea = (() => {
     build: () => build,
     geometry: () => geometry,
     layout: () => layout,
+    over: () => over,
     publish: () => publish,
     step: () => step,
     wind: () => wind
@@ -65,9 +66,9 @@ var Sea = (() => {
     }
     for (let i = SIZE - 1; i > 0; i--) {
       const j = Math.floor(random() * (i + 1));
-      const held = permutation[i];
+      const held2 = permutation[i];
       permutation[i] = permutation[j];
-      permutation[j] = held;
+      permutation[j] = held2;
     }
     for (let i = 0; i < SIZE + 2; i++) {
       permutation[SIZE + i] = permutation[i];
@@ -109,8 +110,8 @@ var Sea = (() => {
   // ../../../codincodv2/assets/js/ornament/flora.ts
   var gatherings = [];
   function gathered(twigs) {
-    for (const held of gatherings) {
-      if (held.drawn === twigs) return held.gathered;
+    for (const held2 of gatherings) {
+      if (held2.drawn === twigs) return held2.gathered;
     }
     const made = [];
     for (const twig of twigs) {
@@ -322,14 +323,14 @@ var Sea = (() => {
     if (kind === "kelp") return KELP_GIRTH * (weed?.girth ?? 1) * shrunk(depth);
     return GRASS_GIRTH * shrunk(depth);
   }
-  function feeler(x, y, span, open, phase, steps) {
+  function feeler(x, y, span, open, phase2, steps) {
     const points = [{ x, y }];
     const pace = span / steps;
     let atX = x;
     let atY = y;
     for (let step2 = 1; step2 <= steps; step2++) {
       const u = step2 / steps;
-      const heading = open * (1 + CROWN_CURL * u) + Math.sin(phase + u * CROWN_WAVES) * CROWN_WAVE * u;
+      const heading = open * (1 + CROWN_CURL * u) + Math.sin(phase2 + u * CROWN_WAVES) * CROWN_WAVE * u;
       atX += pace * Math.sin(heading);
       atY -= pace * Math.cos(heading);
       points.push({ x: atX, y: atY });
@@ -358,14 +359,14 @@ var Sea = (() => {
   function crownSwept(span, turned) {
     return span * SWEEP.anemone * turned;
   }
-  function crownAt(mouth, tentacles, span, phase) {
+  function crownAt(mouth, tentacles, span, phase2) {
     return tentacles.map(
       (one) => feeler(
         mouth.x + one.shift * span,
         mouth.y,
         one.span * span,
         one.slant,
-        phase * one.beat + one.own,
+        phase2 * one.beat + one.own,
         one.steps
       )
     );
@@ -559,8 +560,8 @@ var Sea = (() => {
       cutFrom(one, framed(at3), amp, sway.own);
     }
     function framed(at3) {
-      const held = frames[at3];
-      if (held) return held;
+      const held2 = frames[at3];
+      if (held2) return held2;
       const made = grown(at3);
       frames[at3] = made;
       return made;
@@ -713,14 +714,14 @@ var Sea = (() => {
       const up = Math.round(seat * (line.length - 1));
       return line[Math.min(line.length - 1, Math.max(0, up))] ?? { x: 0, y: 0 };
     }
-    function strand(x, y, span, phase, amp, slant, steps) {
+    function strand(x, y, span, phase2, amp, slant, steps) {
       const lean = Math.sin(slant);
       const rise = Math.cos(slant);
       const points = [];
       for (let step2 = 0; step2 <= steps; step2++) {
         const t = step2 / steps;
         points.push({
-          x: x + span * t * lean + amp * Math.sin(phase + t * 2.4) * t,
+          x: x + span * t * lean + amp * Math.sin(phase2 + t * 2.4) * t,
           y: y - span * t * rise
         });
       }
@@ -1036,7 +1037,7 @@ var Sea = (() => {
     const crowns = [];
     const tolerance = Math.max(0, options.tolerance ?? TOLERANCE2);
     const reaches = [];
-    const held = [];
+    const held2 = [];
     let bounds = [0, 0];
     let health = 0;
     function climb(t) {
@@ -1091,7 +1092,7 @@ var Sea = (() => {
         };
         heads.push(head);
         crowns.push(tentacles);
-        held.push(null);
+        held2.push(null);
         reaches.push(
           tentacles ? COLUMN * scale * (1 + Math.max(...tentacles.map((one) => one.span))) : REACHES[kind] * scale
         );
@@ -1115,7 +1116,7 @@ var Sea = (() => {
       depth = DEPTH_FAR2 + roll() * (DEPTH_NEAR2 - DEPTH_FAR2);
       heads.length = 0;
       crowns.length = 0;
-      held.length = 0;
+      held2.length = 0;
       reaches.length = 0;
       crest.length = 0;
       bounds = [middle - half, middle + half];
@@ -1134,9 +1135,9 @@ var Sea = (() => {
       const order = [...KINDS];
       for (let at2 = order.length - 1; at2 > 0; at2--) {
         const swap = Math.floor(roll() * (at2 + 1));
-        const held2 = order[at2];
+        const held3 = order[at2];
         order[at2] = order[swap];
-        order[swap] = held2;
+        order[swap] = held3;
       }
       return order;
     }
@@ -1157,22 +1158,22 @@ var Sea = (() => {
       const own = Math.sin(clock * Math.PI * 2 * SWELL_RATE + one.lane);
       return sway * (passing * SWELL_SHARE + own * (1 - SWELL_SHARE));
     }
-    function wander(at2, bend, phase) {
+    function wander(at2, bend, phase2) {
       const one = heads[at2];
-      const was = held[at2];
+      const was = held2[at2];
       if (!one || !was) return Number.POSITIVE_INFINITY;
-      return (reaches[at2] ?? 0) * Math.abs(bend - was.bend) + crownSwept(COLUMN * one.scale, Math.abs(phase - was.phase));
+      return (reaches[at2] ?? 0) * Math.abs(bend - was.bend) + crownSwept(COLUMN * one.scale, Math.abs(phase2 - was.phase));
     }
     function breathe() {
       for (const [at2, one] of heads.entries()) {
         const tentacles = crowns[at2];
         const bend = lean(one);
-        const phase = tentacles ? clock * CROWN_RATE + one.lane : 0;
-        if (wander(at2, bend, phase) < tolerance) continue;
+        const phase2 = tentacles ? clock * CROWN_RATE + one.lane : 0;
+        if (wander(at2, bend, phase2) < tolerance) continue;
         one.bend = bend;
-        if (tentacles) one.blades = crownAt(MOUTH, tentacles, COLUMN, phase);
+        if (tentacles) one.blades = crownAt(MOUTH, tentacles, COLUMN, phase2);
         one.cut++;
-        held[at2] = { bend, phase };
+        held2[at2] = { bend, phase: phase2 };
       }
     }
     const crest = [];
@@ -1378,6 +1379,322 @@ var Sea = (() => {
     };
   }
 
+  // pen.ts
+  var FORM = { fill: 0, light: 2, stroke: 1, wash: 3 };
+  var TONE = { dusk: 4, ink: 6, moon: 3, shadow: 1, sun: 2, surface: 5, water: 0 };
+  var OWN = -1;
+  var Pen = class {
+    constructor(floats, at2) {
+      this.floats = floats;
+      this.at = at2;
+      this.held = at2;
+      this.floats[this.at++] = 0;
+    }
+    floats;
+    at;
+    drawn = 0;
+    held = 0;
+    /** How many numbers were written, once every drawing is in. */
+    close() {
+      this.floats[this.held] = this.drawn;
+      return this.at;
+    }
+    fill(points, mark) {
+      this.head(FORM.fill, mark);
+      this.points(points);
+    }
+    line(points, mark) {
+      this.head(FORM.stroke, mark);
+      this.points(points);
+    }
+    /** A round light, which is a middle and a reach rather than a shape. */
+    light(x, y, mark) {
+      this.head(FORM.light, mark);
+      this.put(1);
+      this.put(x);
+      this.put(y);
+    }
+    /** A wash over the whole box, which is what a night is. */
+    wash(mark) {
+      this.head(FORM.wash, mark);
+      this.put(0);
+    }
+    head(form, mark) {
+      this.drawn++;
+      this.put(form);
+      this.put(mark.tone ?? TONE.water);
+      this.put(mark.weight ?? 0);
+      this.put(mark.shade ?? OWN);
+      this.put(mark.alpha ?? 1);
+      this.put(mark.lane);
+      this.put(mark.width ?? 0);
+      this.put(mark.fall ?? 1);
+      this.put(mark.fade ? mark.fade[0] : 0);
+      this.put(mark.fade ? mark.fade[1] : 0);
+      this.put(mark.thin ?? 1);
+    }
+    points(points) {
+      this.put(points.length);
+      for (let i = 0; i < points.length; i++) {
+        this.put(points[i].x);
+        this.put(points[i].y);
+      }
+    }
+    put(value) {
+      this.floats[this.at++] = value;
+    }
+  };
+
+  // ../../../codincodv2/assets/js/ornament/sun.ts
+  var RAD = Math.PI / 180;
+  var J2000_OFFSET_DAYS = 10957.5;
+  var DAY_MS = 864e5;
+  var OBLIQUITY = 23.4397 * RAD;
+  var REGION_LATITUDE = {
+    Africa: 5,
+    America: 38,
+    Antarctica: -70,
+    Arctic: 78,
+    Asia: 30,
+    Atlantic: 35,
+    Australia: -30,
+    Europe: 50,
+    Indian: -15,
+    Pacific: -20
+  };
+  var ZONE_LATITUDE = {
+    "Africa/Cairo": 30,
+    "Africa/Johannesburg": -26,
+    "Africa/Lagos": 6,
+    "Africa/Nairobi": -1,
+    "America/Bogota": 5,
+    "America/Lima": -12,
+    "America/Santiago": -33,
+    "America/Sao_Paulo": -23,
+    "Asia/Jakarta": -6,
+    "Asia/Kolkata": 22,
+    "Asia/Singapore": 1,
+    "Pacific/Auckland": -37,
+    "Pacific/Fiji": -18,
+    "Pacific/Honolulu": 21
+  };
+  function position(now) {
+    const longitude = clamp(-now.getTimezoneOffset() / 4, -180, 180);
+    let zone = "";
+    try {
+      zone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+    } catch {
+      zone = "";
+    }
+    const override = Object.entries(ZONE_LATITUDE).find(([name]) => zone.startsWith(name));
+    if (override) return { latitude: override[1], longitude };
+    const region = zone.split("/")[0] ?? "";
+    return { latitude: REGION_LATITUDE[region] ?? 45, longitude };
+  }
+  function epochDays(now) {
+    return now.getTime() / DAY_MS - J2000_OFFSET_DAYS;
+  }
+  function sunEcliptic(days) {
+    const meanAnomaly = (357.5291 + 0.98560028 * days) * RAD;
+    return meanAnomaly + (1.9148 * Math.sin(meanAnomaly) + 0.02 * Math.sin(2 * meanAnomaly) + 3e-4 * Math.sin(3 * meanAnomaly)) * RAD + 102.9372 * RAD + Math.PI;
+  }
+  function moonEcliptic(days) {
+    const argument = (93.272 + 13.22935 * days) * RAD;
+    const meanAnomaly = (134.963 + 13.064993 * days) * RAD;
+    const meanLongitude = (218.316 + 13.176396 * days) * RAD;
+    return {
+      latitude: 5.128 * RAD * Math.sin(argument),
+      longitude: meanLongitude + 6.289 * RAD * Math.sin(meanAnomaly)
+    };
+  }
+  function equatorial(longitude, latitude) {
+    return {
+      declination: Math.asin(
+        Math.sin(latitude) * Math.cos(OBLIQUITY) + Math.cos(latitude) * Math.sin(OBLIQUITY) * Math.sin(longitude)
+      ),
+      rightAscension: Math.atan2(
+        Math.sin(longitude) * Math.cos(OBLIQUITY) - Math.tan(latitude) * Math.sin(OBLIQUITY),
+        Math.cos(longitude)
+      )
+    };
+  }
+  function horizon(days, { latitude, longitude }, { declination, rightAscension }) {
+    const siderealTime = (280.16 + 360.9856235 * days) * RAD + longitude * RAD;
+    const hourAngle = siderealTime - rightAscension;
+    const phi = latitude * RAD;
+    const altitude = Math.asin(
+      Math.sin(phi) * Math.sin(declination) + Math.cos(phi) * Math.cos(declination) * Math.cos(hourAngle)
+    );
+    return { altitude: altitude / RAD, hourAngle };
+  }
+  function passage({ altitude, hourAngle }) {
+    const wrapped = wrap(hourAngle);
+    const march = clamp(0.5 + wrapped / Math.PI, 0, 1);
+    return { arc: Math.sin(march * Math.PI), march, up: clamp((altitude + 1) / 6, 0, 1) };
+  }
+  function phase(now) {
+    const days = epochDays(now);
+    const elongation = wrap(moonEcliptic(days).longitude - sunEcliptic(days));
+    return { lit: (1 - Math.cos(elongation)) / 2, waxing: elongation > 0 };
+  }
+  function sunlit(x, y, { lit, waxing }) {
+    const across = waxing ? x : -x;
+    return across + (2 * lit - 1) * Math.sqrt(Math.max(0, 1 - y * y));
+  }
+  function light(altitude) {
+    return {
+      daylight: clamp((altitude + 6) / 12, 0, 1),
+      dusk: clamp(1 - Math.abs(altitude) / 8, 0, 1)
+    };
+  }
+  function sunNow() {
+    const now = /* @__PURE__ */ new Date();
+    const here = position(now);
+    const days = epochDays(now);
+    const sun = horizon(days, here, equatorial(sunEcliptic(days), 0));
+    const moon = moonEcliptic(days);
+    return {
+      ...light(sun.altitude),
+      moon: {
+        ...passage(horizon(days, here, equatorial(moon.longitude, moon.latitude))),
+        ...phase(now)
+      },
+      sun: passage(sun)
+    };
+  }
+  function clamp(value, low, high) {
+    return Math.min(high, Math.max(low, value));
+  }
+  function wrap(angle) {
+    return Math.atan2(Math.sin(angle), Math.cos(angle));
+  }
+
+  // sky.ts
+  var EAST = 0.12;
+  var WEST = 0.88;
+  var HIGH = 0.055;
+  var LOW = 0.17;
+  var DISC = 0.028;
+  var SWING2 = 0.34;
+  var SPREAD = 0.085;
+  var FALL = 0.34;
+  var DISC_INK = 0.012;
+  var DISC_GIVE = 2.6;
+  var BLOOM = { fall: 2.4, ink: 0.016, reach: 13, thin: 1 };
+  var HALO = { fall: 1.6, ink: 0.07, reach: 4.2, thin: 1 };
+  var STREAK = { fall: 2.1, ink: 0.06, reach: 12, thin: 0.1 };
+  var DUSK_REACH = 0.62;
+  var DUSK_INK = 0.09;
+  var NIGHT_INK = 0.3;
+  var LANE = { body: -1.2, dusk: 3, night: 3.1 };
+  var CRATERS = [
+    [-0.34, -0.22, 0.22],
+    [0.19, -0.45, 0.1],
+    [0.31, 0.3, 0.15]
+  ];
+  var CRATER_INK = 0.34;
+  var ROUND = 72;
+  function paintSky(pen, box2) {
+    const sky = sunNow();
+    const bodies = [
+      { moon: false, passage: sky.sun, phase: null, show: sky.daylight, tone: TONE.sun },
+      {
+        moon: true,
+        passage: sky.moon,
+        phase: sky.moon,
+        show: (1 - sky.daylight) * sky.moon.up,
+        tone: TONE.moon
+      }
+    ];
+    for (const body of bodies) {
+      if (body.show <= 4e-3) continue;
+      paintBody(pen, box2, body.passage, body.phase, body.show, body.tone);
+    }
+    if (sky.dusk > 0) {
+      pen.wash({
+        alpha: DUSK_INK * sky.dusk,
+        fade: [0, box2.height * DUSK_REACH],
+        lane: LANE.dusk,
+        tone: TONE.dusk
+      });
+    }
+    if (sky.daylight < 1) {
+      pen.wash({ alpha: NIGHT_INK * (1 - sky.daylight), lane: LANE.night, tone: TONE.surface });
+    }
+    return { daylight: sky.daylight, dusk: sky.dusk };
+  }
+  function paintBody(pen, box2, passage2, phase2, show, tone) {
+    const r = box2.height * DISC;
+    const cx = box2.width * (EAST + passage2.march * (WEST - EAST));
+    const cy = box2.height * (LOW + passage2.arc * (HIGH - LOW));
+    const glow = show * (phase2 ? phase2.lit : 1);
+    const lean = (0.5 - passage2.march) * SWING2;
+    for (const light2 of [BLOOM, HALO, STREAK]) {
+      pen.light(cx, cy, {
+        alpha: light2.ink * glow,
+        fall: light2.fall,
+        lane: LANE.body,
+        shade: OWN,
+        thin: light2.thin,
+        tone,
+        width: r * light2.reach
+      });
+    }
+    pen.fill(
+      [
+        { x: cx - r, y: cy },
+        { x: cx + r, y: cy },
+        { x: cx + box2.width * (lean + SPREAD), y: box2.height },
+        { x: cx + box2.width * (lean - SPREAD), y: box2.height }
+      ],
+      {
+        alpha: DISC_INK * glow,
+        fade: [cy, Math.max(1, box2.height * FALL - cy)],
+        fall: DISC_GIVE,
+        lane: LANE.body,
+        tone
+      }
+    );
+    pen.fill(phase2 ? crescent(cx, cy, r, phase2) : disc(cx, cy, r), {
+      alpha: show,
+      lane: LANE.body,
+      tone
+    });
+    if (!phase2) return;
+    for (const [x, y, size] of CRATERS) {
+      const clear = sunlit(x, y, phase2) / size - 1;
+      if (clear <= 0) continue;
+      pen.fill(disc(cx + r * x, cy + r * y, r * size), {
+        alpha: CRATER_INK * show * Math.min(1, clear),
+        lane: LANE.body,
+        tone: TONE.surface
+      });
+    }
+  }
+  function disc(cx, cy, r) {
+    const points = [];
+    for (let i = 0; i < ROUND; i++) {
+      const turn2 = i / ROUND * Math.PI * 2;
+      points.push({ x: cx + r * Math.cos(turn2), y: cy + r * Math.sin(turn2) });
+    }
+    return points;
+  }
+  function crescent(cx, cy, r, { lit, waxing }) {
+    const side = waxing ? 1 : -1;
+    const waist = r * (2 * lit - 1);
+    const points = [];
+    const half = ROUND / 2;
+    for (let i = 0; i <= half; i++) {
+      const turn2 = i / half * Math.PI;
+      points.push({ x: cx + side * r * Math.sin(turn2), y: cy - r * Math.cos(turn2) });
+    }
+    for (let i = half; i >= 0; i--) {
+      const turn2 = i / half * Math.PI;
+      points.push({ x: cx - side * waist * Math.sin(turn2), y: cy - r * Math.cos(turn2) });
+    }
+    return points;
+  }
+
   // scene.ts
   var PER_K = {
     anemones: 34,
@@ -1402,8 +1719,8 @@ var Sea = (() => {
   var RANGES = 6;
   var carved = /* @__PURE__ */ new Map();
   function twigOf(d) {
-    const held = carved.get(d);
-    if (held) return held;
+    const held2 = carved.get(d);
+    if (held2) return held2;
     const numbers = d.match(/-?\d+(\.\d+)?/g);
     const cut = numbers ? numbers.map(Number) : [];
     carved.set(d, cut);
@@ -1463,6 +1780,26 @@ var Sea = (() => {
   }
   function step(seconds) {
     flora?.step(seconds);
+    held += seconds;
+    turn = (turn + 1) % 512;
+  }
+  var held = 0;
+  var turn = 0;
+  var SWAY_REACH = 5e-3;
+  var SWAY_ROLL = 22e-4;
+  function over() {
+    at = 0;
+    const unit = Math.min(box.width, box.height) * SWAY_REACH;
+    put(unit * (0.62 * Math.sin(held * 0.11) + 0.38 * Math.sin(held * 0.29 + 1.7)));
+    put(unit * (0.62 * Math.sin(held * 0.13 + 2.4) + 0.38 * Math.sin(held * 0.23 + 0.6)));
+    put(SWAY_ROLL * Math.sin(held * 0.09 + 1.1));
+    const reach = unit + Math.abs(SWAY_ROLL) * Math.hypot(box.width, box.height) / 2;
+    put(1 + 2 * reach / Math.max(1, Math.min(box.width, box.height)));
+    put(turn);
+    const pen = new Pen(geometry, at);
+    paintSky(pen, box);
+    at = pen.close();
+    return at;
   }
   var at = 0;
   function put(value) {

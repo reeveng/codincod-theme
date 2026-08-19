@@ -48,10 +48,6 @@ const HAZE_INK: f32 = 0.04;
 const SAND_INK: f32 = 0.19;
 const STONE_INK: f32 = 0.25;
 
-/// The water is drawn with the fragment's own height rather than one handed to
-/// it, which is what a gradient is.
-const DOWN_THE_BOX: f32 = -1.0;
-
 /// The two kinds this has anything to say about. A kelp, a grass and a fan are
 /// all a frame of limbs and are drawn without being named.
 const ANEMONE: u8 = 2;
@@ -512,10 +508,7 @@ impl Bed {
                 &mut BuffersBuilder::new(&mut geo, |v: FillVertex| Vertex {
                     pos: v.position().to_array(),
                     weight,
-                    shade: DOWN_THE_BOX,
-                    limb: STIFF,
-                    t: 0.0,
-                    lane: 0.0,
+                    ..Default::default()
                 }),
             )
             .unwrap();
@@ -560,7 +553,7 @@ impl Bed {
                             shade,
                             limb: *limb,
                             t,
-                            lane: 0.0,
+                            ..Default::default()
                         }
                     }),
                 )
@@ -609,9 +602,7 @@ impl Bed {
                     pos: v.position().to_array(),
                     weight,
                     shade: y,
-                    limb: STIFF,
-                    t: 0.0,
-                    lane: 0.0,
+                    ..Default::default()
                 }),
             )
             .unwrap();
