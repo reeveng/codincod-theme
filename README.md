@@ -2,22 +2,31 @@
 
 A dark green desktop, and a sea living in the wallpaper.
 
+![The sea, eight seconds of it](seascape.gif)
+
 The theme is [CodinCod](https://codincod.com)'s own palette, converted out of
-oklch so a green here is the same green there. The wallpaper is the shoal from
-the website, running the website's simulation, on a desktop.
+oklch so a green here is the same green there. The wallpaper is the website's
+own simulation, running on a desktop.
 
-![The theme](preview.png)
-
-## The theme
+## Installing it
 
 ```bash
 omarchy theme install https://github.com/reeveng/codincod-theme.git
 ```
 
-That is the whole of it. Omarchy takes `colors.toml` and generates the rest, so
-this one file re-colours alacritty, foot, kitty, ghostty, btop, helix, neovim,
-vscode, chromium, obsidian, the lock screen, Hyprland's borders, the bar, and
-the keyboard's own lights.
+That is the whole of the theme. Omarchy takes `colors.toml` and generates the
+rest, so this one file re-colours alacritty, foot, kitty, ghostty, btop, helix,
+neovim, vscode, chromium, obsidian, the lock screen, Hyprland's borders, the
+bar, and the keyboard's own lights.
+
+The sea is a second step, and the theme is complete without it:
+
+```bash
+./install.sh
+```
+
+The clip above is the plugin itself, recorded offscreen a frame at a time. It
+is slower and darker on a real desktop, which is the point of it.
 
 ### Where the colours come from
 
@@ -34,109 +43,58 @@ website and were placed on the same ladder to match.
 
 ## The sea
 
-![The sea, twelve seconds of it](seascape.gif)
+`seascape/` is an Omarchy shell plugin that puts water where the wallpaper was:
+a shoal working through it, marine snow falling, bubbles off vents in the floor,
+and light through the surface. Hills stand off in the murk, plants root on the
+ground at their own distance rather than along one line, and a fish that swims
+out of the picture is gone, so nothing loops.
 
-`seascape/` is an Omarchy shell plugin that replaces the desktop background
-with water: a shoal working through it, marine snow falling, bubbles coming off
-vents in the floor, and light through the surface. Hills stand off in the murk,
-plants root on the ground at their own distance rather than along one line, and
-a fish that swims out of the picture is gone: the one that comes in next is a
-new animal, so nothing loops.
+**A different sea every day.** The calendar day decides where the seabed is,
+what grows on it, how much of it grew, whether there is a wreck down there and
+what happens to be lying on it. A screen takes the new day up the next time a
+window covers it, so the ground never rearranges itself while you are looking at
+it.
 
-That clip is the plugin itself, rendered offscreen a frame at a time. It is
-slower and darker on a real desktop, which is the point of it.
+**And almost nothing happens in it.** A boat crosses the surface, sonar goes off
+somewhere out there, and once in a while a submarine passes at your own depth,
+each at most once a day and the submarine rarely. Turtles, sharks, dolphins and
+rays come through on their own clock, minutes apart rather than hours. Nothing
+advances while the wallpaper is covered, so a crossing owed at four in the
+morning happens the next time you are actually looking at the sea.
 
-```bash
-./install.sh
-```
-
-It is optional, and the theme is complete without it.
-
-### And almost nothing happens in it
-
-A boat crosses the surface, sonar goes off somewhere out there, and once in a
-while a submarine passes at your own depth. Each of them at most once a day, at
-an hour the day decides, and the submarine only on about one day in seven. They
-wait for somebody: the water advances only while the wallpaper is uncovered, so
-a crossing that was owed at four in the morning happens the next time you are
-actually looking at the sea.
-
-### A different sea every day
-
-The seabed is the calendar day's: the same place from one midnight to the next,
-and somewhere else tomorrow. Which stones, which plants, whether there is a
-wreck on the floor and what happens to be lying on it are all that one number's
-doing. A screen takes the new day up the next time
-a window covers it, so the ground never rearranges itself while you are looking
-at it.
-
-### It runs on the website's own simulation
-
-The shoal is not reimplemented here. `Ornament.js` is built by
-`seascape/build-ornament.sh` out of `assets/js/ornament/` in the CodinCod
-repository, and nothing in that directory is edited on the way through:
-
-| There | Here |
-| --- | --- |
-| `shoal.ts` | where a fish goes, why, and which of five kinds it is |
-| `fish_shape.ts` | one drawing of the animal, per beat of its tail |
-| `cephalopods.ts` | squid in the water, octopuses on the stones |
-| `seabed.ts`, `flora.ts` | the ground at every distance, and what grows out of it |
-| `relics.ts` | what lies on the floor, and the plume off the vent |
-| `passers.ts` | the boat overhead, the sonar, and the submarine |
-| `drift.ts`, `rays.ts` | the snow, the bubbles, the light |
-| `sun.ts` | which hour it is, from the sun's real altitude |
-| `perlin.ts` | the field they all read |
-| `water.ts` | the browser's renderer, which `Seascape.qml` replaces |
-
-That split is the website's own and it is deliberate: the simulations are kept
-free of the DOM so the drawing half stays a drawing half. A second renderer is
-what that buys.
+**It is the website's own simulation.** Nothing in it is reimplemented here:
+`Ornament.js` is built out of `assets/js/ornament/` in the CodinCod repository,
+which is kept free of the DOM so that a second renderer can exist at all.
+`Seascape.qml` is this repo's answer to the website's `water.ts`, and the
+simulations underneath are the same ones the porthole on the site runs.
 
 ```bash
 CODINCOD_DIR=/path/to/codincodv2 seascape/build-ornament.sh
 ```
 
-### It costs nothing while you work
-
-The scene advances only while the wallpaper is actually visible, which it asks
-Hyprland about rather than guesses: if any window is on this screen's active
-workspace, nothing moves. `Hyprland.toplevels` is fed by the compositor's event
-socket, so that answer is recomputed when a window opens, closes or changes
-workspace, and at no other time.
-
-That gate assumes what this theme assumes: no gaps, and no see-through windows.
-If you run either, it will park a sea you can still see. `looknfeel.lua` in the
-[install notes](#making-windows-opaque) turns opacity off.
+[SEASCAPE.md](SEASCAPE.md) is the long version: what each layer draws, the rules
+the whole scene keeps, and where a frame goes.
 
 ### Looking at it without a desktop
 
-Because the background is only visible when nothing is on the workspace,
-screenshotting it means throwing yourself onto an empty workspace and back. So
-there is a harness that mounts the same component offscreen:
+The background is only visible when nothing is on the workspace, so
+screenshotting it would mean throwing yourself onto an empty workspace and back.
+The same component mounts offscreen instead:
 
 ```bash
-cd seascape && ./look.sh preview.qml
+cd seascape && ./look.sh preview.qml     # a still, into seascape/preview.png
+cd seascape && ./look.sh shapes.qml      # every silhouette, large and alone
+cd seascape && ./gif.sh                  # eight seconds of it, as a gif
+cd seascape && ./bench.sh                # where a frame goes
 ```
 
-It writes `preview.png` and exits. For a moving one, `record.qml` steps the
-same component by hand and grabs every frame, so a clip comes out at the rate
-it was asked for however long each grab took:
+`preview.png` at the top of this repository is the same sheet written a
+directory up, which is where Omarchy's theme picker looks for one.
 
-```bash
-cd seascape && ./look.sh record.qml \
-  out=/tmp/frames frames=240 fps=20 width=1280 height=800 settle=90
-```
-
-`shapes.qml` is the third sheet, and it draws every shape in the scene large
-and on its own, which is the only way to tell a drawing that is wrong from a
-drawing that is merely small.
-
-All three go through `look.sh` rather than `qml6`, and that is not a
-convenience. `QT_QPA_PLATFORM=offscreen` by itself loads Qt's software scene
-graph, which paints with QPainter and ignores `preferredRendererType`
-altogether, so the harness would answer every question about a renderer the
-desktop never runs.
+Through `look.sh` rather than `qml6`, and that is not a convenience:
+`QT_QPA_PLATFORM=offscreen` by itself loads Qt's software scene graph, which
+ignores `preferredRendererType` altogether and answers every question about a
+renderer the desktop never runs.
 
 ## Making windows opaque
 

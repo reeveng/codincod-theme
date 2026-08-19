@@ -69,10 +69,18 @@ Item {
    *
    * `sun` and `moon` are `Ornament.sunNow`'s, handed in by whoever mounts this
    * for the same reason `daylight` is: the component knows nothing about
-   * clocks. Each is `{ arc, march }`, 0 to 1 from one horizon to the other.
+   * clocks. Each is `{ arc, march, up }`: how far round, how high, and whether
+   * it is above the horizon at all.
+   *
+   * The moon carries two more, `lit` and `waxing`, which are the shape the sun
+   * has left of it tonight. It is the real moon rather than a disc that comes
+   * out when the sun goes in: it rises later each night, it is a different
+   * sliver each night, and for a few nights a month it is not there at all.
+   * `up` is what says so, and it is why the moon is not simply drawn wherever
+   * the sun is not.
    */
-  property var sun: ({ arc: 0.8, march: 0.5 })
-  property var moon: ({ arc: 0.8, march: 0.5 })
+  property var sun: ({ arc: 0.8, march: 0.5, up: 1 })
+  property var moon: ({ arc: 0.8, lit: 0.62, march: 0.5, up: 1, waxing: true })
 
   /** The ends of a crossing, and the top and bottom of the arc between them. */
   property real discEast: 0.12
@@ -119,8 +127,8 @@ Item {
    * half its strength halfway down and ends in a hard hem, and past about 3 it
    * is gone before it has left the body it came from.
    */
-  function beam(hue, through) {
-    return Qt.rgba(hue.r, hue.g, hue.b, discInk * Math.pow(1 - through, 2.6))
+  function beam(hue, through, left) {
+    return Qt.rgba(hue.r, hue.g, hue.b, left * discInk * Math.pow(1 - through, 2.6))
   }
 
   /**
@@ -253,7 +261,7 @@ Item {
    * of bands with findable seams across the water and down every shaft of light.
    * Grain puts a value either side of the one a band wanted and the seams go.
    */
-  property real grainInk: 0.05
+  property real grainInk: 0.03
   property real grainSpan: 1.6
 
   /**
@@ -353,9 +361,19 @@ Item {
   // Counted against the box rather than set outright, so the same component
   // fills a laptop panel and a wall without being retuned for either.
 
-  property real pxPerFish: 105000
+  property real pxPerFish: 62000
   property int minFish: 6
-  property int maxFish: 22
+  property int maxFish: 44
+
+  /**
+   * How much of the day's shoal is still about at night.
+   *
+   * Fish are not nocturnal in equal numbers. Reef fish shelter after dark and
+   * what is left over the sand is thinner, so the water empties out rather than
+   * changing over. It is a share of the day rather than a count of its own,
+   * because the day's count already knows how big the picture is.
+   */
+  property real nightShoal: 0.55
 
   property real pxPerMote: 12500
   property int minMotes: 40
@@ -834,6 +852,14 @@ Item {
   property int flurry: 0
   property int beams: 0
 
+  /**
+   * How much this day grew, as a share of an ordinary one; see `Ornament.thriving`.
+   *
+   * Read once per seed rather than per build, so a window being dragged does
+   * not reroll the sea, and so two screens on one machine grow the same bed.
+   */
+  property real lushness: 1
+
   /** The box the scene was last built or refitted at; see `refit`. */
   property size fitted: Qt.size(0, 0)
 
@@ -1148,8 +1174,33 @@ Item {
     return Math.max(leastOfEach, Math.min(most, Math.round(width * perThousand / 1000)))
   }
 
+  /**
+   * The same, for anything alive, which is as thick as the day decided.
+   *
+   * The rock does not go through here. A cliff is not thicker on a good year,
+   * and a scene whose geology breathed with its planting would read as the box
+   * changing size rather than as a season.
+   *
+   * `most` still caps it, and on this renderer it caps hard: the bed is
+   * tessellated on the processor every frame, so the richest days are asking
+   * for more than this can draw and get what it can afford instead.
+   */
+  function lush(perThousand, most) {
+    return spread(perThousand * lushness, most)
+  }
+
+  /**
+   * How many fish, for this hour of this day.
+   *
+   * The day's own number is taken as a root rather than whole. A shoal is what
+   * the reader watches, so it is the count with the least room to be wrong in
+   * either direction: swung as far as the bed is, a lean day reads as an empty
+   * sea rather than a quiet one.
+   */
   function fishCount() {
-    return Math.max(minFish, Math.min(maxFish, Math.round(width * height / pxPerFish)))
+    const full = Math.max(minFish, Math.min(maxFish, Math.round(width * height / pxPerFish)))
+    const hour = nightShoal + (1 - nightShoal) * daylight
+    return Math.max(minFish, Math.round(full * hour * Math.sqrt(lushness)))
   }
 
   function moteCount() {
@@ -1159,6 +1210,7 @@ Item {
   function build() {
     if (width < 2 || height < 2) return
 
+    lushness = Ornament.thriving(seed)
     herd = fishCount()
     flurry = moteCount()
     beams = shafts
@@ -1176,13 +1228,13 @@ Item {
 
     flora = Ornament.createFlora({
       about: water.about,
-      anemones: spread(anemonesPerK, mostAnemones),
-      corals: spread(coralsPerK, mostCorals),
-      fans: spread(fansPerK, mostFans),
+      anemones: lush(anemonesPerK, mostAnemones),
+      corals: lush(coralsPerK, mostCorals),
+      fans: lush(fansPerK, mostFans),
       floor: seabed.floorAt,
-      grasses: spread(grassesPerK, mostGrasses),
+      grasses: lush(grassesPerK, mostGrasses),
       height: height,
-      kelps: spread(kelpsPerK, mostKelps),
+      kelps: lush(kelpsPerK, mostKelps),
       seed: seed,
       tolerance: tolerance,
       width: width,
@@ -1190,10 +1242,10 @@ Item {
 
     walkers = Ornament.createWalkers({
       about: water.about,
-      crabs: spread(crabsPerK, mostCrabs),
+      crabs: lush(crabsPerK, mostCrabs),
       floor: seabed.floorAt,
       seed: seed,
-      starfish: spread(starfishPerK, mostStarfish),
+      starfish: lush(starfishPerK, mostStarfish),
       tolerance: tolerance,
       width: width,
     })
@@ -1991,6 +2043,16 @@ Item {
 
   onSeedChanged: adopt()
   onRunningChanged: adopt()
+
+  /**
+   * The shoal is told the hour's number, not made to be it.
+   *
+   * `hold` is worked towards from the edges over minutes, which is what dawn
+   * and dusk take anyway. Setting the count outright here would fill the water
+   * in a single frame, in the middle of the picture, at the one hour somebody
+   * is most likely to be watching it.
+   */
+  onDaylightChanged: if (shoal) shoal.hold(fishCount())
   onWidthChanged: refit()
   onHeightChanged: refit()
   Component.onCompleted: build()
@@ -2322,10 +2384,19 @@ Item {
    * The sun first and the moon over it, which only matters at the two moments
    * of the day when both are up and near each other, and then only because one
    * of them has to be.
+   *
+   * The moon is shown by the night and by its own altitude together. A night
+   * with no moon in it is most of a week every month, and a wallpaper that put
+   * one up anyway would be a wallpaper nobody could check against a window.
    */
   readonly property var bodies: [
-    { cratered: 0, hue: root.sunlight, passage: root.sun, show: root.daylight },
-    { cratered: 1, hue: root.moonlight, passage: root.moon, show: 1 - root.daylight },
+    { hue: root.sunlight, moon: 0, passage: root.sun, show: root.daylight },
+    {
+      hue: root.moonlight,
+      moon: 1,
+      passage: root.moon,
+      show: (1 - root.daylight) * root.moon.up,
+    },
   ]
 
   /**
@@ -2419,6 +2490,19 @@ Item {
        */
       readonly property real lean: (0.5 - modelData.passage.march) * root.discSwing
 
+      /**
+       * How much light this one is throwing, against a full one of its kind.
+       *
+       * The disc itself is drawn at full strength whatever shape it is in,
+       * because a crescent is as bright per inch as a full moon; there is
+       * simply less of it. What there is less of is everything around it, so
+       * the halo, the bloom, the streak and the shaft off the water all take
+       * this. A new moon throws nothing, which is what a new moon does.
+       */
+      readonly property real glow: modelData.moon
+        ? modelData.passage.lit
+        : 1
+
       anchors.fill: parent
       opacity: modelData.show
       visible: opacity > 0.004
@@ -2434,7 +2518,7 @@ Item {
         cy: sky.cy
         fall: root.bloomFall
         hue: sky.hue
-        ink: root.bloomInk
+        ink: root.bloomInk * sky.glow
         reach: sky.r * root.bloomReach
       }
 
@@ -2443,7 +2527,7 @@ Item {
         cx: sky.cx
         cy: sky.cy
         hue: sky.hue
-        ink: root.haloInk
+        ink: root.haloInk * sky.glow
         reach: sky.r * root.haloReach
       }
 
@@ -2465,16 +2549,16 @@ Item {
             x2: 0
             y2: root.height * root.discFall
 
-            GradientStop { position: 0; color: root.beam(sky.hue, 0) }
-            GradientStop { position: 0.1; color: root.beam(sky.hue, 0.1) }
-            GradientStop { position: 0.2; color: root.beam(sky.hue, 0.2) }
-            GradientStop { position: 0.3; color: root.beam(sky.hue, 0.3) }
-            GradientStop { position: 0.4; color: root.beam(sky.hue, 0.4) }
-            GradientStop { position: 0.5; color: root.beam(sky.hue, 0.5) }
-            GradientStop { position: 0.62; color: root.beam(sky.hue, 0.62) }
-            GradientStop { position: 0.75; color: root.beam(sky.hue, 0.75) }
-            GradientStop { position: 0.88; color: root.beam(sky.hue, 0.88) }
-            GradientStop { position: 1; color: root.beam(sky.hue, 1) }
+            GradientStop { position: 0; color: root.beam(sky.hue, 0, sky.glow) }
+            GradientStop { position: 0.1; color: root.beam(sky.hue, 0.1, sky.glow) }
+            GradientStop { position: 0.2; color: root.beam(sky.hue, 0.2, sky.glow) }
+            GradientStop { position: 0.3; color: root.beam(sky.hue, 0.3, sky.glow) }
+            GradientStop { position: 0.4; color: root.beam(sky.hue, 0.4, sky.glow) }
+            GradientStop { position: 0.5; color: root.beam(sky.hue, 0.5, sky.glow) }
+            GradientStop { position: 0.62; color: root.beam(sky.hue, 0.62, sky.glow) }
+            GradientStop { position: 0.75; color: root.beam(sky.hue, 0.75, sky.glow) }
+            GradientStop { position: 0.88; color: root.beam(sky.hue, 0.88, sky.glow) }
+            GradientStop { position: 1; color: root.beam(sky.hue, 1, sky.glow) }
           }
           strokeColor: "transparent"
 
@@ -2499,19 +2583,47 @@ Item {
         cy: sky.cy
         fall: root.streakFall
         hue: sky.hue
-        ink: root.streakInk
+        ink: root.streakInk * sky.glow
         reach: sky.r * root.streakReach
         thin: root.streakThin
       }
 
+      // The sun, which is a disc and stays one.
       Rectangle {
         antialiasing: true
         color: sky.hue
         height: sky.r * 2
         radius: sky.r
+        visible: !sky.modelData.moon
         width: height
         x: sky.cx - sky.r
         y: sky.cy - sky.r
+      }
+
+      /**
+       * The moon, which is whatever shape the sun has left it tonight.
+       *
+       * `Ornament.crescent` is `assets/js/ornament/sun.ts`, so the site's
+       * porthole and this draw one moon. Two arcs: the limb, and the
+       * terminator, which is a circle around the moon seen edge on and so is
+       * an ellipse squeezed by how much of the disc is in the light. There is
+       * no dark half drawn under it. The unlit part of a real moon is the
+       * night sky, and painting it in would be painting a hole.
+       */
+      Shape {
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
+        visible: sky.modelData.moon > 0
+
+        ShapePath {
+          fillColor: sky.hue
+          strokeColor: sky.hue
+          strokeWidth: 1
+
+          PathSvg {
+            path: Ornament.crescent(sky.cx, sky.cy, sky.r, sky.modelData.passage)
+          }
+        }
       }
 
       // The craters, and only on the one that has them. A sun with three grey
@@ -2520,7 +2632,7 @@ Item {
         // Off-centre and unevenly sized on purpose. Three round spots spaced
         // evenly on a disc is a face, and the moment anybody sees a face
         // there they stop seeing a moon.
-        model: sky.modelData.cratered
+        model: sky.modelData.moon
           ? [Qt.vector3d(-0.34, -0.22, 0.22),
              Qt.vector3d(0.19, -0.45, 0.1),
              Qt.vector3d(0.31, 0.3, 0.15)]
@@ -2529,10 +2641,24 @@ Item {
         delegate: Rectangle {
           required property vector3d modelData
 
+          /**
+           * How far this one is into the light, in its own widths.
+           *
+           * A crater sitting where there is no moon under it is a grey spot on
+           * the sky, so one is drawn only once it is clear of the terminator by
+           * its own width, and fades in over the next. Through the month they
+           * go out one after another as the shadow crosses them, which is what
+           * the terminator is for looking at.
+           */
+          readonly property real clear:
+            Ornament.sunlit(modelData.x, modelData.y, sky.modelData.passage) / modelData.z
+
           antialiasing: true
           color: Qt.rgba(root.surface.r, root.surface.g, root.surface.b, 0.34)
           height: sky.r * modelData.z * 2
+          opacity: Math.max(0, Math.min(1, clear - 1))
           radius: height / 2
+          visible: opacity > 0.004
           width: height
           x: sky.cx + sky.r * modelData.x - width / 2
           y: sky.cy + sky.r * modelData.y - height / 2

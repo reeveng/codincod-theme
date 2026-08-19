@@ -18,6 +18,11 @@ renders them. Both the website and the desktop get all of it.
       same shaft of light under it, from the sun's real altitude at the reader's
       own longitude. Dusk is warm and falls off with depth; night is a wash over
       everything. `sun.ts`
+- [x] **The month**: the moon keeps its own hours and its own shape. It rises
+      about fifty minutes later each night, is a different sliver every one of
+      them, comes back to the same shape after 29.53, and for the nights it is
+      under the ground there is no moon over the water at all. The craters go
+      out one at a time as the terminator crosses them. `sun.ts`
 
 ## The bottom
 
@@ -168,6 +173,18 @@ the one thing that surface may not be.
   one meant whatever that number held was all anybody ever saw, and the rarest
   thing down there falls to about one sea in ten. A screen takes the new day up only once it is
   covered, so the ground never moves while somebody is looking at it.
+- The day decides how much grew as well as where. Every count of a living thing
+  goes through one multiplier off the same seed, weighted so that most water is
+  ordinary and the bed you cannot see the floor through is something you wait
+  for. The rock does not go through it: a cliff is not thicker on a good year.
+  What a renderer can afford stays its own, and the caps here are the QML
+  renderer's honest answer, which is why a rich day shows as thicker rather than
+  as twice as thick.
+- The shoal follows the light. Reef fish shelter after dark and the water over
+  the sand thins out, so the count is a share of the day's, and the shoal is
+  told the number rather than made to be it: it is worked towards from the edges
+  over the minutes dawn takes anyway, because a fish appearing in the middle of
+  the picture is the one thing the water promises never to do.
 - The scene opens at the hour of the actual clock, wound forward and wrapped, so
   a machine that has been off comes back to water that carried on rather than to
   water that has been rewound.
@@ -183,18 +200,24 @@ that is upside down and a wreck that is working look identical.
 
 ```bash
 # One still of the whole scene, offscreen, without taking over a desktop.
-QT_ASSUME_STDERR_HAS_CONSOLE=1 QT_QPA_PLATFORM=offscreen \
-  qml6 preview.qml -- seed=28 daylight=0 dusk=0 settle=40 out=sea.png
+./look.sh preview.qml seed=28 daylight=0 dusk=0 settle=40 out=sea.png
 
 # Every silhouette, large and alone, on a sheet. This is the one that finds
 # drawing bugs.
-QT_ASSUME_STDERR_HAS_CONSOLE=1 QT_QPA_PLATFORM=offscreen qml6 shapes.qml
+./look.sh shapes.qml
 
-# A clip. The scene's own timer is off and the water is stepped by hand, so the
-# rate is the one asked for however long each grab takes.
-QT_QPA_PLATFORM=offscreen qml6 record.qml -- \
-  out=/tmp/frames frames=240 fps=20 width=1280 height=800 settle=90
+# A clip, as frames. The scene's own timer is off and the water is stepped by
+# hand, so the rate is the one asked for however long each grab takes.
+./look.sh record.qml out=/tmp/frames frames=240 fps=20 width=1280 height=800
+
+# A clip, as a gif. The same frames, scaled down and through one palette.
+./gif.sh seed=28 seconds=8 wide=600 out=sea.gif
 ```
+
+Through `look.sh` rather than `qml6`, and that is not tidiness: the offscreen
+platform on its own loads Qt's software scene graph, which paints with QPainter
+and ignores `preferredRendererType`, so every sheet would answer for a renderer
+the desktop never runs.
 
 `seed` picks which water: most of what lies on the floor is placed by a roll of
 the dice, so the only way to see the rare things is to ask for a sea that has

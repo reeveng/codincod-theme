@@ -98,7 +98,7 @@ Window {
     daylight: 1
     dusk: 0
     ink: win.ink
-    moon: ({ arc: 1, march: 0.5 })
+    moon: ({ arc: 1, lit: 0.62, march: 0.5, up: 1, waxing: true })
     running: false
     rushed: true
     seed: Number(win.arg("seed", "1956"))
@@ -142,10 +142,22 @@ Window {
    */
   readonly property var sown: ["anemonesPerK", "coralsPerK", "fansPerK", "grassesPerK", "kelpsPerK"]
 
+  /**
+   * The ceilings those densities are held under, moved by the same share.
+   *
+   * Without these the knob only works downwards. Each count is capped at what
+   * the renderer is thought to afford, and asking for a bed half again as thick
+   * as it sows itself otherwise measures the cap.
+   */
+  readonly property var capped: ["mostAnemones", "mostCorals", "mostFans", "mostGrasses", "mostKelps"]
+
   function thin() {
     if (win.dense === 1) return
 
     for (var i = 0; i < win.sown.length; i++) sea[win.sown[i]] = sea[win.sown[i]] * win.dense
+    for (var j = 0; j < win.capped.length; j++) {
+      sea[win.capped[j]] = Math.round(sea[win.capped[j]] * win.dense)
+    }
   }
 
   function empty() {
