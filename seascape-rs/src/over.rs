@@ -326,7 +326,10 @@ impl Over {
         let base = self.glass.vertices.len() as u32;
 
         for (x, y) in box_of {
-            self.glass.vertices.push(Vertex { pos: [x, y], ..seed });
+            self.glass.vertices.push(Vertex {
+                pos: [x, y],
+                ..seed
+            });
         }
         self.glass
             .indices
