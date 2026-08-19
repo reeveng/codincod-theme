@@ -228,6 +228,22 @@ a weight and which of the theme's colours to mix from, and the shader reads the
 water at the height the fragment is at, which is how a thing that fades to
 nothing fades into the water it is actually in rather than into a hole.
 
+### Knowing when nobody is looking
+
+Wayland has no way to tell a surface that nothing can see it, and the frames
+keep being offered to a wallpaper behind a full screen of windows: measured, a
+third of a core spent on a picture nobody is looking at. So the compositor is
+asked instead, once a second, on Hyprland's own socket, and a single window
+anywhere on the active workspace means the water is covered. `Background.qml`
+asks the same question of the same compositor through Quickshell and settles it
+the same way. Covered, the frame is still asked for and nothing else happens, so
+the moment a window closes the water is there rather than a second behind.
+
+One frame is drawn however covered it is. A layer surface with no buffer on it
+was never mapped, and a rule about not advancing is a rule about the water
+waiting rather than about the wallpaper being a black rectangle. That one cost a
+black desktop for a minute.
+
 ### Held against the plugin
 
 The QML plugin is the reference. Neither renderer is right by construction, so

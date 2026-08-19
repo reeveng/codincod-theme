@@ -10,6 +10,8 @@ use std::ptr::NonNull;
 use raw_window_handle::{
     RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle,
 };
+use std::io::{Read, Write};
+
 use seascape::{arg, hue, paint::Paint, Scene};
 
 /// How often the water is carried forward, which is the rate `Seascape.qml`
@@ -17,8 +19,10 @@ use seascape::{arg, hue, paint::Paint, Scene};
 /// second, and the sea does not move quickly enough for anybody to tell.
 const TICK: f64 = 1.0 / 30.0;
 
-/// How long a gap in the frames means somebody's window was over the water.
-const COVERED: f64 = 2.0;
+/// How often the compositor is asked whether anybody can see the water. A
+/// second is longer than a person notices and a great deal less often than a
+/// frame, which is the whole point of asking rather than drawing.
+const ASK: f64 = 1.0;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState, FrameCallbackData},
     delegate_dispatch2, delegate_registry,
@@ -104,12 +108,45 @@ fn main() {
         width: 0,
         height: 0,
         beat: None,
+        asked: None,
+        hidden: false,
+        shown: false,
         gone: false,
     };
 
     while !wall.gone {
         queue.blocking_dispatch(&mut wall).unwrap();
     }
+}
+
+/// Whether a window is over the water, asked of the compositor.
+///
+/// Wayland has no way to tell a surface that nothing can see it, and a
+/// wallpaper that swims behind a full screen of windows is a third of a core
+/// spent on a picture nobody is looking at. Hyprland's own socket knows, so it
+/// is asked: gaps are zero on this desktop and no window is see-through, so a
+/// single window anywhere on the active workspace means the whole wallpaper is
+/// covered. `Background.qml` asks the same question of the same compositor
+/// through Quickshell, and settles it the same way.
+///
+/// `None` when there is nothing to ask, which is any compositor that is not
+/// this one. Then the water swims, because a sea that stopped on a machine it
+/// could not interrogate would be a wallpaper that does nothing.
+fn covered() -> Option<bool> {
+    let his = std::env::var("HYPRLAND_INSTANCE_SIGNATURE").ok()?;
+    let run = std::env::var("XDG_RUNTIME_DIR").ok()?;
+    let mut sock =
+        std::os::unix::net::UnixStream::connect(format!("{run}/hypr/{his}/.socket.sock")).ok()?;
+
+    sock.write_all(b"activeworkspace").ok()?;
+    let mut said = String::new();
+    sock.read_to_string(&mut said).ok()?;
+
+    let count = said
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("windows: "))?;
+
+    Some(count.trim().parse::<u32>().ok()? > 0)
 }
 
 struct Wall {
@@ -132,6 +169,15 @@ struct Wall {
     height: u32,
     /// When the water was last carried forward.
     beat: Option<std::time::Instant>,
+    /// When the compositor was last asked whether anybody can see it, and what
+    /// it said.
+    asked: Option<std::time::Instant>,
+    hidden: bool,
+    /// Whether a frame has ever been handed over. Until one has, the surface
+    /// has no buffer and is not on the screen at all, so the water is drawn
+    /// once however covered it is: what a rule about not advancing means is
+    /// that the water waits, not that the wallpaper is a black rectangle.
+    shown: bool,
     gone: bool,
 }
 
@@ -203,23 +249,36 @@ impl Wall {
     }
 
     fn draw(&mut self, qh: &QueueHandle<Self>) {
-        let (Some(paint), Some(scene)) = (self.paint.as_ref(), self.scene.as_mut()) else {
+        if self.paint.is_none() || self.scene.is_none() {
             return;
-        };
+        }
 
         // A frame is offered on every refresh and taken on every tick. What is
         // not taken is asked for again, which is cheaper than drawing it.
         let now = std::time::Instant::now();
         let since = self.beat.map_or(TICK, |was| (now - was).as_secs_f64());
 
-        // A day is a different sea, and the change of one is a seabed
-        // rearranging itself. So it waits for a gap in the frames, which is a
-        // window having been over the water: the compositor stops offering a
-        // frame to a wallpaper nobody can see, and the moment it starts again
-        // is the moment the ground is allowed to have moved. `Background.qml`
-        // waits for the same thing and says so in the same words.
-        if since > COVERED && scene.today() != scene.planted() {
-            self.replant();
+        // Nothing advances while the wallpaper is covered, which is a rule of
+        // this scene rather than a saving: a boat owed at four in the morning
+        // crosses the next time somebody is actually looking at the water. The
+        // frame is still asked for, so the moment a window closes the water is
+        // there rather than a second behind.
+        let stale = self.asked.map_or(true, |was| (now - was).as_secs_f64() >= ASK);
+        if stale {
+            self.asked = Some(now);
+            let hidden = covered().unwrap_or(false);
+
+            // A day is a different sea, and the change of one is a seabed
+            // rearranging itself, so it happens behind whatever window is
+            // covering the water rather than in front of somebody.
+            let scene = self.scene.as_mut().unwrap();
+            if hidden && !self.hidden && scene.today() != scene.planted() {
+                self.replant();
+            }
+            self.hidden = hidden;
+        }
+
+        if self.hidden && self.shown {
             self.beat = Some(now);
             self.layer
                 .wl_surface()
@@ -227,6 +286,10 @@ impl Wall {
             self.layer.commit();
             return;
         }
+
+        let (Some(paint), Some(scene)) = (self.paint.as_ref(), self.scene.as_mut()) else {
+            return;
+        };
 
         if since < TICK {
             self.layer
@@ -260,6 +323,7 @@ impl Wall {
             .wl_surface()
             .frame(qh, FrameCallbackData(self.layer.wl_surface().clone()));
         frame.present();
+        self.shown = true;
     }
 }
 
