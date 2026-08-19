@@ -7,6 +7,7 @@
  * wallpaper at the minute it sets in the porthole on the website, and the moon
  * is the shape tonight's moon actually is.
  */
+import type { Clouds } from "../../../codincodv2/assets/js/ornament/cloud.ts"
 import {
   type Passage,
   type Phase,
@@ -45,8 +46,42 @@ const DUSK_REACH = 0.62
 const DUSK_INK = 0.09
 const NIGHT_INK = 0.3
 
-/** Where the bodies sit against everything else, and where the washes do. */
-const LANE = { body: -1.2, dusk: 3, night: 3.1 }
+/**
+ * Where the bodies sit against everything else, and where the washes do.
+ *
+ * Behind the whole sea, cliffs included. A reader of this picture is under the
+ * water looking up, so everything in it is between them and the sky: a moon
+ * drawn in front of the far wall is a moon in the room. What that costs is a
+ * low moon going behind the rock at the edge of the picture, which is what a
+ * low moon does.
+ *
+ * The clouds are the one thing between the bodies and the water, since a cloud
+ * is the only thing here that is above the sea and below the sky.
+ */
+const LANE = { body: -4.2, cloud: -4, dusk: 3, night: 3.1 }
+
+/**
+ * The weather, as the light it holds back.
+ *
+ * `ink` is how much of the water's own colour one lobe lays over what is behind
+ * it, `give` is how quickly that runs out towards the lobe's edge, and `squat`
+ * is how much shorter than it is wide a lobe is drawn.
+ *
+ * Painted in the water rather than in a colour of its own, because from under
+ * here a cloud is not a white shape on a night sky. It is the light not
+ * arriving, and the water is what is left where it does not.
+ */
+const CLOUD = { give: 1.4, ink: 0.62, lit: 0.5, rim: 0.82, shade: 0.34, squat: 0.5 }
+
+/**
+ * How much of a body's own light the thickest cloud takes.
+ *
+ * The shape covers what it covers, and this is the rest of it: a moon behind
+ * cloud throws a fainter shaft into the water than a clear one, and the shaft
+ * leaves the moon a long way from any cloud. Not all of it, since a covered
+ * moon still lights the cloud it is behind.
+ */
+const MUTE = 0.8
 
 /**
  * The craters, off centre and unevenly sized on purpose.
@@ -71,6 +106,18 @@ const ROUND = 72
 export interface Box {
   height: number
   width: number
+}
+
+/**
+ * A body, as everything else in the sky needs it: where it is, how much light
+ * it is throwing, how far that light carries and what colour it is.
+ */
+interface Lamp {
+  cx: number
+  cy: number
+  glow: number
+  reach: number
+  tone: number
 }
 
 /**
@@ -103,7 +150,11 @@ export function pretend(hour: Asked | null): void {
  * the east. Fading a setting sun out where it set while a moon comes up on the
  * other side is what actually happens, and it costs one more circle.
  */
-export function paintSky(pen: Pen, box: Box): { daylight: number; dusk: number } {
+export function paintSky(
+  pen: Pen,
+  box: Box,
+  clouds: Clouds | null = null,
+): { daylight: number; dusk: number } {
   const sky = asked
     ? {
         daylight: asked.daylight,
@@ -129,10 +180,15 @@ export function paintSky(pen: Pen, box: Box): { daylight: number; dusk: number }
     },
   ]
 
+  const lamps: Lamp[] = []
   for (const body of bodies) {
     if (body.show <= 0.004) continue
-    paintBody(pen, box, body.passage, body.phase, body.show, body.tone)
+    lamps.push(paintBody(pen, box, body.passage, body.phase, body.show, body.tone, clouds))
   }
+
+  // After both of them, because what a cloud does is cover a light that has
+  // already been drawn, and what light it has of its own is theirs.
+  if (clouds) paintClouds(pen, clouds, lamps)
 
   // Dusk falls off with depth and night does not, which is the difference
   // between the two. A sunset is a colour arriving through the surface and it
@@ -170,11 +226,13 @@ function paintBody(
   phase: Phase | null,
   show: number,
   tone: number,
-): void {
+  clouds: Clouds | null,
+): Lamp {
   const r = box.height * DISC
   const cx = box.width * (EAST + passage.march * (WEST - EAST))
   const cy = box.height * (LOW + passage.arc * (HIGH - LOW))
-  const glow = show * (phase ? phase.lit : 1)
+  const veiled = clouds ? 1 - MUTE * clouds.cover(cx, cy) : 1
+  const glow = show * (phase ? phase.lit : 1) * veiled
 
   // A body over on the left throws its shaft down and to the right, and one
   // directly overhead throws it straight down.
@@ -220,7 +278,7 @@ function paintBody(
     tone,
   })
 
-  if (!phase) return
+  if (!phase) return { cx, cy, glow, reach: r * HALO.reach, tone }
 
   // A crater sitting where there is no moon under it is a grey spot on the sky,
   // so one is drawn only once it is clear of the terminator by its own width,
@@ -235,6 +293,55 @@ function paintBody(
       lane: LANE.body,
       tone: TONE.surface,
     })
+  }
+
+  return { cx, cy, glow, reach: r * HALO.reach, tone }
+}
+
+/**
+ * The weather, as lobes of water laid over whatever light is behind them.
+ *
+ * A round light rather than an outline, which is the one shape in this pen
+ * that has a soft edge: a cloud cut as a polygon has a rim, and a rim is the
+ * one thing a cloud does not have. The mass is the lobes overlapping, so it is
+ * densest where it is thickest and gives out at the edges without being told
+ * to.
+ */
+function paintClouds(pen: Pen, clouds: Clouds, lamps: readonly Lamp[]): void {
+  for (const one of clouds.clouds) {
+    for (const lobe of one.lobes) {
+      const x = one.x + lobe.dx
+      const y = one.y + lobe.dy
+
+      pen.light(x, y, {
+        alpha: CLOUD.ink * one.thick,
+        fall: CLOUD.give,
+        lane: LANE.cloud,
+        thin: CLOUD.squat,
+        tone: TONE.shadow,
+        weight: CLOUD.shade * one.thick,
+        width: lobe.r,
+      })
+
+      // What the mass gives back, which is the light it just took. A lobe near
+      // the body is standing in that body's halo and is lit by it; one at the
+      // other end of the sky is a shadow and nothing else. Smaller than the
+      // mass that took the light, so what shows is the light around the edge
+      // of a cloud rather than a cloud turned into a lamp.
+      for (const lamp of lamps) {
+        const near = 1 - Math.hypot(x - lamp.cx, y - lamp.cy) / lamp.reach
+        if (near <= 0) continue
+
+        pen.light(x, y, {
+          alpha: CLOUD.lit * lamp.glow * near * one.thick,
+          fall: CLOUD.give,
+          lane: LANE.cloud,
+          thin: CLOUD.squat,
+          tone: lamp.tone,
+          width: lobe.r * CLOUD.rim,
+        })
+      }
+    }
   }
 }
 

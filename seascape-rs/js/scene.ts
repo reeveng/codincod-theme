@@ -13,6 +13,7 @@
  */
 import { createBiome } from "../../../codincodv2/assets/js/ornament/biome.ts"
 import { createCephalopods } from "../../../codincodv2/assets/js/ornament/cephalopods.ts"
+import { createClouds } from "../../../codincodv2/assets/js/ornament/cloud.ts"
 import { createCrags } from "../../../codincodv2/assets/js/ornament/crags.ts"
 import { createDrift } from "../../../codincodv2/assets/js/ornament/drift.ts"
 import { createFlora, type Plant } from "../../../codincodv2/assets/js/ornament/flora.ts"
@@ -133,6 +134,7 @@ let aimed = -1
  * the numbers `Seascape.qml` makes them with, so the desktop and the site are
  * the same sea and not two seas with a family resemblance.
  */
+let clouds: ReturnType<typeof createClouds> | null = null
 let crags: ReturnType<typeof createCrags> | null = null
 let drift: ReturnType<typeof createDrift> | null = null
 let flock: ReturnType<typeof createSwarm> | null = null
@@ -151,6 +153,15 @@ const FISH = { least: 6, most: 44, night: 0.55, per: 62_000 }
 const MOTES = { least: 40, most: 280, per: 12_500 }
 const CRAWLERS = { crabs: 11, mostCrabs: 28, mostStarfish: 24, starfish: 9 }
 const SHAFTS = 5
+/**
+ * How many clouds are over the water.
+ *
+ * Few, and each of them wide: the sky is one band across the top of the
+ * picture and what is wanted there is a moon that dims for a while, not a
+ * ceiling. Enough that a body is behind one some of the time and in the clear
+ * the rest of it.
+ */
+const CLOUDS = 4
 const VENTS = 3
 const SPECKS = 420
 const SQUIDS = 2
@@ -323,6 +334,7 @@ export function build(width: number, height: number, seed: number, tolerance: nu
     width,
   })
   light = createRays({ count: SHAFTS, height, seed, width })
+  clouds = createClouds({ count: CLOUDS, height, seed, width })
 }
 
 /**
@@ -398,6 +410,7 @@ export function wind(seconds: number): void {
     shoal?.step(WIND_STEP, null, felt())
     drift?.step(WIND_STEP)
     light?.step(WIND_STEP)
+    clouds?.step(WIND_STEP)
     inklings?.step(WIND_STEP, rushed ? (passers?.startle ?? null) : null)
     walkers?.step(WIND_STEP)
     nemos?.step(WIND_STEP)
@@ -420,6 +433,7 @@ export function step(seconds: number): void {
   shoal?.step(seconds, null, felt())
   drift?.step(seconds)
   light?.step(seconds)
+  clouds?.step(seconds)
   flora?.step(seconds)
   inklings?.step(seconds, passers?.startle ?? null)
   walkers?.step(seconds)
@@ -490,7 +504,7 @@ export function over(): number {
   put(daylight)
 
   const pen = new Pen(geometry, at)
-  const sky = paintSky(pen, box)
+  const sky = paintSky(pen, box, clouds)
   daylight = sky.daylight
   put_at(daylightAt, daylight)
 
