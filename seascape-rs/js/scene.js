@@ -5180,34 +5180,88 @@ var Sea = (() => {
     Indian: -15,
     Pacific: -20
   };
-  var ZONE_LATITUDE = {
-    "Africa/Cairo": 30,
-    "Africa/Johannesburg": -26,
-    "Africa/Lagos": 6,
-    "Africa/Nairobi": -1,
-    "America/Bogota": 5,
-    "America/Lima": -12,
-    "America/Santiago": -33,
-    "America/Sao_Paulo": -23,
-    "Asia/Jakarta": -6,
-    "Asia/Kolkata": 22,
-    "Asia/Singapore": 1,
-    "Pacific/Auckland": -37,
-    "Pacific/Fiji": -18,
-    "Pacific/Honolulu": 21
+  var ZONE_PLACE = {
+    "Africa/Cairo": [30, 31.2],
+    "Africa/Casablanca": [33.6, -7.6],
+    "Africa/Johannesburg": [-26.2, 28],
+    "Africa/Lagos": [6.5, 3.4],
+    "Africa/Nairobi": [-1.3, 36.8],
+    "America/Argentina/Buenos_Aires": [-34.6, -58.4],
+    "America/Bogota": [4.7, -74.1],
+    "America/Chicago": [41.9, -87.6],
+    "America/Denver": [39.7, -105],
+    "America/Halifax": [44.6, -63.6],
+    "America/Lima": [-12, -77],
+    "America/Los_Angeles": [34.1, -118.2],
+    "America/Mexico_City": [19.4, -99.1],
+    "America/New_York": [40.7, -74],
+    "America/Phoenix": [33.4, -112.1],
+    "America/Santiago": [-33.4, -70.7],
+    "America/Sao_Paulo": [-23.5, -46.6],
+    "America/Toronto": [43.7, -79.4],
+    "America/Vancouver": [49.3, -123.1],
+    "Asia/Bangkok": [13.8, 100.5],
+    "Asia/Dubai": [25.2, 55.3],
+    "Asia/Hong_Kong": [22.3, 114.2],
+    "Asia/Jakarta": [-6.2, 106.8],
+    "Asia/Jerusalem": [31.8, 35.2],
+    "Asia/Karachi": [24.9, 67],
+    "Asia/Kolkata": [22.6, 88.4],
+    "Asia/Manila": [14.6, 121],
+    "Asia/Seoul": [37.6, 127],
+    "Asia/Shanghai": [31.2, 121.5],
+    "Asia/Singapore": [1.3, 103.8],
+    "Asia/Taipei": [25, 121.5],
+    "Asia/Tehran": [35.7, 51.4],
+    "Asia/Tokyo": [35.7, 139.7],
+    "Atlantic/Reykjavik": [64.1, -21.9],
+    "Australia/Brisbane": [-27.5, 153],
+    "Australia/Melbourne": [-37.8, 145],
+    "Australia/Perth": [-31.9, 115.9],
+    "Australia/Sydney": [-33.9, 151.2],
+    "Europe/Amsterdam": [52.4, 4.9],
+    "Europe/Athens": [38, 23.7],
+    "Europe/Berlin": [52.5, 13.4],
+    "Europe/Brussels": [50.8, 4.4],
+    "Europe/Bucharest": [44.4, 26.1],
+    "Europe/Dublin": [53.3, -6.3],
+    "Europe/Helsinki": [60.2, 24.9],
+    "Europe/Istanbul": [41, 29],
+    "Europe/Kyiv": [50.5, 30.5],
+    "Europe/Lisbon": [38.7, -9.1],
+    "Europe/London": [51.5, -0.1],
+    "Europe/Madrid": [40.4, -3.7],
+    "Europe/Moscow": [55.8, 37.6],
+    "Europe/Oslo": [59.9, 10.8],
+    "Europe/Paris": [48.9, 2.4],
+    "Europe/Prague": [50.1, 14.4],
+    "Europe/Rome": [41.9, 12.5],
+    "Europe/Stockholm": [59.3, 18.1],
+    "Europe/Vienna": [48.2, 16.4],
+    "Europe/Warsaw": [52.2, 21],
+    "Europe/Zurich": [47.4, 8.5],
+    "Pacific/Auckland": [-36.9, 174.8],
+    "Pacific/Fiji": [-18.1, 178.4],
+    "Pacific/Honolulu": [21.3, -157.9]
   };
   function position(now) {
-    const longitude = clamp2(-now.getTimezoneOffset() / 4, -180, 180);
+    const longitude = clamp2(-standard(now) / 4, -180, 180);
     let zone = "";
     try {
       zone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
     } catch {
       zone = "";
     }
-    const override = Object.entries(ZONE_LATITUDE).find(([name]) => zone.startsWith(name));
-    if (override) return { latitude: override[1], longitude };
+    const place = ZONE_PLACE[zone];
+    if (place) return { latitude: place[0], longitude: place[1] };
     const region = zone.split("/")[0] ?? "";
     return { latitude: REGION_LATITUDE[region] ?? 45, longitude };
+  }
+  function standard(now) {
+    const year = now.getFullYear();
+    const january = new Date(year, 0, 1).getTimezoneOffset();
+    const july = new Date(year, 6, 1).getTimezoneOffset();
+    return Math.max(january, july);
   }
   function epochDays(now) {
     return now.getTime() / DAY_MS - J2000_OFFSET_DAYS;

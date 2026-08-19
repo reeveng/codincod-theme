@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // .ornament-entry/entry.ts
+  // seascape/.ornament-entry/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -110,7 +110,7 @@ var __ornament = (() => {
     thriving: () => thriving
   });
 
-  // ../../codincodv2/assets/js/ornament/biome.ts
+  // ../codincodv2/assets/js/ornament/biome.ts
   var REACH = 0.36;
   function abreast(depth, other) {
     return Math.max(0, 1 - Math.abs(depth - other) / REACH);
@@ -135,7 +135,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/perlin.ts
+  // ../codincodv2/assets/js/ornament/perlin.ts
   var SIZE = 256;
   var MASK = SIZE - 1;
   var NORMALISE = Math.SQRT2;
@@ -207,7 +207,7 @@ var __ornament = (() => {
     return a + t * (b - a);
   }
 
-  // ../../codincodv2/assets/js/ornament/shoal.ts
+  // ../codincodv2/assets/js/ornament/shoal.ts
   var SPECIES = {
     /** The one that was here first. Everything else is described against it. */
     cruiser: {
@@ -751,7 +751,7 @@ var __ornament = (() => {
   }
   var EDGE_HOLD = 8;
 
-  // ../../codincodv2/assets/js/ornament/cephalopods.ts
+  // ../codincodv2/assets/js/ornament/cephalopods.ts
   var CYCLE_SLOWEST = 3.4;
   var CYCLE_FASTEST = 6.8;
   var JET_SHARE = 0.16;
@@ -1159,7 +1159,7 @@ var __ornament = (() => {
     return arms;
   }
 
-  // ../../codincodv2/assets/js/ornament/flora.ts
+  // ../codincodv2/assets/js/ornament/flora.ts
   var gatherings = [];
   function gathered(twigs) {
     for (const held of gatherings) {
@@ -1850,7 +1850,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/crags.ts
+  // ../codincodv2/assets/js/ornament/crags.ts
   var FRAMINGS = {
     cave: 1,
     hills: 2,
@@ -2136,7 +2136,7 @@ var __ornament = (() => {
   }
   var isleAllowed = (framing) => framing === "hills" || framing === "open";
 
-  // ../../codincodv2/assets/js/ornament/drift.ts
+  // ../codincodv2/assets/js/ornament/drift.ts
   var FIELD_CELLS3 = 2.2;
   var DRIFT3 = 0.04;
   var SWAY = 13;
@@ -2300,7 +2300,7 @@ var __ornament = (() => {
     return value;
   }
 
-  // ../../codincodv2/assets/js/ornament/fish_shape.ts
+  // ../codincodv2/assets/js/ornament/fish_shape.ts
   var SPAN = 38;
   var NOSE = 29;
   var along = (t) => 21 * t * (1 - t) ** 2 + 63 * t ** 2 * (1 - t) + 29 * t ** 3;
@@ -2442,7 +2442,7 @@ var __ornament = (() => {
     return made;
   }
 
-  // ../../codincodv2/assets/js/ornament/nemos.ts
+  // ../codincodv2/assets/js/ornament/nemos.ts
   var GROUP_LEAST = 2;
   var GROUP_SPAN = 3;
   var RANK_STEP = 0.16;
@@ -2647,14 +2647,14 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/sizes.ts
+  // ../codincodv2/assets/js/ornament/sizes.ts
   var AT_ARM = 0.15;
   var SWIMMING_OFF = 8;
   function drawnAt(metres, off) {
     return AT_ARM * Math.sqrt(Math.max(metres, 0) / Math.max(off, 1e-3));
   }
 
-  // ../../codincodv2/assets/js/ornament/passers.ts
+  // ../codincodv2/assets/js/ornament/passers.ts
   var BOAT_OFF = 30;
   var SUB_OFF = 150;
   var FADE = 0.16;
@@ -2885,7 +2885,7 @@ var __ornament = (() => {
     return { reach: 1 - (1 - t) ** 2, weight: (1 - t) ** 1.6 };
   }
 
-  // ../../codincodv2/assets/js/ornament/plenty.ts
+  // ../codincodv2/assets/js/ornament/plenty.ts
   var LEAN = 0.55;
   var RANGE2 = 1.75;
   var BIAS = 2;
@@ -2896,7 +2896,7 @@ var __ornament = (() => {
     return LEAN + RANGE2 * random() ** BIAS;
   }
 
-  // ../../codincodv2/assets/js/ornament/rays.ts
+  // ../codincodv2/assets/js/ornament/rays.ts
   var SPREAD = 2.4;
   function fade(down) {
     const along2 = Math.min(Math.max(down, 0), 1);
@@ -2965,7 +2965,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/reef.ts
+  // ../codincodv2/assets/js/ornament/reef.ts
   var SORTS = {
     /** Soft, sheltered, and the only thing here anything lives inside. */
     anemone: {
@@ -3386,7 +3386,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/relics.ts
+  // ../codincodv2/assets/js/ornament/relics.ts
   var ODDS2 = {
     block: 0.34,
     chest: 0.1,
@@ -3522,7 +3522,7 @@ var __ornament = (() => {
     "M-0.3 -1.5 L-0.08 -1.53 L-0.08 -1.45 L-0.3 -1.42 Z"
   ];
 
-  // ../../codincodv2/assets/js/ornament/seabed.ts
+  // ../codincodv2/assets/js/ornament/seabed.ts
   var FLOOR_SEAT = 0.01;
   var FLOOR_ROLL = 0.085;
   var HORIZON_SEAT = 0.36;
@@ -3687,7 +3687,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/sun.ts
+  // ../codincodv2/assets/js/ornament/sun.ts
   var RAD = Math.PI / 180;
   var J2000_OFFSET_DAYS = 10957.5;
   var DAY_MS = 864e5;
@@ -3704,35 +3704,89 @@ var __ornament = (() => {
     Indian: -15,
     Pacific: -20
   };
-  var ZONE_LATITUDE = {
-    "Africa/Cairo": 30,
-    "Africa/Johannesburg": -26,
-    "Africa/Lagos": 6,
-    "Africa/Nairobi": -1,
-    "America/Bogota": 5,
-    "America/Lima": -12,
-    "America/Santiago": -33,
-    "America/Sao_Paulo": -23,
-    "Asia/Jakarta": -6,
-    "Asia/Kolkata": 22,
-    "Asia/Singapore": 1,
-    "Pacific/Auckland": -37,
-    "Pacific/Fiji": -18,
-    "Pacific/Honolulu": 21
+  var ZONE_PLACE = {
+    "Africa/Cairo": [30, 31.2],
+    "Africa/Casablanca": [33.6, -7.6],
+    "Africa/Johannesburg": [-26.2, 28],
+    "Africa/Lagos": [6.5, 3.4],
+    "Africa/Nairobi": [-1.3, 36.8],
+    "America/Argentina/Buenos_Aires": [-34.6, -58.4],
+    "America/Bogota": [4.7, -74.1],
+    "America/Chicago": [41.9, -87.6],
+    "America/Denver": [39.7, -105],
+    "America/Halifax": [44.6, -63.6],
+    "America/Lima": [-12, -77],
+    "America/Los_Angeles": [34.1, -118.2],
+    "America/Mexico_City": [19.4, -99.1],
+    "America/New_York": [40.7, -74],
+    "America/Phoenix": [33.4, -112.1],
+    "America/Santiago": [-33.4, -70.7],
+    "America/Sao_Paulo": [-23.5, -46.6],
+    "America/Toronto": [43.7, -79.4],
+    "America/Vancouver": [49.3, -123.1],
+    "Asia/Bangkok": [13.8, 100.5],
+    "Asia/Dubai": [25.2, 55.3],
+    "Asia/Hong_Kong": [22.3, 114.2],
+    "Asia/Jakarta": [-6.2, 106.8],
+    "Asia/Jerusalem": [31.8, 35.2],
+    "Asia/Karachi": [24.9, 67],
+    "Asia/Kolkata": [22.6, 88.4],
+    "Asia/Manila": [14.6, 121],
+    "Asia/Seoul": [37.6, 127],
+    "Asia/Shanghai": [31.2, 121.5],
+    "Asia/Singapore": [1.3, 103.8],
+    "Asia/Taipei": [25, 121.5],
+    "Asia/Tehran": [35.7, 51.4],
+    "Asia/Tokyo": [35.7, 139.7],
+    "Atlantic/Reykjavik": [64.1, -21.9],
+    "Australia/Brisbane": [-27.5, 153],
+    "Australia/Melbourne": [-37.8, 145],
+    "Australia/Perth": [-31.9, 115.9],
+    "Australia/Sydney": [-33.9, 151.2],
+    "Europe/Amsterdam": [52.4, 4.9],
+    "Europe/Athens": [38, 23.7],
+    "Europe/Berlin": [52.5, 13.4],
+    "Europe/Brussels": [50.8, 4.4],
+    "Europe/Bucharest": [44.4, 26.1],
+    "Europe/Dublin": [53.3, -6.3],
+    "Europe/Helsinki": [60.2, 24.9],
+    "Europe/Istanbul": [41, 29],
+    "Europe/Kyiv": [50.5, 30.5],
+    "Europe/Lisbon": [38.7, -9.1],
+    "Europe/London": [51.5, -0.1],
+    "Europe/Madrid": [40.4, -3.7],
+    "Europe/Moscow": [55.8, 37.6],
+    "Europe/Oslo": [59.9, 10.8],
+    "Europe/Paris": [48.9, 2.4],
+    "Europe/Prague": [50.1, 14.4],
+    "Europe/Rome": [41.9, 12.5],
+    "Europe/Stockholm": [59.3, 18.1],
+    "Europe/Vienna": [48.2, 16.4],
+    "Europe/Warsaw": [52.2, 21],
+    "Europe/Zurich": [47.4, 8.5],
+    "Pacific/Auckland": [-36.9, 174.8],
+    "Pacific/Fiji": [-18.1, 178.4],
+    "Pacific/Honolulu": [21.3, -157.9]
   };
   function position(now) {
     var _a, _b, _c;
-    const longitude = clamp2(-now.getTimezoneOffset() / 4, -180, 180);
+    const longitude = clamp2(-standard(now) / 4, -180, 180);
     let zone = "";
     try {
       zone = (_a = Intl.DateTimeFormat().resolvedOptions().timeZone) != null ? _a : "";
     } catch (e) {
       zone = "";
     }
-    const override = Object.entries(ZONE_LATITUDE).find(([name]) => zone.startsWith(name));
-    if (override) return { latitude: override[1], longitude };
+    const place = ZONE_PLACE[zone];
+    if (place) return { latitude: place[0], longitude: place[1] };
     const region = (_b = zone.split("/")[0]) != null ? _b : "";
     return { latitude: (_c = REGION_LATITUDE[region]) != null ? _c : 45, longitude };
+  }
+  function standard(now) {
+    const year = now.getFullYear();
+    const january = new Date(year, 0, 1).getTimezoneOffset();
+    const july = new Date(year, 6, 1).getTimezoneOffset();
+    return Math.max(january, july);
   }
   function epochDays(now) {
     return now.getTime() / DAY_MS - J2000_OFFSET_DAYS;
@@ -3820,7 +3874,7 @@ var __ornament = (() => {
     return Math.round(value * 1e3) / 1e3;
   }
 
-  // ../../codincodv2/assets/js/ornament/swarm.ts
+  // ../codincodv2/assets/js/ornament/swarm.ts
   var LAYOUTS = {
     ball: {
       churn: 0.05,
@@ -4050,7 +4104,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/visitors.ts
+  // ../codincodv2/assets/js/ornament/visitors.ts
   var HABITS2 = {
     dolphin: {
       beat: 1.05,
@@ -4529,7 +4583,7 @@ var __ornament = (() => {
     turtle: turtleBody
   };
 
-  // ../../codincodv2/assets/js/ornament/walkers.ts
+  // ../codincodv2/assets/js/ornament/walkers.ts
   var CRAB_SMALLEST = 9;
   var CRAB_LARGEST = 17;
   var STARFISH_SMALLEST = 15;
