@@ -16,6 +16,9 @@ use seascape::{arg, hue, paint::Paint, Scene};
 /// keeps: a wallpaper on a 60Hz panel has no business drawing sixty times a
 /// second, and the sea does not move quickly enough for anybody to tell.
 const TICK: f64 = 1.0 / 30.0;
+
+/// How long a gap in the frames means somebody's window was over the water.
+const COVERED: f64 = 2.0;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState, FrameCallbackData},
     delegate_dispatch2, delegate_registry,
@@ -37,7 +40,9 @@ use wayland_client::{
 };
 
 fn main() {
-    let seed: f64 = arg("seed", "28").parse().unwrap();
+    // Below nothing means the sea the calendar day picked, which is what a
+    // wallpaper wants: a fixed seed is one sea for the life of the machine.
+    let seed: f64 = arg("seed", "-1").parse().unwrap();
     let settle: f64 = arg("settle", "40").parse().unwrap();
     let tolerance: f64 = arg("tolerance", "0.25").parse().unwrap();
     let ink = hue(&arg("ink", "#35c26d"));
@@ -179,6 +184,24 @@ impl Wall {
         self.scene = Some(scene);
     }
 
+    /// Today's water, in place of the day the desktop was started on.
+    ///
+    /// The whole scene rather than the seabed: what grows is a share of the
+    /// day's own weather, and where a wreck is lying is a roll of the day's own
+    /// dice. It costs the best part of a second and it is spent behind whatever
+    /// window is covering the water.
+    fn replant(&mut self) {
+        let Some(paint) = self.paint.as_ref() else {
+            return;
+        };
+
+        let scene = Scene::new(self.width, self.height, -1.0, self.tolerance, self.settle);
+        paint.plant(scene.limbs());
+        let (standing, held) = scene.standing();
+        paint.stand(standing, held);
+        self.scene = Some(scene);
+    }
+
     fn draw(&mut self, qh: &QueueHandle<Self>) {
         let (Some(paint), Some(scene)) = (self.paint.as_ref(), self.scene.as_mut()) else {
             return;
@@ -188,6 +211,23 @@ impl Wall {
         // not taken is asked for again, which is cheaper than drawing it.
         let now = std::time::Instant::now();
         let since = self.beat.map_or(TICK, |was| (now - was).as_secs_f64());
+
+        // A day is a different sea, and the change of one is a seabed
+        // rearranging itself. So it waits for a gap in the frames, which is a
+        // window having been over the water: the compositor stops offering a
+        // frame to a wallpaper nobody can see, and the moment it starts again
+        // is the moment the ground is allowed to have moved. `Background.qml`
+        // waits for the same thing and says so in the same words.
+        if since > COVERED && scene.today() != scene.planted() {
+            self.replant();
+            self.beat = Some(now);
+            self.layer
+                .wl_surface()
+                .frame(qh, FrameCallbackData(self.layer.wl_surface().clone()));
+            self.layer.commit();
+            return;
+        }
+
         if since < TICK {
             self.layer
                 .wl_surface()

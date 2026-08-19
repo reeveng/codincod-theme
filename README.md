@@ -43,11 +43,19 @@ website and were placed on the same ladder to match.
 
 ## The sea
 
-`seascape/` is an Omarchy shell plugin that puts water where the wallpaper was:
-a shoal working through it, marine snow falling, bubbles off vents in the floor,
-and light through the surface. Hills stand off in the murk, plants root on the
-ground at their own distance rather than along one line, and a fish that swims
-out of the picture is gone, so nothing loops.
+The desktop background is a body of water: a shoal working through it, marine
+snow falling, bubbles off vents in the floor, and light through the surface.
+Hills stand off in the murk, plants root on the ground at their own distance
+rather than along one line, and a fish that swims out of the picture is gone, so
+nothing loops.
+
+```bash
+./install.sh
+```
+
+That builds `seascape-rs/`, which draws the water on the graphics card, and
+starts it as a service of your session. It wants `cargo`, and the first build
+takes a few minutes.
 
 **A different sea every day.** The calendar day decides where the seabed is,
 what grows on it, how much of it grew, whether there is a wreck down there and
@@ -62,18 +70,41 @@ rays come through on their own clock, minutes apart rather than hours. Nothing
 advances while the wallpaper is covered, so a crossing owed at four in the
 morning happens the next time you are actually looking at the sea.
 
-**It is the website's own simulation.** Nothing in it is reimplemented here:
-`Ornament.js` is built out of `assets/js/ornament/` in the CodinCod repository,
-which is kept free of the DOM so that a second renderer can exist at all.
-`Seascape.qml` is this repo's answer to the website's `water.ts`, and the
-simulations underneath are the same ones the porthole on the site runs.
+**It is the website's own simulation.** Nothing in it is reimplemented here.
+`assets/js/ornament/` in the CodinCod repository is kept free of the DOM so that
+a renderer other than a browser can exist at all, and both of the ones here run
+it: where every fish is and what shape the moon is tonight are decided in the
+same TypeScript the porthole on the site runs.
 
 ```bash
-CODINCOD_DIR=/path/to/codincodv2 seascape/build-ornament.sh
+CODINCOD_DIR=/path/to/codincodv2 seascape/build-ornament.sh   # for the plugin
+seascape-rs/js/build.sh                                       # for the native one
 ```
 
+Both are bundles of the same directory, and both are committed, so neither is
+needed to install anything. The native one imports the ornament by a path
+rather than through a shim, so rebuilding it wants the CodinCod repository
+checked out beside this one.
+
+### Two renderers
+
+| | `seascape-rs/` | `seascape/` |
+| --- | --- | --- |
+| What it is | Rust, wgpu and V8, on a layer surface of its own | an Omarchy shell plugin, in QML |
+| How it draws | triangles cut on the processor, coloured and bent on the card | Qt's curve renderer, a `Shape` a thing |
+| A frame at 2560x1440 | about 20ms | about 54ms |
+| Screens | the one the compositor puts it on | all of them |
+| Installed by | `./install.sh` | `./install.sh --qml` |
+
+The native one is what this installs. The plugin is where the water started, it
+is the reference the native one is held against, and it is what to fall back to
+on a machine that will not build Rust or a desk with two monitors on it.
+Whichever is installed turns the other off, since two wallpapers on the
+background layer is a coin toss over which one you see.
+
 [SEASCAPE.md](SEASCAPE.md) is the long version: what each layer draws, the rules
-the whole scene keeps, and where a frame goes.
+the whole scene keeps, what a frame costs on either renderer, and how the two
+are held against each other.
 
 ### Looking at it without a desktop
 
@@ -86,6 +117,10 @@ cd seascape && ./look.sh preview.qml     # a still, into seascape/preview.png
 cd seascape && ./look.sh shapes.qml      # every silhouette, large and alone
 cd seascape && ./gif.sh                  # eight seconds of it, as a gif
 cd seascape && ./bench.sh                # where a frame goes
+
+# And the same still off the native renderer, on the same sea and the same hour.
+cd seascape-rs && cargo run --release -- seed=7 daylight=1 march=0.3 out=/tmp/sea.png
+cd seascape-rs && cargo run --release -- frames=200   # where a frame goes there
 ```
 
 `preview.png` at the top of this repository is the same sheet written a

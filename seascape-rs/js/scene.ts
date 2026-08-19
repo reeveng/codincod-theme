@@ -23,7 +23,7 @@ import { createRays } from "../../../codincodv2/assets/js/ornament/rays.ts"
 import { createReef, type Reef } from "../../../codincodv2/assets/js/ornament/reef.ts"
 import { createRelics } from "../../../codincodv2/assets/js/ornament/relics.ts"
 import { createSeabed, type Seabed } from "../../../codincodv2/assets/js/ornament/seabed.ts"
-import { createShoal, WILD } from "../../../codincodv2/assets/js/ornament/shoal.ts"
+import { createShoal, daySeed, WILD } from "../../../codincodv2/assets/js/ornament/shoal.ts"
 import { createSwarm } from "../../../codincodv2/assets/js/ornament/swarm.ts"
 import { createVisitors } from "../../../codincodv2/assets/js/ornament/visitors.ts"
 import { createWalkers } from "../../../codincodv2/assets/js/ornament/walkers.ts"
@@ -187,6 +187,18 @@ export function pretend(daylight: number, dusk: number, march: number, lit: numb
   askSky(
     daylight < 0 ? null : { daylight, dusk, lit: Math.abs(lit), march, waxing: lit >= 0 },
   )
+}
+
+/**
+ * Which sea today is.
+ *
+ * The local calendar day, stirred, out of the same ornament the fish come from.
+ * A day is the unit because both of the obvious ones are wrong for a wallpaper:
+ * one fixed seed is the same sea for the rest of the machine's life, and a seed
+ * off the clock is a new seabed every time somebody logs in.
+ */
+export function today(): number {
+  return daySeed()
 }
 
 export function build(width: number, height: number, seed: number, tolerance: number): void {

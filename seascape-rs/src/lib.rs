@@ -23,6 +23,9 @@ pub struct Scene {
     swings: Vec<[f32; 2]>,
     /// Where the camera has wandered to, and which frame of grain it is.
     frame: Frame,
+    /// Which sea this is, so that a desktop left running can tell the day it
+    /// was planted on from the day it is.
+    planted: f64,
     width: f32,
     height: f32,
 }
@@ -51,8 +54,10 @@ pub struct Spent {
 }
 
 impl Scene {
+    /// The water as a desktop gets it: whatever hour it is outside, and the
+    /// rare things left waiting for the day to bring them round.
     pub fn new(width: u32, height: u32, seed: f64, tolerance: f64, settle: f64) -> Self {
-        Scene::asked(width, height, seed, tolerance, settle, None)
+        Scene::open(width, height, seed, tolerance, settle, None, false)
     }
 
     /// The same scene, for the harness that takes stills of it.
@@ -71,11 +76,30 @@ impl Scene {
         settle: f64,
         hour: Option<[f64; 4]>,
     ) -> Self {
+        Scene::open(width, height, seed, tolerance, settle, hour, true)
+    }
+
+    fn open(
+        width: u32,
+        height: u32,
+        seed: f64,
+        tolerance: f64,
+        settle: f64,
+        hour: Option<[f64; 4]>,
+        rushed: bool,
+    ) -> Self {
         let mut sim = sim::Sim::new(include_str!("../js/scene.js"));
-        sim.call("rush", &[1.0]);
+        if rushed {
+            sim.call("rush", &[1.0]);
+        }
         if let Some([daylight, dusk, march, lit]) = hour {
             sim.call("pretend", &[daylight, dusk, march, lit]);
         }
+
+        // A seed nobody chose is the one the calendar day chose. Asked of the
+        // ornament rather than worked out here, since which sea today is, is
+        // the same question the site's own shoal answers.
+        let seed = if seed < 0.0 { sim.call("today", &[]) } else { seed };
         sim.call("build", &[width as f64, height as f64, seed, tolerance]);
         sim.call("wind", &[settle]);
 
@@ -86,6 +110,7 @@ impl Scene {
             geo: VertexBuffers::new(),
             swings: Vec::new(),
             frame: Frame::default(),
+            planted: seed,
             width: width as f32,
             height: height as f32,
         };
@@ -96,6 +121,16 @@ impl Scene {
         let floats = scene.sim.call("layout", &[]) as usize;
         scene.bed.stand(scene.sim.frame(floats));
         scene
+    }
+
+    /// Which sea this is, and which sea today is. A desktop left running past
+    /// midnight is looking at yesterday's water until the two agree again.
+    pub fn planted(&self) -> f64 {
+        self.planted
+    }
+
+    pub fn today(&mut self) -> f64 {
+        self.sim.call("today", &[])
     }
 
     /// The bed as it stands, which the card is handed once.

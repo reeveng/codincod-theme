@@ -114,9 +114,12 @@ finished frame. `Lens.qml`, and `lens.frag` beside it.
       crossing that happens once a day.
 - [x] **Depth of field**: the far wall soft, the near rock soft by how far
       forward each mass of it stands, everything between them as sharp as it was.
-      Neither group moves, so each is rendered to a texture once and blurred once,
-      however long the sea is left on show; a blur of the fish would be that work
-      again on every frame, which is the whole reason those two and nothing else.
+      Neither group moves, so the plugin renders each to a texture once and blurs
+      it once, however long the sea is left on show; a blur of the fish would be
+      that work again on every frame, which is the whole reason those two and
+      nothing else. The native renderer draws and blurs them every frame instead,
+      because it can: a quarter-size picture and two passes of nine taps over the
+      rock alone measured inside the noise of a frame.
       The near rock takes less of it than it wants to. It is nearly black on dark
       water, so past about a quarter the blur does not defocus the branches on it,
       it deletes them.
@@ -143,17 +146,18 @@ second opinion about colour laid over the first.
 
 ## What each surface draws
 
-Three renderers, one set of simulations. They do not all draw all of it, and
-that is the point rather than a gap:
+Four renderers, one set of simulations. They do not all draw all of it, and that
+is the point rather than a gap:
 
-| | desktop | porthole | water behind a hero |
-| --- | --- | --- | --- |
-| renderer | `Seascape.qml` | `glass.ts` + HEEx | `water.ts` |
-| the shoal, all five kinds | yes | yes | yes |
-| the lens: grain, vignette | yes | no | no |
-| cephalopods, relics, passers | yes | no | no |
-| floor, flora, rays | yes | hand-composed art | no |
-| the hour | yes | yes | no |
+| | desktop | desktop, as it shipped | porthole | water behind a hero |
+| --- | --- | --- | --- | --- |
+| renderer | `seascape-rs/` | `Seascape.qml` | `glass.ts` + HEEx | `water.ts` |
+| the shoal, all five kinds | yes | yes | yes | yes |
+| the lens: grain, vignette | yes | yes | no | no |
+| cephalopods, relics, passers | yes | yes | no | no |
+| floor, flora, rays | yes | yes | hand-composed art | no |
+| the hour | yes | yes | yes | no |
+| every screen on the desk | no | yes | n/a | n/a |
 
 The porthole's floor is authored scenes rather than simulation, and the water
 behind a hero is a band of open water with a page's own words in it. A
@@ -192,6 +196,82 @@ the one thing that surface may not be.
 - It is ornament, so it is allowed to do nothing. Every branch that cannot get
   what it needs returns quietly.
 
+## The native renderer
+
+`seascape-rs/` is the water again, on the card, and it is what `install.sh`
+installs. The same simulations decide the same scene: the ornament is bundled
+into `js/scene.js` and hosted in V8, so what a fish is doing is settled by the
+same TypeScript the site runs and nothing about the animals is written twice.
+What is written twice is the drawing, and only the drawing.
+
+Three things cross from the simulation to the renderer, and nothing else does.
+
+**The bed, once.** The ground, the reef and every plant as a tree of limbs. It
+is tessellated once, uploaded once, and then bent on the card: a limb carries
+where it is rooted and which limb it grows off, a plant carries how far it is
+leaning this frame, and the vertex shader walks the tree. So a bed of two
+hundred plants costs two numbers a plant a frame rather than a recut.
+
+**Everything else, every frame,** as drawings. A drawing is a shape, a colour to
+mix it from, how heavy it is, how it gives out and how far back it stands. There
+is no fish in the renderer and no moon either: `js/` says what a thing looks
+like and the ornament stays the one place any of it is decided. They are cut
+with lyon and drawn in two passes, one sorted by depth for anything solid and
+one painted in order for anything the water is seen through, since two lights
+over one another are a painting rather than a stack of depths.
+
+**The rock the lens gave up on,** as a picture of its own. See the depth of
+field above.
+
+Colour is a fragment's own business rather than a vertex's. Every shape carries
+a weight and which of the theme's colours to mix from, and the shader reads the
+water at the height the fragment is at, which is how a thing that fades to
+nothing fades into the water it is actually in rather than into a hole.
+
+### Held against the plugin
+
+The QML plugin is the reference. Neither renderer is right by construction, so
+the way a difference gets found is a still of the same sea at the same hour off
+both of them:
+
+```bash
+cd seascape    && ./look.sh preview.qml width=1600 height=1000 seed=7 daylight=1 march=0.3 out=/tmp/qml.png
+cd seascape-rs && cargo run --release -- width=1600 height=1000 seed=7 daylight=1 march=0.3 out=/tmp/rs.png
+```
+
+Both harnesses take the same arguments and both mean the same thing by them.
+`daylight`, `dusk`, `march` and `lit` ask for an hour rather than reading one
+off the clock, which two stills taken in different minutes cannot be compared
+without. Both wind the rare things on, so a boat and a shark are in the picture
+rather than waiting for an evening. Both hold the water for three seconds before
+the grab, because a manta covers a couple of hundred px in three seconds.
+
+What that turned up, in order: a moon clipped by the island because the body was
+drawn about the origin and moved afterwards, a hairline down the moon's lit limb
+where the curve renderer split the arc, grain as full-height vertical streaks
+because a `vec2` in a uniform is laid out aligned by the shader and packed by
+the host, and the sea being drawn without a boat in it because `eager` was not
+passed on.
+
+### What a frame costs there
+
+At 2560x1440 on the same AMD 780M, with the water `rushed`, averaged over 200
+frames: about 20ms, against the plugin's 54ms. The simulation is 1.4ms of it,
+publishing is under a tenth of a millisecond, cutting what moved is 8ms, and the
+card is the rest. The tick is 33ms, so the plugin never made it and this clears
+it with the frame to spare.
+
+The simulation is the same JavaScript in both, and it is fifteen times cheaper
+here. That is the boundary rather than the engine: QML's V4 copies values across
+into QML types, and V8 writes floats into a buffer the renderer reads straight
+out of.
+
+### What it does not do
+
+One screen. The plugin puts water on every monitor on the desk, and this makes
+one layer surface and lets the compositor place it. A desk with two monitors
+wants `./install.sh --qml` until this grows a surface per output.
+
 ## Looking at it
 
 Neither renderer can be judged at the weight it ships at, which is the lesson
@@ -225,10 +305,14 @@ one.
 `settle` winds the scene on before the grab, and it is the only way to catch a
 boat.
 
-## What it costs
+## What the plugin costs
+
+Everything under this heading is the QML plugin, which is where all of this was
+worked out and is still the reference. What the native renderer costs is a
+section of its own, above.
 
 ```bash
-# Where a frame goes, at a desktop's size, on the renderer the desktop uses.
+# Where a frame goes, at a desktop's size, on Qt's curve renderer.
 ./bench.sh frames=120 width=2560 height=1440
 
 # The same water with a layer left out, which is the only way to price one.
@@ -370,10 +454,9 @@ which is the same shipping problem as writing the thing in Rust or C++ outright,
 and it would still be copying values out of linear memory for QML to read.
 
 A compiled type that hands the scene graph its geometry directly would break the
-boundary properly. It also ends the arrangement where the site and the desktop
-run the same TypeScript, and it is the case decision 27 in the CodinCod
-repository says would reverse its whole design. It is not off the table. It is a
-different project.
+boundary properly. That is `seascape-rs/`, and it did not end the arrangement
+where the site and the desktop run the same TypeScript: it hosts the same
+TypeScript in V8 and hands triangles to the card. See below.
 
 So a frame of this scene at this size will not go under about 25ms, and 200
 frames a second is 5ms. The number worth aiming at is the tick, which is 33ms.

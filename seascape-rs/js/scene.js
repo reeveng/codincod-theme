@@ -28,6 +28,7 @@ var Sea = (() => {
     publish: () => publish,
     rush: () => rush,
     step: () => step,
+    today: () => today,
     wind: () => wind
   });
 
@@ -281,6 +282,10 @@ var Sea = (() => {
   var LEISURE = 2;
   var SHORTEST = 34;
   var LONGEST = 58;
+  function daySeed(now = /* @__PURE__ */ new Date(), from = 0) {
+    const day = now.getFullYear() * 1e4 + (now.getMonth() + 1) * 100 + now.getDate();
+    return stir(day ^ from) | 0;
+  }
   function createShoal(options) {
     const noise = makeNoise2(options.seed);
     const depths = makeNoise2(options.seed ^ 40503);
@@ -5499,6 +5504,9 @@ var Sea = (() => {
     pretend(
       daylight2 < 0 ? null : { daylight: daylight2, dusk, lit: Math.abs(lit), march, waxing: lit >= 0 }
     );
+  }
+  function today() {
+    return daySeed();
   }
   function build2(width, height, seed, tolerance) {
     box = { height, width };
