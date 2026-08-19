@@ -119,6 +119,13 @@ let seabed: Seabed | null = null
 let box = { height: 0, width: 0 }
 
 /**
+ * How good a year this water is having, and the light the shoal was last told
+ * to be the size of.
+ */
+let thrift = 1
+let aimed = -1
+
+/**
  * Everything else in the water, which is everything that will not stand still.
  *
  * Held apart from the bed because the bed goes over the wire once and these go
@@ -213,6 +220,8 @@ export function build(width: number, height: number, seed: number, tolerance: nu
   handed.length = 0
 
   const day = thriving(seed)
+  thrift = day
+  aimed = daylight
   const water = createBiome()
 
   seabed = createSeabed({
@@ -315,6 +324,13 @@ export function build(width: number, height: number, seed: number, tolerance: nu
   })
   light = createRays({ count: SHAFTS, height, seed, width })
 }
+
+/**
+ * How much the light has to move before the shoal is told a new number. Dawn
+ * takes minutes and the count is worked towards over them, so this is only how
+ * often the question is asked.
+ */
+const DAWN_STEP = 0.01
 
 /**
  * How many fish this box is worth at this hour.
@@ -477,6 +493,17 @@ export function over(): number {
   const sky = paintSky(pen, box)
   daylight = sky.daylight
   put_at(daylightAt, daylight)
+
+  // The shoal follows the light. Reef fish shelter after dark and the water
+  // over the sand thins out, so the count is a share of the day's, and the
+  // shoal is told the number rather than made to be it: it works towards it
+  // from the edges over the minutes dawn takes anyway, because a fish
+  // appearing in the middle of the picture is the one thing the water promises
+  // never to do. `Seascape.qml` says the same in `onDaylightChanged`.
+  if (shoal && Math.abs(daylight - aimed) > DAWN_STEP) {
+    aimed = daylight
+    shoal.hold(fishCount(box.width, box.height, thrift))
+  }
 
   if (crags) paintCrags(pen, crags, box)
   if (seabed) paintStones(pen, seabed)

@@ -5469,6 +5469,8 @@ var Sea = (() => {
   var reef = null;
   var seabed = null;
   var box = { height: 0, width: 0 };
+  var thrift = 1;
+  var aimed = -1;
   var crags = null;
   var drift = null;
   var flock = null;
@@ -5514,6 +5516,8 @@ var Sea = (() => {
     box = { height, width };
     handed.length = 0;
     const day = thriving(seed);
+    thrift = day;
+    aimed = daylight;
     const water = createBiome();
     seabed = createSeabed({
       cliffs: spread(PER_K.cliffs, MOST4.cliffs, width),
@@ -5604,6 +5608,7 @@ var Sea = (() => {
     });
     light2 = createRays({ count: SHAFTS, height, seed, width });
   }
+  var DAWN_STEP = 0.01;
   function fishCount(width, height, day) {
     const full = Math.max(FISH.least, Math.min(FISH.most, Math.round(width * height / FISH.per)));
     const hour = FISH.night + (1 - FISH.night) * daylight;
@@ -5674,6 +5679,10 @@ var Sea = (() => {
     const sky = paintSky(pen, box);
     daylight = sky.daylight;
     put_at(daylightAt, daylight);
+    if (shoal && Math.abs(daylight - aimed) > DAWN_STEP) {
+      aimed = daylight;
+      shoal.hold(fishCount(box.width, box.height, thrift));
+    }
     if (crags) paintCrags(pen, crags, box);
     if (seabed) paintStones(pen, seabed);
     if (reef) paintHeads(pen, reef);
