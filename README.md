@@ -99,12 +99,12 @@ checked out beside this one.
 | What it is | Rust, wgpu and V8, on a layer surface of its own | an Omarchy shell plugin, in QML |
 | How it draws | triangles cut on the processor, coloured and bent on the card | Qt's curve renderer, a `Shape` a thing |
 | A frame at 2560x1440 | about 20ms | about 54ms |
-| Screens | the one the compositor puts it on | all of them |
+| Screens | all of them, each at its own density | all of them |
 | Installed by | `./install.sh` | `./install.sh --qml` |
 
 The native one is what this installs. The plugin is where the water started, it
 is the reference the native one is held against, and it is what to fall back to
-on a machine that will not build Rust or a desk with two monitors on it.
+on a machine that will not build Rust.
 Whichever is installed turns the other off, since two wallpapers on the
 background layer is a coin toss over which one you see.
 

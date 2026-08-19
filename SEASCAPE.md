@@ -284,24 +284,30 @@ out of.
 
 ### What it reads off the desktop
 
-Three things, and none of them are in the water. Which sea today is, out of the
-same ornament the plugin asks. Whether anybody can see it, above. And the two
-colours it draws in, which are the accent and the background of the theme the
+Four things, and none of them are in the water. Which sea today is, out of the
+same ornament the plugin asks. Whether anybody can see it, above. The picture
+the machine is wearing, out of `omarchy/current/background`, which is hung
+behind the water and cropped to each screen: the sea is drawn at most of an
+alpha and has been since the plugin, so what is under it is somebody's
+wallpaper rather than a flat fill. And the two colours it draws in, which are the accent and the background of the theme the
 desktop is wearing, read off `omarchy/current/theme/colors.toml` and re-read
 when that file changes, so a theme switch recolours the sea rather than leaving
 one theme's water on another theme's desktop. `ink=` and `surface=` on the
 command line take it out of that arrangement, since an argument is somebody
 having decided.
 
+Every screen gets its own surface, its own sea and its own weather, and they
+share one card. Two panels are two beds rather than one stretched over both:
+they are different sizes, a bed is cut to fit the box it grew in, and a fish
+that swam off one towards the other could never arrive. Whether anybody is
+looking is asked screen by screen, since a desk can hold a full screen of code
+and an empty desktop beside it.
+
 A screen that changes size is fitted again from nothing rather than stretched:
 the bed is cut to fit the box it grew in, and every texture the card holds is
-that size.
-
-### What it does not do
-
-One screen. The plugin puts water on every monitor on the desk, and this makes
-one layer surface and lets the compositor place it. A desk with two monitors
-wants `./install.sh --qml` until this grows a surface per output.
+that size. A screen that changes how dense it is gets the same water out of a
+different number of pixels: the sea is laid out in the units a desktop is laid
+out in, and the buffer is as many pixels as the screen actually has.
 
 ## Looking at it
 
