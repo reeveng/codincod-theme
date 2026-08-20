@@ -183,7 +183,17 @@ const SHAFTS = 5
  */
 const CLOUDS = 4
 const VENTS = 3
-const SPECKS = 420
+
+/**
+ * The pool the flock draws its marks from.
+ *
+ * A ceiling of them rather than the number of anything: `swarm.ts` works out
+ * how many a mass of that shape and that size holds, and the widest of them
+ * comes to just under this. It is here so that a shape asking for more than a
+ * frame can pay for is cut off somewhere the frame can see, and the number was
+ * measured: three thousand specks are about a millisecond of a frame.
+ */
+const SPECKS = 3000
 const MOST_INKLINGS = 4
 
 /**

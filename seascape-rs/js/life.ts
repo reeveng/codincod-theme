@@ -106,7 +106,7 @@ const ARM_GIRTH = 0.075
 const TENTACLE_GIRTH = 0.035
 
 /** How many of each are ever drawn at once. */
-const MOST = { froth: 220, passers: 4, specks: 420, visitors: 6 }
+const MOST = { froth: 220, passers: 4, specks: 3000, visitors: 6 }
 
 /** Where the boats sit, which is over everything in the water. */
 const LANE = { froth: 1.15, passer: 1.2 }

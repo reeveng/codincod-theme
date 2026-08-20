@@ -3142,7 +3142,7 @@ var Sea = (() => {
   function moonMarks(squeeze) {
     const wide = (1 - DOMES.moon.wideLoss * squeeze) / 2;
     const seat = -DOMES.moon.tall * (0.3 + 0.1 * squeeze);
-    const marks = [];
+    const marks2 = [];
     for (let made = 0; made < 4; made++) {
       const round = made / 4 * Math.PI * 2 + Math.PI / 4;
       const spot = { x: Math.cos(round) * wide * 0.52, y: seat + Math.sin(round) * 0.1 };
@@ -3152,9 +3152,9 @@ var Sea = (() => {
         const turn2 = Math.PI * 0.22 + i / 10 * Math.PI * 1.56;
         shoe.push({ x: spot.x + size * Math.cos(turn2), y: spot.y + size * Math.sin(turn2) * 0.72 });
       }
-      marks.push(shoe);
+      marks2.push(shoe);
     }
-    return marks;
+    return marks2;
   }
   function jitter(at2, salt) {
     const spun = Math.sin(at2 * 12.9898 + salt * 78.233) * 43758.5453;
@@ -4504,7 +4504,7 @@ var Sea = (() => {
     ball: {
       across: 8,
       churn: 0.05,
-      crowd: 0.6,
+      packed: 20,
       seatLeast: 0.18,
       seatSpan: 0.34,
       takeLeast: 70,
@@ -4516,7 +4516,7 @@ var Sea = (() => {
     ceiling: {
       across: 45,
       churn: 0.015,
-      crowd: 1,
+      packed: 11,
       seatLeast: 0.04,
       seatSpan: 0.12,
       takeLeast: 95,
@@ -4528,7 +4528,7 @@ var Sea = (() => {
     ribbon: {
       across: 22,
       churn: 0.03,
-      crowd: 0.8,
+      packed: 13,
       seatLeast: 0.2,
       seatSpan: 0.36,
       takeLeast: 60,
@@ -4557,6 +4557,9 @@ var Sea = (() => {
   var SEEN = 0.05;
   var TILT_EASE = 3.5;
   var MIN_SPAN12 = 1;
+  function marks(layout2) {
+    return Math.round(layout2.packed * layout2.across * layout2.across * (layout2.tall / layout2.wide));
+  }
   function createSwarm(options) {
     const random = makeRandom(options.seed ^ 24332);
     const field = makeNoise2(options.seed ^ 7338);
@@ -4639,7 +4642,7 @@ var Sea = (() => {
         home.pushY = 0;
       }
       specks.length = 0;
-      const using = Math.min(pool.length, Math.round(pool.length * layout2.crowd));
+      const using = Math.min(pool.length, marks(layout2));
       for (let at2 = 0; at2 < using; at2++) {
         const one = pool[at2];
         if (one) specks.push(one);
@@ -6135,7 +6138,7 @@ var Sea = (() => {
   var CUT_SHADE = 0.34;
   var ARM_GIRTH3 = 0.075;
   var TENTACLE_GIRTH = 0.035;
-  var MOST2 = { froth: 220, passers: 4, specks: 420, visitors: 6 };
+  var MOST2 = { froth: 220, passers: 4, specks: 3e3, visitors: 6 };
   var LANE2 = { froth: 1.15, passer: 1.2 };
   function afloat(full, depth) {
     return full * (1 - DEPTH_INK + DEPTH_INK * depth);
@@ -6946,7 +6949,7 @@ var Sea = (() => {
   var SHAFTS = 5;
   var CLOUDS = 4;
   var VENTS = 3;
-  var SPECKS = 420;
+  var SPECKS = 3e3;
   var MOST_INKLINGS = 4;
   var CRUISE2 = 0.8;
   var WIND_STEP = 1 / 10;
