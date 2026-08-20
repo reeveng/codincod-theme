@@ -3835,7 +3835,7 @@ Item {
 
   /**
    * The big animals: a turtle, a pod of dolphins, a manta, a shark going
-   * somewhere.
+   * somewhere, and once in a very long while a thing that is none of those.
    *
    * Silhouettes, because from down here that is all any of them ever is, and
    * one drawing apiece read off the animal's own stroke so its gait and its

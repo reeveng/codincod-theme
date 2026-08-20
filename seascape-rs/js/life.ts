@@ -165,8 +165,9 @@ export function paintSwarm(pen: Pen, flock: Swarm): void {
 
 /**
  * The big animals: a turtle, a pod of dolphins, a manta, a shark going
- * somewhere. Heavier than a fish, because what is being read across the whole
- * picture is the shape, and a shape drawn at the shoal's weight is a smudge.
+ * somewhere, and once in a very long while a thing that is none of those.
+ * Heavier than a fish, because what is being read across the whole picture is
+ * the shape, and a shape drawn at the shoal's weight is a smudge.
  */
 export function paintVisitors(pen: Pen, visitors: Visitors): void {
   let drawn = 0
