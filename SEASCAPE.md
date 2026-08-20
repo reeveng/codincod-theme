@@ -58,18 +58,33 @@ renders them. Both the website and the desktop get all of it.
       six animals on a belt. `shoal.ts`
 - [x] **Squid**: jet and drift, the opposite rhythm to a fish. A hard pulse,
       then a long passive glide with the tentacles trailing. `cephalopods.ts`
-- [x] **Seven jellyfish**, and the differences between them are the reason
-      there are seven. A moon jelly gets a second push out of its own refill,
+- [x] **Eight jellyfish**, and the differences between them are the reason
+      there are eight. A moon jelly gets a second push out of its own refill,
       which is measured and free; a barrel jelly has no marginal tentacles at
       all and eight fused arms instead; a lion's mane carries its hair in eight
       clusters; a box jelly has twenty-four eyes, reads the water and steers
-      round what is in it; a crown jelly runs a wave of light round its margin
-      when something touches it. Two of them are not jellyfish: a man o' war is
-      a colony that cannot swim and sails on its crest, and a comb jelly is a
-      ctenophore that never pulses and glides mouth first with the light coming
-      apart along its rows. Four of the seven do not answer a startle at all,
-      because there is nothing in them that could. Native renderer only.
-      `jellies.ts`
+      round what is in it; a mauve stinger has a bell covered in warts that
+      sting on their own. Two of them are not jellyfish: a man o' war is a
+      colony that cannot swim and sails on its crest, and a comb jelly is a
+      ctenophore that never pulses and glides mouth first. Only one of the
+      eight moves out of the way of anything, because only one of them can see.
+      Native renderer only. `jellies.ts`
+- [x] **Three of them make light, and it is a night thing.** Around half the
+      medusae in the sea are bioluminescent and none of it is left on: it fires
+      when something touches the animal and fades over seconds, and what fires
+      it is usually a fish blundering into it rather than anything rare. Three
+      displays, and they are not one display at three strengths: a crown jelly
+      runs a wave round its own margin, turn after turn, which is an
+      advertisement for something big enough to eat whatever has hold of it; a
+      mauve stinger washes bell, arms and tentacles at once, and is named for
+      it; a comb jelly lights the eight rows it already has. A flash is
+      measured against the water around it, so all of it is worth almost
+      nothing at noon.
+- [x] **The comb jelly's rows are lit twice by two different things.** The
+      colours running along them in daylight are not light the animal made: the
+      rows are a diffraction grating and that is the water's own light taken
+      apart. So the two lights on one set of lines want opposite hours, and the
+      one you see at midnight is the one that flashes.
 - [x] **A bloom is a kind of day.** How many are in the water is counted
       through the day's own number, the way the plants are, so one week has
       twenty and the next has two. `plenty.ts`
@@ -180,7 +195,7 @@ is the point rather than a gap:
 | the shoal, all five kinds | yes | yes | yes | yes |
 | the lens: grain, vignette | yes | yes | no | no |
 | cephalopods, relics, passers | yes | yes | no | no |
-| jellyfish, all seven kinds | yes | no | no | no |
+| jellyfish, all eight kinds | yes | no | no | no |
 | floor, flora, rays | yes | yes | hand-composed art | no |
 | the hour | yes | yes | yes | no |
 | every screen on the desk | no | yes | n/a | n/a |

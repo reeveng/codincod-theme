@@ -19,6 +19,7 @@ import {
   type Jellies,
   moonMarks,
   sparks,
+  washOf,
 } from "../../../codincodv2/assets/js/ornament/jellies.ts"
 import type { Nemos } from "../../../codincodv2/assets/js/ornament/nemos.ts"
 import {
@@ -68,7 +69,31 @@ const FROTH_LET_GO = 0.45
 const HAZE_INK = 0.04
 const HULL_INK = 0.16
 const JELLY_INK = 0.17
-const JELLY_LIGHT = 0.5
+
+/**
+ * How much of a jellyfish's own light there is, and how much of it survives a
+ * sunlit afternoon.
+ *
+ * Almost none. A flash is measured against the water around it, so a display
+ * that reads across a whole screen at midnight is nothing at all at noon, and
+ * the animal has not changed: the water it is being seen against has. What is
+ * kept in daylight is a hint, because a jellyfish that went perfectly dark at
+ * dawn would be an animal switching off on a schedule.
+ */
+const JELLY_LIGHT = 0.62
+const JELLY_DAY = 0.12
+
+/**
+ * And how much of the light a comb jelly does not make.
+ *
+ * The rows are a diffraction grating, so what runs along them is the water's
+ * own light taken apart, and the rule runs the other way: it is at its best in
+ * the sun and there is nothing to take apart at midnight. Two lights on two
+ * animals swimming past each other, one needing the day and one needing the
+ * dark, which is the sort of thing this water is for.
+ */
+const JELLY_SHEEN = 0.5
+const JELLY_NIGHT = 0.15
 const PING_INK = 0.62
 const SPECK_INK = 0.16
 const VISITOR_INK = 0.42
@@ -284,6 +309,13 @@ export function paintInklings(pen: Pen, inklings: Cephalopods): void {
  * The jellyfish, all seven, and one of them is a float and two are not
  * jellyfish at all.
  *
+ * Three of the eight make their own light, and none of it is on until
+ * something touches them. It is drawn in the moon's colour, since this palette
+ * has no blue in it and nothing else in the water glows at all, and it is
+ * weighed against the hour: a flash is measured against the water around it,
+ * so these are a night thing. The comb jelly's rows are the exception that
+ * proves the rule, and they run the other way; see the note on `JELLY_SHEEN`.
+ *
  * Lighter than anything else in the water on purpose. A bell is a bag of water
  * inside water: it stops a little of the light and passes the rest, and drawn
  * at a fish's weight it comes out as a cut-out mushroom. What hangs under one
@@ -297,7 +329,12 @@ export function paintInklings(pen: Pen, inklings: Cephalopods): void {
  * the bell the way a fish's eye is punched out of its head, and last the two
  * kinds that carry a light of their own.
  */
-export function paintJellies(pen: Pen, jellies: Jellies): void {
+export function paintJellies(pen: Pen, jellies: Jellies, daylight: number): void {
+  const hour = Math.min(1, Math.max(0, daylight))
+  // What a made light is worth at this hour, and what a borrowed one is.
+  const dark = JELLY_DAY + (1 - JELLY_DAY) * (1 - hour)
+  const sun = JELLY_NIGHT + (1 - JELLY_NIGHT) * hour
+
   for (const one of jellies.jellies) {
     const weight = afloat(JELLY_INK, one.depth)
     if (weight <= 0.002) continue
@@ -339,18 +376,37 @@ export function paintJellies(pen: Pen, jellies: Jellies): void {
       }, spot)
     }
 
-    // The comb rows, which are the water's own light taken apart by eight rows
-    // of beating cilia, and the crown jelly's alarm, which is light the animal
-    // made. Both are drawn in the moon's colour, since the palette here has no
-    // blue in it and nothing else in this water glows at all.
+    // The comb rows carry both kinds of light and they carry them on one set
+    // of lines: the wave the grating takes out of the water, which wants the
+    // sun, and the animal's own flash along the same eight canals, which wants
+    // the dark. One drawing, two sources, and the reader can tell them apart
+    // because only one of them moves.
     for (const row of combRows(one)) {
+      const alpha = JELLY_SHEEN * row.glow * sun + JELLY_LIGHT * one.glow * dark
+      if (alpha <= 0.01) continue
+
       pen.line([row.points], {
-        alpha: JELLY_LIGHT * row.glow,
+        alpha,
         lane: one.depth,
         shade: OWN,
         tone: TONE.moon,
         width: Math.max(0.8, 0.05 * one.size),
       }, spot)
+    }
+
+    // A whole animal alight, bell, arms and tentacles at once, which is what
+    // most of the sea's bioluminescence looks like and is why the reach here
+    // goes well past the margin.
+    const wash = washOf(one)
+    if (wash) {
+      pen.light(one.x, one.y, {
+        alpha: JELLY_LIGHT * wash.glow * dark,
+        fall: 2.2,
+        lane: one.depth,
+        shade: OWN,
+        tone: TONE.moon,
+        width: wash.reach,
+      })
     }
 
     for (const flare of sparks(one)) {
@@ -364,7 +420,7 @@ export function paintJellies(pen: Pen, jellies: Jellies): void {
       const sin = Math.sin(one.tilt)
 
       pen.light(one.x + across * cos - down * sin, one.y + across * sin + down * cos, {
-        alpha: JELLY_LIGHT * flare.glow,
+        alpha: JELLY_LIGHT * flare.glow * dark,
         fall: 1.6,
         lane: one.depth,
         shade: OWN,

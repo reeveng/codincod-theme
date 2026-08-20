@@ -2336,6 +2336,7 @@ var Sea = (() => {
       farSpan: 0.46,
       hairFall: 0,
       hairs: 0,
+      light: "none",
       menace: 0.1,
       odds: 3,
       push: 0.32,
@@ -2361,6 +2362,7 @@ var Sea = (() => {
       farSpan: 0.4,
       hairFall: 3.2,
       hairs: 16,
+      light: "none",
       menace: 0.55,
       odds: 1.5,
       push: 0.3,
@@ -2386,6 +2388,7 @@ var Sea = (() => {
       farSpan: 0.44,
       hairFall: 0,
       hairs: 0,
+      light: "rows",
       menace: 0,
       odds: 2.5,
       push: 0.5,
@@ -2401,7 +2404,7 @@ var Sea = (() => {
       wideSpan: 0.06
     },
     crown: {
-      answer: "flash",
+      answer: "none",
       armFall: 0,
       arms: 0,
       beats: 0.5,
@@ -2411,6 +2414,7 @@ var Sea = (() => {
       farSpan: 0.3,
       hairFall: 0.5,
       hairs: 20,
+      light: "wave",
       menace: 0.15,
       odds: 0.8,
       push: 0.34,
@@ -2436,6 +2440,7 @@ var Sea = (() => {
       farSpan: 0.42,
       hairFall: 2.6,
       hairs: 44,
+      light: "none",
       menace: 0.4,
       odds: 1.2,
       push: 0.36,
@@ -2461,6 +2466,7 @@ var Sea = (() => {
       farSpan: 0.35,
       hairFall: 0.9,
       hairs: 7,
+      light: "none",
       menace: 0.5,
       odds: 0.7,
       push: 0.5,
@@ -2486,6 +2492,7 @@ var Sea = (() => {
       farSpan: 0.56,
       hairFall: 0.16,
       hairs: 40,
+      light: "none",
       menace: 0.05,
       odds: 4,
       push: 0.3,
@@ -2499,6 +2506,32 @@ var Sea = (() => {
       trail: 0,
       wideLeast: 0.2,
       wideSpan: 0.2
+    },
+    stinger: {
+      answer: "none",
+      armFall: 1.5,
+      arms: 4,
+      beats: 0.7,
+      bunches: 1,
+      drive: "pulse",
+      farLeast: 0.34,
+      farSpan: 0.5,
+      hairFall: 2.2,
+      hairs: 8,
+      light: "wash",
+      menace: 0.45,
+      odds: 1.4,
+      push: 0.31,
+      recapture: 0.18,
+      roll: 0.11,
+      seatLeast: 0.14,
+      seatSpan: 0.34,
+      sees: false,
+      sink: 0.29,
+      thrust: 0.55,
+      trail: 0,
+      wideLeast: 0.06,
+      wideSpan: 0.06
     }
   };
   var KINDS = Object.keys(HABITS);
@@ -2507,6 +2540,9 @@ var Sea = (() => {
   );
   var ANSWERS = Object.fromEntries(
     KINDS.map((kind) => [kind, HABITS[kind].answer])
+  );
+  var LIGHTS = Object.fromEntries(
+    KINDS.map((kind) => [kind, HABITS[kind].light])
   );
   var DRIFTING_OFF = 5;
   var DEPTH_SIZE4 = 0.55;
@@ -2525,7 +2561,6 @@ var Sea = (() => {
   var BOLT_PUSH = 1.2;
   var ALARM_HOLD = 4.5;
   var FLASH_SPIN = 1.4;
-  var SHIMMER = 0.55;
   var DIVE2 = 1.2;
   var WET = 0.3;
   var TACK = 0.45;
@@ -2656,6 +2691,16 @@ var Sea = (() => {
       }
       return Math.atan2(toX, -toY);
     }
+    function touched(one) {
+      let worst = 0;
+      for (const seen of options.water?.about() ?? []) {
+        const gap = Math.hypot(seen.x - one.x, seen.y - one.y);
+        const reach2 = (seen.size + one.size) * 0.5;
+        if (gap >= reach2 || gap <= 1e-3) continue;
+        worst = Math.max(worst, (1 - gap / reach2) * abreast(one.depth, seen.depth));
+      }
+      return worst;
+    }
     function pulse(one, habit, dt, bolt) {
       const rate = habit.beats * clamp2(1 + urgeOf(one) * URGE, RATE_LEAST, RATE_MOST) * (1 + bolt * BOLT_RATE);
       one.beat = (one.beat + rate * dt) % 1;
@@ -2667,7 +2712,6 @@ var Sea = (() => {
       one.beat = (one.beat + habit.beats * dt) % 1;
       one.wave = (one.wave + habit.beats * Math.PI * 2 * dt) % (Math.PI * 2);
       one.squeeze = furl;
-      one.glow = SHIMMER * (1 - furl);
       const working = 1 - furl;
       drive(one, dt, habit.thrust * DRAG2 * working, habit.sink);
     }
@@ -2719,20 +2763,22 @@ var Sea = (() => {
           const one = held2[at2];
           if (!one) continue;
           const habit = HABITS[one.kind];
-          if (startle && habit.answer !== "none") {
+          if (startle && (habit.answer !== "none" || habit.light !== "none")) {
             const gap = Math.hypot(startle.x - one.x, startle.y - one.y);
             if (gap < startle.reach) {
               const near = (1 - gap / startle.reach) * startle.force * felt(one.depth, startle);
               one.alarm = Math.max(one.alarm, clamp2(near, 0, 1));
             }
           }
+          if (habit.light !== "none") one.alarm = Math.max(one.alarm, touched(one));
           one.alarm = Math.max(0, one.alarm - dt / ALARM_HOLD);
           const bolt = habit.answer === "bolt" ? one.alarm : 0;
-          const flash = habit.answer === "flash" ? one.alarm : 0;
           const furl = habit.answer === "furl" ? one.alarm : 0;
-          if (habit.answer === "flash") {
-            one.glow = flash;
-            if (flash > 0) one.wave = (one.wave + FLASH_SPIN * Math.PI * 2 * dt) % (Math.PI * 2);
+          if (habit.light !== "none") {
+            one.glow = one.alarm;
+            if (habit.light === "wave" && one.alarm > 0) {
+              one.wave = (one.wave + FLASH_SPIN * Math.PI * 2 * dt) % (Math.PI * 2);
+            }
           }
           if (habit.drive === "sail") {
             sail(one, habit, dt, furl);
@@ -2773,7 +2819,8 @@ var Sea = (() => {
     crown: 0.014,
     mane: 9e-3,
     manowar: 0.012,
-    moon: 8e-3
+    moon: 8e-3,
+    stinger: 0.011
   };
   var ARM_GIRTH = {
     barrel: 0.075,
@@ -2782,7 +2829,8 @@ var Sea = (() => {
     crown: 0.03,
     mane: 0.055,
     manowar: 0.04,
-    moon: 0.03
+    moon: 0.03,
+    stinger: 0.045
   };
   var fixed = (value) => (Math.abs(value) < 5e-4 ? 0 : value).toFixed(3);
   function smooth(points, shut) {
@@ -2814,6 +2862,8 @@ var Sea = (() => {
       shoulder: 1.15,
       tall: 0.5,
       tallGain: 0.14,
+      wart: 0,
+      warts: 0,
       wide: 1,
       wideLoss: 0.2
     },
@@ -2825,6 +2875,8 @@ var Sea = (() => {
       shoulder: 3.4,
       tall: 0.92,
       tallGain: 0.12,
+      wart: 0,
+      warts: 0,
       wide: 1,
       wideLoss: 0.2
     },
@@ -2836,6 +2888,8 @@ var Sea = (() => {
       shoulder: 1,
       tall: 0,
       tallGain: 0,
+      wart: 0,
+      warts: 0,
       wide: 1,
       wideLoss: 0.14
     },
@@ -2847,6 +2901,8 @@ var Sea = (() => {
       shoulder: 1.6,
       tall: 0.3,
       tallGain: 0.1,
+      wart: 0,
+      warts: 0,
       wide: 1,
       wideLoss: 0.16
     },
@@ -2858,6 +2914,8 @@ var Sea = (() => {
       shoulder: 0.85,
       tall: 0.34,
       tallGain: 0.12,
+      wart: 0,
+      warts: 0,
       wide: 1,
       wideLoss: 0.18
     },
@@ -2869,6 +2927,8 @@ var Sea = (() => {
       shoulder: 1,
       tall: 0,
       tallGain: 0,
+      wart: 0,
+      warts: 0,
       wide: 1,
       wideLoss: 0
     },
@@ -2880,23 +2940,41 @@ var Sea = (() => {
       shoulder: 0.95,
       tall: 0.28,
       tallGain: 0.14,
+      wart: 0,
+      warts: 0,
       wide: 1,
       wideLoss: 0.22
+    },
+    stinger: {
+      bow: 0.12,
+      cut: 0.02,
+      hang: 0,
+      lobes: 5,
+      shoulder: 1.3,
+      tall: 0.46,
+      tallGain: 0.14,
+      wart: 0.04,
+      warts: 6,
+      wide: 1,
+      wideLoss: 0.2
     }
   };
   var OVER = 20;
   var UNDER = 14;
   var PER_LOBE = 4;
+  var PER_WART = 5;
   function domePath(kind, squeeze) {
     const shape = DOMES[kind];
     const wide = shape.wide * (1 - shape.wideLoss * squeeze) / 2;
     const tall = shape.tall + shape.tallGain * squeeze;
     const points = [];
-    for (let i = 0; i <= OVER; i++) {
-      const turn2 = Math.PI - i / OVER * Math.PI;
+    const over2 = Math.max(OVER, shape.warts * PER_WART);
+    for (let i = 0; i <= over2; i++) {
+      const turn2 = Math.PI - i / over2 * Math.PI;
+      const bump = shape.warts > 0 ? shape.wart * Math.max(0, Math.sin(i / over2 * Math.PI * shape.warts)) : 0;
       points.push({
-        x: wide * Math.cos(turn2),
-        y: -tall * Math.sin(turn2) ** (1 / shape.shoulder)
+        x: wide * Math.cos(turn2) * (1 + bump),
+        y: -tall * Math.sin(turn2) ** (1 / shape.shoulder) - bump * Math.sin(turn2) * tall * 0.5
       });
     }
     const under = Math.max(UNDER, shape.lobes * PER_LOBE);
@@ -3069,7 +3147,7 @@ var Sea = (() => {
   function combRows(one) {
     if (one.kind !== "comb") return [];
     const lit = [];
-    const open2 = 1 - one.squeeze;
+    const beating = 1 - one.squeeze;
     for (let row = 0; row < ROWS; row++) {
       const across = (row / (ROWS - 1) - 0.5) * 2;
       const seat = across * 0.34 * (1 - 0.2 * one.squeeze);
@@ -3080,7 +3158,7 @@ var Sea = (() => {
         const along2 = (from + to) / 2;
         const swell = Math.sin(one.wave - along2 * LAG + row * 0.5);
         lit.push({
-          glow: one.glow * edge2 * (0.25 + 0.75 * Math.max(0, swell)),
+          glow: beating * edge2 * (0.25 + 0.75 * Math.max(0, swell)),
           points: [
             { x: seat * bodyAt(from), y: 0.7 - from * 1.24 },
             { x: seat * bodyAt(to), y: 0.7 - to * 1.24 }
@@ -3088,14 +3166,14 @@ var Sea = (() => {
         });
       }
     }
-    return lit.filter((piece2) => piece2.glow > 0.01 && open2 > 0.1);
+    return lit;
   }
   function bodyAt(along2) {
     return Math.sin(Math.min(1, along2 * 0.82 + 0.18) * Math.PI) ** 0.6;
   }
   var ALARMS = 3;
   function sparks(one) {
-    if (one.glow <= 0.01 || HABITS[one.kind].answer !== "flash") return [];
+    if (one.glow <= 0.01 || HABITS[one.kind].light !== "wave") return [];
     const shape = DOMES[one.kind];
     const wide = shape.wide * (1 - shape.wideLoss * one.squeeze) / 2;
     const lit = [];
@@ -3109,6 +3187,14 @@ var Sea = (() => {
       });
     }
     return lit;
+  }
+  function washOf(one) {
+    const habit = HABITS[one.kind];
+    if (habit.light !== "wash" || one.glow <= 0.01) return null;
+    return {
+      glow: one.glow,
+      reach: one.size * (0.5 + Math.max(habit.hairFall, habit.armFall) * 0.45)
+    };
   }
 
   // ../../../codincodv2/assets/js/ornament/nemos.ts
@@ -5948,7 +6034,10 @@ var Sea = (() => {
   var HAZE_INK = 0.04;
   var HULL_INK = 0.16;
   var JELLY_INK = 0.17;
-  var JELLY_LIGHT = 0.5;
+  var JELLY_LIGHT = 0.62;
+  var JELLY_DAY = 0.12;
+  var JELLY_SHEEN = 0.5;
+  var JELLY_NIGHT = 0.15;
   var PING_INK = 0.62;
   var SPECK_INK = 0.16;
   var VISITOR_INK = 0.42;
@@ -6074,7 +6163,10 @@ var Sea = (() => {
       pen.line(octopusArms(octopus), { ...mark, width: ARM_GIRTH3 * octopus.size }, spot);
     }
   }
-  function paintJellies(pen, jellies2) {
+  function paintJellies(pen, jellies2, daylight2) {
+    const hour = Math.min(1, Math.max(0, daylight2));
+    const dark = JELLY_DAY + (1 - JELLY_DAY) * (1 - hour);
+    const sun = JELLY_NIGHT + (1 - JELLY_NIGHT) * hour;
     for (const one of jellies2.jellies) {
       const weight = afloat(JELLY_INK, one.depth);
       if (weight <= 2e-3) continue;
@@ -6108,13 +6200,26 @@ var Sea = (() => {
         }, spot);
       }
       for (const row of combRows(one)) {
+        const alpha = JELLY_SHEEN * row.glow * sun + JELLY_LIGHT * one.glow * dark;
+        if (alpha <= 0.01) continue;
         pen.line([row.points], {
-          alpha: JELLY_LIGHT * row.glow,
+          alpha,
           lane: one.depth,
           shade: OWN,
           tone: TONE.moon,
           width: Math.max(0.8, 0.05 * one.size)
         }, spot);
+      }
+      const wash = washOf(one);
+      if (wash) {
+        pen.light(one.x, one.y, {
+          alpha: JELLY_LIGHT * wash.glow * dark,
+          fall: 2.2,
+          lane: one.depth,
+          shade: OWN,
+          tone: TONE.moon,
+          width: wash.reach
+        });
       }
       for (const flare of sparks(one)) {
         const across = flare.x * one.size * one.facing;
@@ -6122,7 +6227,7 @@ var Sea = (() => {
         const cos = Math.cos(one.tilt);
         const sin = Math.sin(one.tilt);
         pen.light(one.x + across * cos - down * sin, one.y + across * sin + down * cos, {
-          alpha: JELLY_LIGHT * flare.glow,
+          alpha: JELLY_LIGHT * flare.glow * dark,
           fall: 1.6,
           lane: one.depth,
           shade: OWN,
@@ -6967,7 +7072,7 @@ var Sea = (() => {
     if (nemos) paintNemos(pen, nemos);
     if (flock) paintSwarm(pen, flock);
     if (inklings) paintInklings(pen, inklings);
-    if (jellies) paintJellies(pen, jellies);
+    if (jellies) paintJellies(pen, jellies, daylight);
     if (walkers) paintWalkers(pen, walkers);
     if (visitors) paintVisitors(pen, visitors);
     if (passers) paintPassers(pen, passers);

@@ -552,7 +552,7 @@ export function over(): number {
   if (nemos) paintNemos(pen, nemos)
   if (flock) paintSwarm(pen, flock)
   if (inklings) paintInklings(pen, inklings)
-  if (jellies) paintJellies(pen, jellies)
+  if (jellies) paintJellies(pen, jellies, daylight)
   if (walkers) paintWalkers(pen, walkers)
   if (visitors) paintVisitors(pen, visitors)
   if (passers) paintPassers(pen, passers)
