@@ -88,9 +88,9 @@ whole of one is somebody finding it themselves. They are drawn in `relics.ts`
 out of shapes in `Codincod.Social.Marks`, which is where to read if you are the
 one maintaining them.
 
-There is one in the water as well, on odds longer than anything else that
-crosses. It is in `visitors.ts` with the animals, and it is left to be found the
-same way.
+There is one in the water as well, and it keeps an appointment rather than
+running on odds: about one day in the month has it and the rest do not. It is in
+`visitors.ts` with the animals, and it is left to be found the same way.
 
 - [ ] More, and rarer.
 

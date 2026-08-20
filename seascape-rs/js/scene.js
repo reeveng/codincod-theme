@@ -3813,7 +3813,7 @@ var Sea = (() => {
       farSpan: 0.38,
       heft: 0.35,
       menace: 0,
-      odds: 0.35,
+      odds: 0,
       party: 1,
       partySpan: 0,
       seatLeast: 0.2,
@@ -3877,10 +3877,17 @@ var Sea = (() => {
   var FELT = 0.34;
   var MIN_SPAN12 = 1;
   var SEEN2 = 0.05;
+  var MERMAID_DAYS = 1 / 30;
+  var MERMAID_PLACE = 3;
   function createVisitors(options) {
     const random = makeRandom(options.seed ^ 29093);
     const kinds = options.kinds ?? ["dolphin", "manta", "mermaid", "shark", "turtle"];
     const eager = options.eager ?? false;
+    const pool = kinds.filter((kind) => kind !== "mermaid");
+    const drawn2 = pool.length > 0 ? pool : kinds;
+    const plan = makeRandom(stir(options.seed ^ 19809));
+    const owed = kinds.includes("mermaid") && pool.length > 0 && plan() < MERMAID_DAYS ? Math.floor(plan() * MERMAID_PLACE) : -1;
+    let parties = 0;
     let width = Math.max(MIN_SPAN12, options.width);
     let height = Math.max(MIN_SPAN12, options.height);
     const crossing = [];
@@ -3900,16 +3907,16 @@ var Sea = (() => {
     );
     function which() {
       let total = 0;
-      for (const kind of kinds) total += HABITS2[kind].odds;
+      for (const kind of drawn2) total += HABITS2[kind].odds;
       let at2 = random() * total;
-      for (const kind of kinds) {
+      for (const kind of drawn2) {
         at2 -= HABITS2[kind].odds;
         if (at2 <= 0) return kind;
       }
-      return kinds[0] ?? "turtle";
+      return drawn2[0] ?? "turtle";
     }
     function arrive() {
-      const kind = which();
+      const kind = parties++ === owed ? "mermaid" : which();
       const habit = HABITS2[kind];
       const facing = random() < 0.5 ? -1 : 1;
       const far3 = habit.farLeast + random() * habit.farSpan;
@@ -4038,6 +4045,13 @@ var Sea = (() => {
     mermaid: waisted,
     shark: finned
   };
+  var MERMAID_ARCH = 0.52;
+  var MERMAID_RIDE = 0.21;
+  var CAMBERS = {
+    dolphin: () => 0,
+    mermaid: (u) => MERMAID_ARCH * u * u * (3 - 2 * u) - MERMAID_RIDE,
+    shark: () => 0
+  };
   var SLOPE = 0.05;
   var CURVE_STEPS = 8;
   var fixed = (value) => (Math.abs(value) < 5e-4 ? 0 : value).toFixed(3);
@@ -4075,10 +4089,11 @@ var Sea = (() => {
     const { sweep, waves } = SWEEP3[kind];
     const joint = JOINTS[kind];
     const run = 1 - joint;
+    const camber = CAMBERS[kind];
     const envelope2 = ENVELOPES[kind];
     const at2 = (x) => {
       const u = Math.max(0, Math.min(1, (1 - x) / run));
-      return sweep * envelope2(u) * Math.sin(2 * Math.PI * waves * u - phase2);
+      return camber(u) + sweep * envelope2(u) * Math.sin(2 * Math.PI * waves * u - phase2);
     };
     const angleAt = (x) => Math.atan2(at2(x + SLOPE) - at2(x - SLOPE), 2 * SLOPE);
     return {
@@ -4270,54 +4285,55 @@ var Sea = (() => {
     ]);
   }
   var MERMAID = [
-    { over: 0.042, under: 0.038, x: 0.83 },
-    { over: 0.038, under: 0.035, x: 0.765 },
-    { over: 0.094, under: 0.062, x: 0.685 },
-    { over: 0.092, under: 0.09, x: 0.58 },
-    { over: 0.09, under: 0.142, x: 0.5 },
-    { over: 0.086, under: 0.13, x: 0.45 },
-    { over: 0.078, under: 0.082, x: 0.37 },
-    { over: 0.048, under: 0.048, x: 0.28 },
-    { over: 0.048, under: 0.048, x: 0.24 },
-    { over: 0.12, under: 0.132, x: 0.08 },
-    { over: 0.112, under: 0.118, x: -0.04 },
-    { over: 0.086, under: 0.086, x: -0.2 },
-    { over: 0.06, under: 0.058, x: -0.36 },
-    { over: 0.04, under: 0.038, x: -0.5 },
-    { over: 0.024, under: 0.022, x: -0.62 }
+    { over: 0.04, under: 0.037, x: 0.83 },
+    { over: 0.036, under: 0.033, x: 0.765 },
+    { over: 0.082, under: 0.055, x: 0.685 },
+    { over: 0.08, under: 0.082, x: 0.6 },
+    { over: 0.078, under: 0.128, x: 0.52 },
+    { over: 0.074, under: 0.115, x: 0.46 },
+    { over: 0.05, under: 0.05, x: 0.34 },
+    { over: 0.046, under: 0.046, x: 0.29 },
+    { over: 0.125, under: 0.14, x: 0.12 },
+    { over: 0.125, under: 0.132, x: -0.02 },
+    { over: 0.105, under: 0.105, x: -0.18 },
+    { over: 0.078, under: 0.076, x: -0.34 },
+    { over: 0.05, under: 0.048, x: -0.48 },
+    { over: 0.028, under: 0.026, x: -0.62 }
   ];
   var HEAD = [
-    [1.027, -0.091],
-    [0.986, -0.136],
-    [0.927, -0.155],
-    [0.86, -0.146],
-    [0.802, -0.101],
-    [0.791, -0.034],
-    [0.834, 0.018],
-    [0.902, 0.034],
-    [0.969, 0.016],
-    [1.019, -0.032]
+    [1.046, -0.08],
+    [0.999, -0.132],
+    [0.929, -0.153],
+    [0.852, -0.142],
+    [0.785, -0.089],
+    [0.773, -0.01],
+    [0.824, 0.049],
+    [0.903, 0.066],
+    [0.981, 0.045],
+    [1.038, -0.011]
   ];
   var HAIR = [
-    [0.87, 0.115],
-    [0.79, 0.075],
-    [0.71, 0.105],
-    [0.6, 0.145],
-    [0.46, 0.155],
-    [0.32, 0.15],
-    [0.18, 0.135],
-    [0.04, 0.12],
-    [-0.24, 0.115],
-    [0, 0.02],
-    [0.18, 0.02],
-    [0.32, 0.015],
-    [0.46, 0.03],
-    [0.6, 0.045],
-    [0.71, 0.02],
-    [0.8, 0]
+    [1.01, -0.05],
+    [0.95, -0.115],
+    [0.86, -0.158],
+    [0.72, -0.178],
+    [0.56, -0.178],
+    [0.4, -0.162],
+    [0.24, -0.132],
+    [0.08, -0.095],
+    [-0.04, -0.052],
+    [0.08, -0.03],
+    [0.24, -0.055],
+    [0.4, -0.068],
+    [0.52, -0.06],
+    [0.64, -0.02],
+    [0.76, 5e-3],
+    [0.87, -0.02],
+    [0.96, 0.015]
   ];
-  var HAIR_SWING = 0.05;
-  var HAIR_WAVES = 0.85;
+  var HAIR_SWING = 0.055;
+  var HAIR_WAVES = 0.8;
+  var HAIR_ROOT = 0.9;
   var UPPER_ARM = [
     [0, 1],
     [0.5, 0.88],
@@ -4331,13 +4347,13 @@ var Sea = (() => {
     [0.93, 0.58],
     [1, 0.16]
   ];
-  var ARM_SEAT = 0.72;
-  var ARM_SWING = 0.18;
-  var ARM_APART = 0.3;
-  var ARM_REACH = 0.46;
+  var ARM_SEAT = 0.58;
+  var ARM_SWING = 0.2;
+  var ARM_APART = 0.34;
+  var ARM_REACH = 0.5;
   var ARM_GIRTH = 0.042;
   var ARM_UPPER = 0.46;
-  var ARM_BEND = 0.55;
+  var ARM_BEND = 0.5;
   var ARM_FAR = 0.84;
   function limb(taper, root, angle, reach2, wide) {
     const cos = Math.cos(angle);
@@ -4353,13 +4369,13 @@ var Sea = (() => {
   }
   function mermaidFins(spine2, phase2) {
     const carry = hung(spine2);
-    const flow = ([x, lift]) => {
-      const back = Math.max(0, 0.94 - x);
-      const wave2 = HAIR_SWING * back * Math.sin(2 * Math.PI * HAIR_WAVES * back - phase2);
-      return spine2.clear(x, lift + wave2);
+    const crown2 = spine2.at(HAIR_ROOT);
+    const flow = ([x, y]) => {
+      const back = Math.max(0, HAIR_ROOT - x);
+      return [x, crown2 + y - HAIR_SWING * back * Math.sin(2 * Math.PI * HAIR_WAVES * back - phase2)];
     };
     const arm = (turn2, reach2, under) => {
-      const root = spine2.clear(0.62, -0.035);
+      const root = spine2.clear(0.6, -0.04);
       const shoulder = ARM_SEAT + under + ARM_SWING * Math.sin(turn2);
       const upper = reach2 * ARM_UPPER;
       const elbow = [
@@ -4368,25 +4384,25 @@ var Sea = (() => {
       ];
       return limb(UPPER_ARM, root, shoulder, upper, ARM_GIRTH) + limb(FOREARM, elbow, shoulder - ARM_BEND, reach2 - upper, ARM_GIRTH * 0.9);
     };
-    return arm(phase2 + Math.PI, ARM_REACH * ARM_FAR, ARM_APART) + rounded(HAIR.map(flow)) + rounded(HEAD.map(([x, y]) => spine2.clear(x, -y))) + arm(phase2, ARM_REACH, 0) + blade(spine2.clear(-0.32, 0.05), 3.55, 0.17, 0.03, 0.026) + blade(spine2.clear(-0.32, -0.05), 2.73, 0.17, 0.03, -0.026) + rounded([
+    return arm(phase2 + Math.PI, ARM_REACH * ARM_FAR, ARM_APART) + rounded(HAIR.map(flow)) + rounded(HEAD.map(([x, y]) => spine2.clear(x, -y))) + arm(phase2, ARM_REACH, 0) + blade(spine2.clear(-0.28, 0.06), 3.48, 0.22, 0.032, 0.055) + blade(spine2.clear(-0.28, -0.06), 2.8, 0.22, 0.032, -0.055) + rounded([
       carry([0.08, 0]),
-      carry([-0.02, -0.08]),
-      carry([-0.14, -0.18]),
-      carry([-0.27, -0.28]),
-      carry([-0.4, -0.35]),
-      carry([-0.36, -0.24]),
-      carry([-0.29, -0.15]),
-      carry([-0.23, -0.07]),
-      carry([-0.18, -0.02]),
-      carry([-0.16, 0]),
-      carry([-0.18, 0.02]),
-      carry([-0.23, 0.07]),
-      carry([-0.29, 0.15]),
-      carry([-0.36, 0.24]),
-      carry([-0.4, 0.35]),
-      carry([-0.27, 0.28]),
-      carry([-0.14, 0.18]),
-      carry([-0.02, 0.08])
+      carry([-0.03, -0.09]),
+      carry([-0.14, -0.2]),
+      carry([-0.26, -0.3]),
+      carry([-0.4, -0.36]),
+      carry([-0.38, -0.25]),
+      carry([-0.33, -0.14]),
+      carry([-0.26, -0.06]),
+      carry([-0.21, -0.02]),
+      carry([-0.18, 0]),
+      carry([-0.21, 0.02]),
+      carry([-0.26, 0.06]),
+      carry([-0.33, 0.14]),
+      carry([-0.38, 0.25]),
+      carry([-0.4, 0.36]),
+      carry([-0.26, 0.3]),
+      carry([-0.14, 0.2]),
+      carry([-0.03, 0.09])
     ]);
   }
   var mermaidBody = (stroke) => swimmer("mermaid", MERMAID, stroke * Math.PI * 2, mermaidFins);
