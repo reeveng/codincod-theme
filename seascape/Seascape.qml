@@ -386,13 +386,14 @@ Item {
   /**
    * How the shoal is made up, by kind.
    *
-   * `Ornament.WILD`, which is what the porthole and the water behind the site's
+   * `Ornament.wild`, which is what the porthole and the water behind the site's
    * hero are both built from. It was written out here as its own table until
    * the site grew the same two renderers, at which point three copies of one
    * mix was three places for it to drift. The shares are shares rather than
-   * numbers; see `ShoalOptions.species`.
+   * numbers; see `ShoalOptions.species`. It takes the seed because how much of
+   * a sea is one kind is a fact about the day; see `census.ts`.
    */
-  property var species: Ornament.WILD
+  property var species: Ornament.wild(seed)
 
   /**
    * Which big animals may cross, or null for the lot of them.

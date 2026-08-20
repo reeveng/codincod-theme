@@ -43,7 +43,7 @@ var __ornament = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // .ornament-entry/entry.ts
+  // seascape/.ornament-entry/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
     BLOCK_CARD: () => BLOCK_CARD,
@@ -73,7 +73,6 @@ var __ornament = (() => {
     STEPS: () => STEPS2,
     SUBMARINE: () => SUBMARINE,
     SUB_SCREW: () => SUB_SCREW,
-    WILD: () => WILD,
     WRECK: () => WRECK,
     WRECK_SPAR: () => WRECK_SPAR,
     abreast: () => abreast,
@@ -110,7 +109,7 @@ var __ornament = (() => {
     thriving: () => thriving
   });
 
-  // ../../codincodv2/assets/js/ornament/biome.ts
+  // ../codincodv2/assets/js/ornament/biome.ts
   var REACH = 0.36;
   function abreast(depth, other) {
     return Math.max(0, 1 - Math.abs(depth - other) / REACH);
@@ -135,7 +134,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/perlin.ts
+  // ../codincodv2/assets/js/ornament/perlin.ts
   var SIZE = 256;
   var MASK = SIZE - 1;
   var NORMALISE = Math.SQRT2;
@@ -207,14 +206,97 @@ var __ornament = (() => {
     return a + t * (b - a);
   }
 
-  // ../../codincodv2/assets/js/ornament/shoal.ts
+  // ../codincodv2/assets/js/ornament/plenty.ts
+  var LEAN = 0.55;
+  var RANGE = 1.75;
+  var BIAS = 2;
+  function thriving(seed, at = 0) {
+    const random = makeRandom((seed ^ 24301) + at * 40503);
+    random();
+    random();
+    return LEAN + RANGE * random() ** BIAS;
+  }
+
+  // ../codincodv2/assets/js/ornament/census.ts
+  var SEA = {
+    /** A dustbin lid of a jelly, in on a season rather than resident. */
+    barrel: { holds: 0.09, swings: 1.8 },
+    /** Small, scarce, and inshore for part of the year. */
+    box: { holds: 0.025, swings: 1.6 },
+    /** Comb jellies outnumber everything else adrift in the water. */
+    comb: { holds: 0.66, swings: 2 },
+    /** Most crabs on a reef are under it. This is the few that are out. */
+    crab: { holds: 3, swings: 0.4 },
+    /** Deep water, and up here only where cold water is. */
+    crown: { holds: 0.03, swings: 1.4 },
+    /** Snapper, surgeon, parrot: the fish a reef reads as at a glance. */
+    cruiser: { holds: 24, swings: 0.35 },
+    /** Damsels and anthias over the coral, which is most of what a reef holds. */
+    darter: { holds: 90, swings: 0.5 },
+    /** They pass along a coast rather than live on one stretch of it. */
+    dolphin: { holds: 0.04, swings: 0.5 },
+    /** A grouper holds a hole and there are only so many holes. */
+    drifter: { holds: 1.1, swings: 0.15 },
+    /** Butterflyfish, which go about in twos and are never far apart. */
+    escort: { holds: 6, swings: 0.35 },
+    /** A cold water animal, and in warm water a rarity worth the day. */
+    mane: { holds: 0.06, swings: 1.8 },
+    /** It goes where the wind puts it, so it arrives in a fleet or not at all. */
+    manowar: { holds: 0.015, swings: 2.6 },
+    /** Scarcest of the large ones, and tied to the few places they gather. */
+    manta: { holds: 0.012, swings: 0.7 },
+    /** Not an animal and not on a density; `visitors.ts` keeps her calendar. */
+    mermaid: { holds: 0, swings: 0 },
+    /** The jelly anybody can name, and it is common enough to earn that. */
+    moon: { holds: 0.45, swings: 2 },
+    /** One to a den, and a den is a find. */
+    octopus: { holds: 0.5, swings: 0.25 },
+    /** A reef shark works a stretch of reef that is larger than this one. */
+    shark: { holds: 0.09, swings: 0.4 },
+    /** Reef squid keep company, so where there is one there are a few. */
+    squid: { holds: 0.6, swings: 0.8 },
+    /** Slow, obvious, and lying in the open, which is why they read as common. */
+    starfish: { holds: 4, swings: 0.5 },
+    /** The sea nettle, in on the season the way the barrel is. */
+    stinger: { holds: 0.18, swings: 1.8 },
+    /** A billfish over a reef is a visitor from the water beyond it. */
+    swordfish: { holds: 0.05, swings: 0.6 },
+    /** They graze a reef and sleep under its ledges, so one is about. */
+    turtle: { holds: 0.12, swings: 0.35 }
+  };
+  var ROOT = 0.55;
+  function own(kind) {
+    let run = 0;
+    for (let at = 0; at < kind.length; at++) run = stir(run + kind.charCodeAt(at));
+    return run & 65535;
+  }
+  function drawnHolds(kind, seed) {
+    const held = SEA[kind];
+    if (held.holds <= 0) return 0;
+    return held.holds ** ROOT * thriving(seed, own(kind)) ** held.swings;
+  }
+  function mixOf(kinds, seed) {
+    const mix2 = {};
+    for (const kind of kinds) mix2[kind] = drawnHolds(kind, seed);
+    return mix2;
+  }
+
+  // ../codincodv2/assets/js/ornament/sizes.ts
+  var AT_ARM = 0.15;
+  var SWIMMING_OFF = 8;
+  var BED_OFF = 10;
+  function drawnAt(metres, off) {
+    return AT_ARM * Math.sqrt(Math.max(metres, 0) / Math.max(off, 1e-3));
+  }
+
+  // ../codincodv2/assets/js/ornament/shoal.ts
   var SPECIES = {
     /** The one that was here first. Everything else is described against it. */
     cruiser: {
       bill: 0,
       deep: 0.52,
-      girth: 1,
       hold: 1,
+      long: 0.3,
       nerve: 1,
       pace: 1,
       pitch: 1,
@@ -225,8 +307,8 @@ var __ornament = (() => {
     darter: {
       bill: 0,
       deep: 0.58,
-      girth: 0.42,
       hold: 0.3,
+      long: 0.09,
       nerve: 1.7,
       pace: 1.5,
       pitch: 1.4,
@@ -246,8 +328,8 @@ var __ornament = (() => {
     drifter: {
       bill: 0,
       deep: 0.2,
-      girth: 2.1,
       hold: 4.5,
+      long: 1.4,
       nerve: 0,
       pace: 0.6,
       pitch: 0.45,
@@ -258,8 +340,8 @@ var __ornament = (() => {
     escort: {
       bill: 0,
       deep: 0.62,
-      girth: 0.72,
       hold: 1.4,
+      long: 0.18,
       nerve: 1.25,
       pace: 1.1,
       pitch: 0.9,
@@ -278,21 +360,14 @@ var __ornament = (() => {
     swordfish: {
       bill: 1,
       deep: 0.72,
-      girth: 1.85,
       hold: 3.2,
+      long: 2.6,
       nerve: 0.25,
       pace: 1.55,
       pitch: 0.55,
       stride: 1.5,
       verve: 0.45
     }
-  };
-  var WILD = {
-    cruiser: 5,
-    darter: 4,
-    drifter: 1,
-    escort: 2,
-    swordfish: 1
   };
   function felt(depth, startle) {
     return startle.depth == null ? 1 : abreast(depth, startle.depth);
@@ -358,8 +433,9 @@ var __ornament = (() => {
   var SLOWEST = 0.45;
   var FASTEST = 1.9;
   var LEISURE = 2;
-  var SHORTEST = 34;
-  var LONGEST = 58;
+  var CRUISER_SHORT = 0.18;
+  var CRUISER_LONG = 0.42;
+  var BASE = SPECIES.cruiser.long;
   function freshSeed(from = 0) {
     return stir(Date.now() ^ from);
   }
@@ -368,7 +444,7 @@ var __ornament = (() => {
     return stir(day ^ from) | 0;
   }
   function createShoal(options) {
-    var _a, _b, _c;
+    var _a;
     const noise = makeNoise2(options.seed);
     const depths = makeNoise2(options.seed ^ 40503);
     const random = makeRandom(options.seed ^ 24381);
@@ -382,10 +458,17 @@ var __ornament = (() => {
     let rest = 0;
     let last = null;
     const cruise = (_a = options.cruise) != null ? _a : CRUISE;
-    const shortest = (_b = options.shortest) != null ? _b : SHORTEST;
-    const longest = (_c = options.longest) != null ? _c : LONGEST;
     const mix2 = weigh(options.species);
-    const born = () => spawn(random, draw(mix2, random), { cruise, height, longest, shortest, width });
+    const born = () => {
+      var _a2, _b;
+      return spawn(random, draw(mix2, random), {
+        cruise,
+        height,
+        longest: (_a2 = options.longest) != null ? _a2 : drawnAt(CRUISER_LONG, SWIMMING_OFF) * width,
+        shortest: (_b = options.shortest) != null ? _b : drawnAt(CRUISER_SHORT, SWIMMING_OFF) * width,
+        width
+      });
+    };
     const fish = Array.from({ length: Math.max(MIN_SHOAL, options.count) }, born);
     pair(fish);
     let asked = fish.length;
@@ -449,9 +532,9 @@ var __ornament = (() => {
         pair(fish);
       },
       step(seconds, pointer, startle = null) {
-        var _a2, _b2;
+        var _a2, _b;
         const dt = Math.min(Math.max(seconds, 0), 0.1);
-        const water = (_b2 = (_a2 = options.about) == null ? void 0 : _a2.call(options)) != null ? _b2 : [];
+        const water = (_b = (_a2 = options.about) == null ? void 0 : _a2.call(options)) != null ? _b : [];
         drift += DRIFT * dt;
         sank += DEPTH_DRIFT * dt;
         still = pointer && !pointer.moving ? still + dt : 0;
@@ -511,9 +594,9 @@ var __ornament = (() => {
           one.size = one.length * (1 - DEPTH_SIZE + DEPTH_SIZE * one.depth);
           const hovering = one === attentive && pointer && away(one, pointer) < STANDOFF;
           const gear = burst(one, sort, dt);
-          const own = cruise * one.pace * one.size * gear;
+          const own2 = cruise * one.pace * one.size * gear;
           const quick = 1 + wary(one, water) * sort.nerve * WARY;
-          const wants = station(one, own) * quick * (startled ? DART : hovering ? HOVER : 1);
+          const wants = station(one, own2) * quick * (startled ? DART : hovering ? HOVER : 1);
           one.speed = ease(one.speed, wants, HASTE * dt);
           one.tail += 2 * Math.PI * one.speed / (STRIDE * sort.stride * one.size) * dt;
           const stroke = one.speed * (1 + SURGE * Math.cos(2 * one.tail));
@@ -639,8 +722,8 @@ var __ornament = (() => {
     const gear = one.spurt < SPURT_SHARE ? SPURT_PUSH : SPURT_COAST;
     return 1 + (gear - 1) * sort.verve;
   }
-  function station(one, own) {
-    if (!one.mate) return own;
+  function station(one, own2) {
+    if (!one.mate) return own2;
     const behind = (one.mate.x - one.x) * one.facing;
     const slip = (behind - one.mate.size * STATION_BACK) / Math.max(one.mate.size, 1);
     return one.mate.speed * clamp(1 + slip * STATION_CATCH, STATION_SLOWEST, STATION_BRISKEST);
@@ -650,7 +733,7 @@ var __ornament = (() => {
     const facing = random() < 0.5 ? -1 : 1;
     const aim = (random() - 0.5) * SWEEP * sort.pitch;
     const depth = DEPTH_FAR + random() * (DEPTH_NEAR - DEPTH_FAR);
-    const length = (box.shortest + random() * (box.longest - box.shortest)) * sort.girth;
+    const length = (box.shortest + random() * (box.longest - box.shortest)) * Math.sqrt(sort.long / BASE);
     const pace = (SLOWEST + random() ** LEISURE * (FASTEST - SLOWEST)) * sort.pace;
     const size = length * (1 - DEPTH_SIZE + DEPTH_SIZE * depth);
     return {
@@ -751,15 +834,15 @@ var __ornament = (() => {
   }
   var EDGE_HOLD = 8;
 
-  // ../../codincodv2/assets/js/ornament/cephalopods.ts
+  // ../codincodv2/assets/js/ornament/cephalopods.ts
   var CYCLE_SLOWEST = 3.4;
   var CYCLE_FASTEST = 6.8;
   var JET_SHARE = 0.16;
   var JET_PEAK = 4.2;
   var GLIDE = 0.07;
   var DRAG = 2.1;
-  var SQUID_SHORTEST = 46;
-  var SQUID_LONGEST = 78;
+  var SQUID_SHORTEST = 0.16;
+  var SQUID_LONGEST = 0.38;
   var SQUID_PITCH = 0.42;
   var WANDER = 0.5;
   var RETHINK_LEAST = 2.5;
@@ -768,8 +851,8 @@ var __ornament = (() => {
   var MARGIN2 = 1.1;
   var SHY_BAND = 2.4;
   var SHY_PULL = 1.4;
-  var OCTOPUS_SMALLEST = 26;
-  var OCTOPUS_LARGEST = 44;
+  var OCTOPUS_SMALLEST = 0.09;
+  var OCTOPUS_LARGEST = 0.17;
   var DOINGS = {
     /** Into the sand and out of sight, which is its first answer to anything. */
     bury: { least: 7, share: 9.65, span: 13 },
@@ -817,7 +900,8 @@ var __ornament = (() => {
     function bornSquid() {
       const depth = DEPTH_FAR2 + random() * (DEPTH_NEAR2 - DEPTH_FAR2);
       const facing = random() < 0.5 ? -1 : 1;
-      const length = SQUID_SHORTEST + random() * (SQUID_LONGEST - SQUID_SHORTEST);
+      const long = SQUID_SHORTEST + random() * (SQUID_LONGEST - SQUID_SHORTEST);
+      const length = drawnAt(long, SWIMMING_OFF) * width;
       const aim = (random() - 0.5) * WANDER;
       const x = random() * width;
       const size = length * (1 - DEPTH_SIZE2 + DEPTH_SIZE2 * depth);
@@ -854,7 +938,8 @@ var __ornament = (() => {
     function bornOctopus() {
       const depth = DEPTH_FAR2 + random() * (DEPTH_NEAR2 - DEPTH_FAR2);
       const doing = pick(random);
-      const head = OCTOPUS_SMALLEST + random() * (OCTOPUS_LARGEST - OCTOPUS_SMALLEST);
+      const across = OCTOPUS_SMALLEST + random() * (OCTOPUS_LARGEST - OCTOPUS_SMALLEST);
+      const head = drawnAt(across, BED_OFF) * width;
       const run = span(doing);
       const x = random() * width;
       bouts.push({ at: random() * run, puff: random(), span: run });
@@ -1159,7 +1244,7 @@ var __ornament = (() => {
     return arms;
   }
 
-  // ../../codincodv2/assets/js/ornament/flora.ts
+  // ../codincodv2/assets/js/ornament/flora.ts
   var gatherings = [];
   function gathered(twigs) {
     for (const held of gatherings) {
@@ -1435,7 +1520,9 @@ var __ornament = (() => {
     const plants = [];
     const sways = [];
     const tolerance = Math.max(0, (_a = options.tolerance) != null ? _a : TOLERANCE);
-    const cutting = new Set((_b = options.cutting) != null ? _b : ["anemone", "coral", "fan", "grass", "kelp"]);
+    const cutting = new Set(
+      (_b = options.cutting) != null ? _b : ["anemone", "coral", "fan", "grass", "kelp"]
+    );
     const drawn2 = [];
     const frames = [];
     const swinging = [];
@@ -1590,8 +1677,8 @@ var __ornament = (() => {
       const span = heights.get(at2);
       if (!one || !sway || span == null || one.kind === "coral") return;
       const current = field(one.x / width * FIELD_CELLS2 + drift, drift);
-      const own = Math.sin(sway.own);
-      const amp = sway.lean * (current * CURRENT_SHARE + own * (1 - CURRENT_SHARE));
+      const own2 = Math.sin(sway.own);
+      const amp = sway.lean * (current * CURRENT_SHARE + own2 * (1 - CURRENT_SHARE));
       const swing = swinging[at2];
       if (swing) {
         swing.amp = amp;
@@ -1639,8 +1726,8 @@ var __ornament = (() => {
           shift: 0,
           slant: 0,
           span: span * STEMS[one.kind],
-          steps: sway.steps,
-          stem: -1
+          stem: -1,
+          steps: sway.steps
         }
       ];
       if (one.kind === "grass") {
@@ -1653,8 +1740,8 @@ var __ornament = (() => {
             shift: mate.shift,
             slant: mate.slant,
             span: mate.span,
-            steps: cuts(sway.steps, mate.span),
-            stem: -1
+            stem: -1,
+            steps: cuts(sway.steps, mate.span)
           });
         }
         return { leaves: [], limbs };
@@ -1671,8 +1758,8 @@ var __ornament = (() => {
             shift: 0,
             slant: mate.slant,
             span: mate.span,
-            steps,
-            stem: 0
+            stem: 0,
+            steps
           });
           if (mate.span < RIB_TWIGGED) continue;
           limbs.push({
@@ -1683,8 +1770,8 @@ var __ornament = (() => {
             shift: 0,
             slant: mate.slant * RIB_SPLAY,
             span: mate.span * RIB_TWIG,
-            steps: 2,
-            stem: rib
+            stem: rib,
+            steps: 2
           });
         }
         return { leaves: [], limbs };
@@ -1699,8 +1786,8 @@ var __ornament = (() => {
           shift: 0,
           slant: (made % 2 === 0 ? 1 : -1) * FORK_SPLAY,
           span: span * (1 - up) * FORK_REACH,
-          steps: Math.max(FEWEST_STEPS, Math.round(sway.steps * (1 - up))),
-          stem: 0
+          stem: 0,
+          steps: Math.max(FEWEST_STEPS, Math.round(sway.steps * (1 - up)))
         });
       });
       return { leaves: leafage(weed, limbs, span), limbs };
@@ -1710,36 +1797,36 @@ var __ornament = (() => {
       const leafy = crowded(weed.blades, LEAF_FEWEST, span, LEAF_CROWDED);
       const each = Math.max(1, Math.round(leafy / limbs.length));
       const bends = cuts(BLADE_STEPS, span * weed.span);
-      limbs.forEach((limb, on) => {
+      limbs.forEach((limb2, on) => {
         for (let made = 0; made < each; made++) {
           const seat = weed.seat + made / each * (1 - weed.seat);
           const side = made % 2 === 0 ? 1 : -1;
-          const long = limb.span * weed.span * (1 - weed.taper * seat);
+          const long = limb2.span * weed.span * (1 - weed.taper * seat);
           const shape = [];
           for (let step = 0; step <= bends; step++) {
             const u = step / bends;
             const out = Math.sin(u * Math.PI * 0.62) * (1 - u * 0.72) * weed.flare;
             shape.push({ x: u * weed.trail * long, y: out * long * side });
           }
-          leaves.push({ limb: on, seat: seated(seat, limb.steps), shape });
+          leaves.push({ limb: on, seat: seated(seat, limb2.steps), shape });
         }
       });
       return leaves;
     }
-    function cutFrom(one, frame, amp, own) {
+    function cutFrom(one, frame, amp, own2) {
       var _a2;
       const lines = [];
-      for (const limb of frame.limbs) {
-        const root = limb.stem < 0 ? { x: one.x + limb.shift, y: one.y } : at(lines[limb.stem], limb.seat);
+      for (const limb2 of frame.limbs) {
+        const root = limb2.stem < 0 ? { x: one.x + limb2.shift, y: one.y } : at(lines[limb2.stem], limb2.seat);
         lines.push(
           strand(
             root.x,
             root.y,
-            limb.span,
-            own * limb.beat + limb.own,
-            amp * limb.give,
-            limb.slant,
-            limb.steps
+            limb2.span,
+            own2 * limb2.beat + limb2.own,
+            amp * limb2.give,
+            limb2.slant,
+            limb2.steps
           )
         );
       }
@@ -1812,9 +1899,9 @@ var __ornament = (() => {
         }
       }
     }
-    function stir2(kind, span, was, amp, fright, own, stem) {
+    function stir2(kind, span, was, amp, fright, own2, stem) {
       const reach2 = Math.max(Math.abs(amp), Math.abs(was.amp));
-      const turned = Math.abs(own - was.own);
+      const turned = Math.abs(own2 - was.own);
       return (Math.abs(amp - was.amp) + reach2 * turned) * SWING[kind] + span * SWEEP2[kind] * turned + Math.abs(stem - was.stem) + Math.abs(fright - was.fright) * span * CROWN_PULL;
     }
     function recut() {
@@ -1850,7 +1937,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/crags.ts
+  // ../codincodv2/assets/js/ornament/crags.ts
   var FRAMINGS = {
     cave: 1,
     hills: 2,
@@ -2136,7 +2223,7 @@ var __ornament = (() => {
   }
   var isleAllowed = (framing) => framing === "hills" || framing === "open";
 
-  // ../../codincodv2/assets/js/ornament/drift.ts
+  // ../codincodv2/assets/js/ornament/drift.ts
   var FIELD_CELLS3 = 2.2;
   var DRIFT3 = 0.04;
   var SWAY = 13;
@@ -2300,7 +2387,7 @@ var __ornament = (() => {
     return value;
   }
 
-  // ../../codincodv2/assets/js/ornament/fish_shape.ts
+  // ../codincodv2/assets/js/ornament/fish_shape.ts
   var SPAN = 38;
   var NOSE = 29;
   var along = (t) => 21 * t * (1 - t) ** 2 + 63 * t ** 2 * (1 - t) + 29 * t ** 3;
@@ -2384,7 +2471,7 @@ var __ornament = (() => {
     }
     return [...top, ...bottom.reverse()];
   }
-  var ROOT = 2.5;
+  var ROOT2 = 2.5;
   function tail(phase2) {
     const joint = station2(0, phase2);
     const cos = Math.cos(joint.angle);
@@ -2394,7 +2481,7 @@ var __ornament = (() => {
       joint.y + x * sin + y * cos
     ];
     return fin([
-      carry([ROOT, 0]),
+      carry([ROOT2, 0]),
       carry([FLUKE_BACK, FLUKE_SPREAD]),
       carry([FLUKE_NOTCH, 0]),
       carry([FLUKE_BACK, -FLUKE_SPREAD])
@@ -2442,7 +2529,7 @@ var __ornament = (() => {
     return made;
   }
 
-  // ../../codincodv2/assets/js/ornament/nemos.ts
+  // ../codincodv2/assets/js/ornament/nemos.ts
   var GROUP_LEAST = 2;
   var GROUP_SPAN = 3;
   var RANK_STEP = 0.16;
@@ -2450,14 +2537,14 @@ var __ornament = (() => {
   var NERVE_BOLD = 0.34;
   var NERVE_RUNG = 0.3;
   var NERVE_JUMPY = 1.2;
-  var BODY = 0.4;
+  var BODY = 0.3;
   var BODY_SPAN = 0.3;
   var PACE = 2.6;
   var HOVER2 = 0.35;
   var BOLT2 = 2.2;
   var HOLD_LEAST2 = 0.6;
   var HOLD_SPAN2 = 1.9;
-  var RANGE = 9;
+  var RANGE2 = 9;
   var ARRIVE = 0.6;
   var CLEAR = 0.9;
   var EASE = 4.5;
@@ -2482,7 +2569,7 @@ var __ornament = (() => {
     const nemos = [];
     const anemones = () => reef.heads.filter((one) => one.kind === "anemone");
     function station3(one) {
-      const reach2 = RANGE * one.length;
+      const reach2 = RANGE2 * one.length;
       for (let tries = 0; tries < TRIES; tries++) {
         const angle = random() * Math.PI * 2;
         const out = Math.sqrt(random()) * reach2;
@@ -2595,7 +2682,7 @@ var __ornament = (() => {
       const toY = at.y - one.host.y;
       const away2 = Math.hypot(toX, toY);
       if (away2 < 1) return home;
-      const out = Math.min(away2, RANGE * one.length);
+      const out = Math.min(away2, RANGE2 * one.length);
       for (let back = TRIES; back >= 1; back--) {
         const reach2 = out * (back / TRIES);
         const x = one.host.x + toX / away2 * reach2;
@@ -2647,14 +2734,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/sizes.ts
-  var AT_ARM = 0.15;
-  var SWIMMING_OFF = 8;
-  function drawnAt(metres, off) {
-    return AT_ARM * Math.sqrt(Math.max(metres, 0) / Math.max(off, 1e-3));
-  }
-
-  // ../../codincodv2/assets/js/ornament/passers.ts
+  // ../codincodv2/assets/js/ornament/passers.ts
   var BOAT_OFF = 30;
   var SUB_OFF = 150;
   var FADE = 0.16;
@@ -2885,18 +2965,7 @@ var __ornament = (() => {
     return { reach: 1 - (1 - t) ** 2, weight: (1 - t) ** 1.6 };
   }
 
-  // ../../codincodv2/assets/js/ornament/plenty.ts
-  var LEAN = 0.55;
-  var RANGE2 = 1.75;
-  var BIAS = 2;
-  function thriving(seed, at = 0) {
-    const random = makeRandom((seed ^ 24301) + at * 40503);
-    random();
-    random();
-    return LEAN + RANGE2 * random() ** BIAS;
-  }
-
-  // ../../codincodv2/assets/js/ornament/rays.ts
+  // ../codincodv2/assets/js/ornament/rays.ts
   var SPREAD = 2.4;
   function fade(down) {
     const along2 = Math.min(Math.max(down, 0), 1);
@@ -2965,7 +3034,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/reef.ts
+  // ../codincodv2/assets/js/ornament/reef.ts
   var SORTS = {
     /** Soft, sheltered, and the only thing here anything lives inside. */
     anemone: {
@@ -3169,7 +3238,7 @@ var __ornament = (() => {
   var SWELL_RATE = 0.55;
   var SWELL_CELLS = 1.8;
   var SWELL_SHARE = 0.6;
-  var ROOT2 = { x: 0, y: 0 };
+  var ROOT3 = { x: 0, y: 0 };
   var MOUTH = { x: 0, y: -COLUMN };
   var TOLERANCE3 = 0.25;
   var REACHES2 = (() => {
@@ -3251,7 +3320,7 @@ var __ornament = (() => {
           kind,
           lane: roll() * Math.PI * 2,
           lean: (roll() - 0.5) * LEAN2 * 2,
-          points: tentacles ? [ROOT2, MOUTH] : [],
+          points: tentacles ? [ROOT3, MOUTH] : [],
           scale,
           span,
           twigs: gathered(SHAPES[kind]),
@@ -3324,8 +3393,8 @@ var __ornament = (() => {
         (one.x - middle) / Math.max(MIN_SPAN7, half2) * SWELL_CELLS,
         clock * SWELL_RATE
       );
-      const own = Math.sin(clock * Math.PI * 2 * SWELL_RATE + one.lane);
-      return sway * (passing * SWELL_SHARE + own * (1 - SWELL_SHARE));
+      const own2 = Math.sin(clock * Math.PI * 2 * SWELL_RATE + one.lane);
+      return sway * (passing * SWELL_SHARE + own2 * (1 - SWELL_SHARE));
     }
     function wander(at, bend2, phase2) {
       var _a2;
@@ -3386,7 +3455,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/relics.ts
+  // ../codincodv2/assets/js/ornament/relics.ts
   var ODDS2 = {
     block: 0.34,
     chest: 0.1,
@@ -3522,7 +3591,7 @@ var __ornament = (() => {
     "M-0.3 -1.5 L-0.08 -1.53 L-0.08 -1.45 L-0.3 -1.42 Z"
   ];
 
-  // ../../codincodv2/assets/js/ornament/seabed.ts
+  // ../codincodv2/assets/js/ornament/seabed.ts
   var FLOOR_SEAT = 0.01;
   var FLOOR_ROLL = 0.085;
   var HORIZON_SEAT = 0.36;
@@ -3687,7 +3756,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/sun.ts
+  // ../codincodv2/assets/js/ornament/sun.ts
   var RAD = Math.PI / 180;
   var J2000_OFFSET_DAYS = 10957.5;
   var DAY_MS = 864e5;
@@ -3704,35 +3773,89 @@ var __ornament = (() => {
     Indian: -15,
     Pacific: -20
   };
-  var ZONE_LATITUDE = {
-    "Africa/Cairo": 30,
-    "Africa/Johannesburg": -26,
-    "Africa/Lagos": 6,
-    "Africa/Nairobi": -1,
-    "America/Bogota": 5,
-    "America/Lima": -12,
-    "America/Santiago": -33,
-    "America/Sao_Paulo": -23,
-    "Asia/Jakarta": -6,
-    "Asia/Kolkata": 22,
-    "Asia/Singapore": 1,
-    "Pacific/Auckland": -37,
-    "Pacific/Fiji": -18,
-    "Pacific/Honolulu": 21
+  var ZONE_PLACE = {
+    "Africa/Cairo": [30, 31.2],
+    "Africa/Casablanca": [33.6, -7.6],
+    "Africa/Johannesburg": [-26.2, 28],
+    "Africa/Lagos": [6.5, 3.4],
+    "Africa/Nairobi": [-1.3, 36.8],
+    "America/Argentina/Buenos_Aires": [-34.6, -58.4],
+    "America/Bogota": [4.7, -74.1],
+    "America/Chicago": [41.9, -87.6],
+    "America/Denver": [39.7, -105],
+    "America/Halifax": [44.6, -63.6],
+    "America/Lima": [-12, -77],
+    "America/Los_Angeles": [34.1, -118.2],
+    "America/Mexico_City": [19.4, -99.1],
+    "America/New_York": [40.7, -74],
+    "America/Phoenix": [33.4, -112.1],
+    "America/Santiago": [-33.4, -70.7],
+    "America/Sao_Paulo": [-23.5, -46.6],
+    "America/Toronto": [43.7, -79.4],
+    "America/Vancouver": [49.3, -123.1],
+    "Asia/Bangkok": [13.8, 100.5],
+    "Asia/Dubai": [25.2, 55.3],
+    "Asia/Hong_Kong": [22.3, 114.2],
+    "Asia/Jakarta": [-6.2, 106.8],
+    "Asia/Jerusalem": [31.8, 35.2],
+    "Asia/Karachi": [24.9, 67],
+    "Asia/Kolkata": [22.6, 88.4],
+    "Asia/Manila": [14.6, 121],
+    "Asia/Seoul": [37.6, 127],
+    "Asia/Shanghai": [31.2, 121.5],
+    "Asia/Singapore": [1.3, 103.8],
+    "Asia/Taipei": [25, 121.5],
+    "Asia/Tehran": [35.7, 51.4],
+    "Asia/Tokyo": [35.7, 139.7],
+    "Atlantic/Reykjavik": [64.1, -21.9],
+    "Australia/Brisbane": [-27.5, 153],
+    "Australia/Melbourne": [-37.8, 145],
+    "Australia/Perth": [-31.9, 115.9],
+    "Australia/Sydney": [-33.9, 151.2],
+    "Europe/Amsterdam": [52.4, 4.9],
+    "Europe/Athens": [38, 23.7],
+    "Europe/Berlin": [52.5, 13.4],
+    "Europe/Brussels": [50.8, 4.4],
+    "Europe/Bucharest": [44.4, 26.1],
+    "Europe/Dublin": [53.3, -6.3],
+    "Europe/Helsinki": [60.2, 24.9],
+    "Europe/Istanbul": [41, 29],
+    "Europe/Kyiv": [50.5, 30.5],
+    "Europe/Lisbon": [38.7, -9.1],
+    "Europe/London": [51.5, -0.1],
+    "Europe/Madrid": [40.4, -3.7],
+    "Europe/Moscow": [55.8, 37.6],
+    "Europe/Oslo": [59.9, 10.8],
+    "Europe/Paris": [48.9, 2.4],
+    "Europe/Prague": [50.1, 14.4],
+    "Europe/Rome": [41.9, 12.5],
+    "Europe/Stockholm": [59.3, 18.1],
+    "Europe/Vienna": [48.2, 16.4],
+    "Europe/Warsaw": [52.2, 21],
+    "Europe/Zurich": [47.4, 8.5],
+    "Pacific/Auckland": [-36.9, 174.8],
+    "Pacific/Fiji": [-18.1, 178.4],
+    "Pacific/Honolulu": [21.3, -157.9]
   };
   function position(now) {
     var _a, _b, _c;
-    const longitude = clamp2(-now.getTimezoneOffset() / 4, -180, 180);
+    const longitude = clamp2(-standard(now) / 4, -180, 180);
     let zone = "";
     try {
       zone = (_a = Intl.DateTimeFormat().resolvedOptions().timeZone) != null ? _a : "";
     } catch (e) {
       zone = "";
     }
-    const override = Object.entries(ZONE_LATITUDE).find(([name]) => zone.startsWith(name));
-    if (override) return { latitude: override[1], longitude };
+    const place = ZONE_PLACE[zone];
+    if (place) return { latitude: place[0], longitude: place[1] };
     const region = (_b = zone.split("/")[0]) != null ? _b : "";
     return { latitude: (_c = REGION_LATITUDE[region]) != null ? _c : 45, longitude };
+  }
+  function standard(now) {
+    const year = now.getFullYear();
+    const january = new Date(year, 0, 1).getTimezoneOffset();
+    const july = new Date(year, 6, 1).getTimezoneOffset();
+    return Math.max(january, july);
   }
   function epochDays(now) {
     return now.getTime() / DAY_MS - J2000_OFFSET_DAYS;
@@ -3781,13 +3904,13 @@ var __ornament = (() => {
     return { lit: (1 - Math.cos(elongation)) / 2, waxing: elongation > 0 };
   }
   function crescent(x, y, radius, { lit, waxing }) {
-    const limb = waxing ? 1 : 0;
-    const terminator = lit > 0.5 ? limb : 1 - limb;
+    const limb2 = waxing ? 1 : 0;
+    const terminator = lit > 0.5 ? limb2 : 1 - limb2;
     const waist = round(radius * Math.abs(2 * lit - 1));
     const r = round(radius);
     const top = `${round(x)} ${round(y - radius)}`;
     const foot = `${round(x)} ${round(y + radius)}`;
-    return `M${top}A${r} ${r} 0 0 ${limb} ${foot}A${waist} ${r} 0 0 ${terminator} ${top}Z`;
+    return `M${top}A${r} ${r} 0 0 ${limb2} ${foot}A${waist} ${r} 0 0 ${terminator} ${top}Z`;
   }
   function sunlit(x, y, { lit, waxing }) {
     const across = waxing ? x : -x;
@@ -3820,9 +3943,10 @@ var __ornament = (() => {
     return Math.round(value * 1e3) / 1e3;
   }
 
-  // ../../codincodv2/assets/js/ornament/swarm.ts
+  // ../codincodv2/assets/js/ornament/swarm.ts
   var LAYOUTS = {
     ball: {
+      across: 8,
       churn: 0.05,
       crowd: 0.6,
       seatLeast: 0.18,
@@ -3834,6 +3958,7 @@ var __ornament = (() => {
       wide: 0.12
     },
     ceiling: {
+      across: 45,
       churn: 0.015,
       crowd: 1,
       seatLeast: 0.04,
@@ -3845,6 +3970,7 @@ var __ornament = (() => {
       wide: 0.75
     },
     ribbon: {
+      across: 22,
       churn: 0.03,
       crowd: 0.8,
       seatLeast: 0.2,
@@ -3864,8 +3990,8 @@ var __ornament = (() => {
   var DEEP_LEAST = 0.3;
   var DEEP_SPAN = 0.5;
   var DEPTH_SIZE4 = 0.7;
-  var SHORTEST2 = 3.4;
-  var LONGEST2 = 7.5;
+  var FISH_LONG = 0.11;
+  var FISH_ODD = 0.22;
   var FIDGET = 0.055;
   var FIDGET_RATE = 0.55;
   var FIDGET_CELLS = 2.6;
@@ -3935,7 +4061,7 @@ var __ornament = (() => {
       homes.length = 0;
       for (let made = 0; made < count; made++) {
         homes.push(__spreadValues({
-          long: SHORTEST2 + random() * (LONGEST2 - SHORTEST2),
+          long: 1 - FISH_ODD + random() * FISH_ODD * 2,
           pushX: 0,
           pushY: 0
         }, place()));
@@ -3969,6 +4095,7 @@ var __ornament = (() => {
       const wide = width * layout.wide;
       const tall = width * layout.tall;
       const thick = layout.thick;
+      const mark = wide * 2 / layout.across * FISH_LONG;
       const cos = Math.cos(spin);
       const sin = Math.sin(spin);
       const fall = HOMED * dt;
@@ -4005,7 +4132,7 @@ var __ornament = (() => {
           one.tilt += turn * Math.min(1, TILT_EASE * dt);
         }
         one.depth = Math.max(0.05, Math.min(1, deep + w * thick));
-        one.size = home.long * (1 - DEPTH_SIZE4 + DEPTH_SIZE4 * one.depth);
+        one.size = home.long * mark * (1 - DEPTH_SIZE4 + DEPTH_SIZE4 * one.depth);
         one.x = nextX;
         one.y = nextY;
       }
@@ -4050,7 +4177,7 @@ var __ornament = (() => {
     };
   }
 
-  // ../../codincodv2/assets/js/ornament/visitors.ts
+  // ../codincodv2/assets/js/ornament/visitors.ts
   var HABITS2 = {
     dolphin: {
       beat: 1.05,
@@ -4058,7 +4185,6 @@ var __ornament = (() => {
       farSpan: 0.45,
       heft: 0.5,
       menace: 0.35,
-      odds: 3,
       party: 2,
       partySpan: 3,
       seatLeast: 0.08,
@@ -4074,7 +4200,6 @@ var __ornament = (() => {
       farSpan: 0.45,
       heft: 0.35,
       menace: 0,
-      odds: 2,
       party: 1,
       partySpan: 0,
       seatLeast: 0.12,
@@ -4084,13 +4209,27 @@ var __ornament = (() => {
       takeLeast: 30,
       takeSpan: 16
     },
+    mermaid: {
+      beat: 0.62,
+      farLeast: 0.5,
+      farSpan: 0.38,
+      heft: 0.35,
+      menace: 0,
+      party: 1,
+      partySpan: 0,
+      seatLeast: 0.2,
+      seatSpan: 0.3,
+      sizeLeast: drawnAt(1.9, SWIMMING_OFF),
+      sizeSpan: drawnAt(2.4, SWIMMING_OFF) - drawnAt(1.9, SWIMMING_OFF),
+      takeLeast: 26,
+      takeSpan: 14
+    },
     shark: {
       beat: 0.42,
       farLeast: 0.3,
       farSpan: 0.45,
       heft: 0.6,
       menace: 0.9,
-      odds: 2,
       party: 1,
       partySpan: 1,
       seatLeast: 0.34,
@@ -4106,7 +4245,6 @@ var __ornament = (() => {
       farSpan: 0.5,
       heft: 0.3,
       menace: 0,
-      odds: 4,
       party: 1,
       partySpan: 0,
       seatLeast: 0.24,
@@ -4120,6 +4258,7 @@ var __ornament = (() => {
   var COURSES = {
     dolphin: { rise: -0.03, roll: 0.07, waves: 2.6 },
     manta: { rise: -0.02, roll: 0.05, waves: 0.8 },
+    mermaid: { rise: -0.08, roll: 0.06, waves: 1.5 },
     shark: { rise: 0, roll: 0.03, waves: 0.6 },
     turtle: { rise: -0.2, roll: 0.04, waves: 1.1 }
   };
@@ -4137,11 +4276,18 @@ var __ornament = (() => {
   var FELT = 0.34;
   var MIN_SPAN11 = 1;
   var SEEN2 = 0.05;
+  var MERMAID_DAYS = 1 / 30;
+  var MERMAID_PLACE = 3;
   function createVisitors(options) {
     var _a, _b, _c;
     const random = makeRandom(options.seed ^ 29093);
-    const kinds = (_a = options.kinds) != null ? _a : ["dolphin", "manta", "shark", "turtle"];
+    const kinds = (_a = options.kinds) != null ? _a : ["dolphin", "manta", "mermaid", "shark", "turtle"];
     const eager = (_b = options.eager) != null ? _b : false;
+    const pool = kinds.filter((kind) => kind !== "mermaid");
+    const drawn2 = pool.length > 0 ? pool : kinds;
+    const plan = makeRandom(stir(options.seed ^ 19809));
+    const owed = kinds.includes("mermaid") && pool.length > 0 && plan() < MERMAID_DAYS ? Math.floor(plan() * MERMAID_PLACE) : -1;
+    let parties = 0;
     let width = Math.max(MIN_SPAN11, options.width);
     let height = Math.max(MIN_SPAN11, options.height);
     const crossing = [];
@@ -4159,19 +4305,20 @@ var __ornament = (() => {
         y: one.y
       }))
     );
+    const shares = mixOf(drawn2, options.seed);
     function which() {
       var _a2;
       let total = 0;
-      for (const kind of kinds) total += HABITS2[kind].odds;
+      for (const kind of drawn2) total += shares[kind];
       let at = random() * total;
-      for (const kind of kinds) {
-        at -= HABITS2[kind].odds;
+      for (const kind of drawn2) {
+        at -= shares[kind];
         if (at <= 0) return kind;
       }
-      return (_a2 = kinds[0]) != null ? _a2 : "turtle";
+      return (_a2 = drawn2[0]) != null ? _a2 : "turtle";
     }
     function arrive() {
-      const kind = which();
+      const kind = parties++ === owed ? "mermaid" : which();
       const habit = HABITS2[kind];
       const facing = random() < 0.5 ? -1 : 1;
       const far = habit.farLeast + random() * habit.farSpan;
@@ -4285,13 +4432,28 @@ var __ornament = (() => {
   ];
   var JOINTS = {
     dolphin: -0.62,
+    mermaid: -0.62,
     shark: -0.58
   };
   var SWEEP4 = {
     dolphin: { sweep: 0.075, waves: 0.62 },
+    mermaid: { sweep: 0.105, waves: 0.58 },
     shark: { sweep: 0.085, waves: 0.78 }
   };
-  var envelope2 = (u) => 0.16 - 0.7 * u + 1.54 * u * u;
+  var finned = (u) => 0.16 - 0.7 * u + 1.54 * u * u;
+  var waisted = (u) => 0.05 + 0.95 * u ** 2.4;
+  var ENVELOPES = {
+    dolphin: finned,
+    mermaid: waisted,
+    shark: finned
+  };
+  var MERMAID_ARCH = 0.52;
+  var MERMAID_RIDE = 0.21;
+  var CAMBERS = {
+    dolphin: () => 0,
+    mermaid: (u) => MERMAID_ARCH * u * u * (3 - 2 * u) - MERMAID_RIDE,
+    shark: () => 0
+  };
   var SLOPE2 = 0.05;
   var CURVE_STEPS = 8;
   var fixed2 = (value) => (Math.abs(value) < 5e-4 ? 0 : value).toFixed(3);
@@ -4329,9 +4491,11 @@ var __ornament = (() => {
     const { sweep, waves } = SWEEP4[kind];
     const joint = JOINTS[kind];
     const run = 1 - joint;
+    const camber = CAMBERS[kind];
+    const envelope2 = ENVELOPES[kind];
     const at = (x) => {
       const u = Math.max(0, Math.min(1, (1 - x) / run));
-      return sweep * envelope2(u) * Math.sin(2 * Math.PI * waves * u - phase2);
+      return camber(u) + sweep * envelope2(u) * Math.sin(2 * Math.PI * waves * u - phase2);
     };
     const angleAt = (x) => Math.atan2(at(x + SLOPE2) - at(x - SLOPE2), 2 * SLOPE2);
     return {
@@ -4352,7 +4516,7 @@ var __ornament = (() => {
       over.push(spine2.clear(station3.x, station3.over));
       under.push(spine2.clear(station3.x, -station3.under));
     }
-    return rounded2([...over, ...under.reverse()]) + fins(spine2);
+    return rounded2([...over, ...under.reverse()]) + fins(spine2, phase2);
   }
   function hung(spine2) {
     const angle = spine2.angleAt(spine2.joint);
@@ -4522,18 +4686,167 @@ var __ornament = (() => {
       [-0.86, 0.035]
     ]);
   }
+  var MERMAID = [
+    { over: 0.04, under: 0.037, x: 0.83 },
+    { over: 0.036, under: 0.033, x: 0.765 },
+    { over: 0.082, under: 0.055, x: 0.685 },
+    { over: 0.08, under: 0.082, x: 0.6 },
+    { over: 0.078, under: 0.128, x: 0.52 },
+    { over: 0.074, under: 0.115, x: 0.46 },
+    { over: 0.05, under: 0.05, x: 0.34 },
+    { over: 0.046, under: 0.046, x: 0.29 },
+    { over: 0.125, under: 0.14, x: 0.12 },
+    { over: 0.125, under: 0.132, x: -0.02 },
+    { over: 0.105, under: 0.105, x: -0.18 },
+    { over: 0.078, under: 0.076, x: -0.34 },
+    { over: 0.05, under: 0.048, x: -0.48 },
+    { over: 0.028, under: 0.026, x: -0.62 }
+  ];
+  var HEAD = [
+    [1.046, -0.08],
+    [0.999, -0.132],
+    [0.929, -0.153],
+    [0.852, -0.142],
+    [0.785, -0.089],
+    [0.773, -0.01],
+    [0.824, 0.049],
+    [0.903, 0.066],
+    [0.981, 0.045],
+    [1.038, -0.011]
+  ];
+  var HAIR_WAVES = 1.15;
+  var HAIR_ROOT = 0.9;
+  var HAIR_STEPS = 9;
+  var HAIR_FALL = 0.12;
+  var HAIR_REACH = 0.9;
+  var HAIR_SPREAD = 0.9;
+  function streaming(back) {
+    return HAIR_FALL * Math.min(1, Math.max(0, back) / HAIR_REACH) ** 1.3 - 0.105;
+  }
+  var LOCKS = [
+    { at: 0.95, dense: true, lift: 0.035, long: 0.42, off: 0.2, swing: 0.02, wide: 0.05 },
+    { at: 0.93, dense: true, lift: -5e-3, long: 0.55, off: 0.8, swing: 0.03, wide: 0.052 },
+    { at: 0.91, dense: true, lift: -0.032, long: 0.5, off: 1.5, swing: 0.035, wide: 0.048 },
+    { at: 0.89, dense: true, lift: -0.052, long: 0.4, off: 2.2, swing: 0.03, wide: 0.04 },
+    { at: 0.93, dense: false, lift: 0.035, long: 0.72, off: 2, swing: 0.05, wide: 0.032 },
+    { at: 0.89, dense: false, lift: -0.06, long: 0.86, off: 2.6, swing: 0.075, wide: 0.03 },
+    { at: 0.92, dense: false, lift: -5e-3, long: 0.95, off: 3.3, swing: 0.06, wide: 0.034 },
+    { at: 0.86, dense: false, lift: -0.075, long: 0.68, off: 4, swing: 0.085, wide: 0.024 },
+    { at: 0.9, dense: false, lift: 0.05, long: 1.04, off: 4.7, swing: 0.07, wide: 0.026 },
+    { at: 0.88, dense: false, lift: -0.035, long: 1.12, off: 5.5, swing: 0.09, wide: 0.022 }
+  ];
+  function lock(spine2, phase2, hair2) {
+    const crown2 = spine2.at(HAIR_ROOT);
+    const over = [];
+    const under = [];
+    for (let step = 0; step <= HAIR_STEPS; step += 1) {
+      const along2 = step / HAIR_STEPS;
+      const back = HAIR_ROOT - hair2.at + hair2.long * along2;
+      const wave2 = Math.sin(2 * Math.PI * HAIR_WAVES * along2 * hair2.long - phase2 - hair2.off);
+      const half2 = hair2.wide * (1 - along2) ** 0.55;
+      const y = crown2 + streaming(back) + hair2.lift * (1 + HAIR_SPREAD * along2) + hair2.swing * along2 * along2 * wave2;
+      over.push([hair2.at - hair2.long * along2, y - half2]);
+      under.push([hair2.at - hair2.long * along2, y + half2]);
+    }
+    return rounded2([...over, ...under.reverse()]);
+  }
+  function hair(stroke, dense) {
+    const phase2 = stroke * Math.PI * 2;
+    const spine2 = bend("mermaid", phase2);
+    return LOCKS.filter((each) => each.dense === dense).map((each) => lock(spine2, phase2, each)).join("");
+  }
+  var UPPER_ARM = [
+    [0, 1],
+    [0.5, 0.88],
+    [1, 0.8]
+  ];
+  var FOREARM = [
+    [0, 0.86],
+    [0.42, 0.72],
+    [0.75, 0.58],
+    [1, 0.48]
+  ];
+  var HAND = [
+    [0, 0.72],
+    [0.32, 0.8],
+    [0.7, 0.72],
+    [1, 0.34]
+  ];
+  var ARM_SEAT = 0.58;
+  var ARM_SWING = 0.2;
+  var ARM_APART = 0.34;
+  var ARM_REACH = 0.5;
+  var ARM_GIRTH = 0.042;
+  var ARM_UPPER = 0.46;
+  var ARM_BEND = 0.5;
+  var ARM_WRIST = 0.34;
+  var ARM_HAND = 0.26;
+  var ARM_JOINT = 0.86;
+  var ARM_FAR = 0.84;
+  function limb(taper, root, angle, reach2, wide) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const at = (along2, off) => [
+      root[0] + along2 * cos - off * sin,
+      root[1] + along2 * sin + off * cos
+    ];
+    return rounded2([
+      ...taper.map(([along2, thick]) => at(along2 * reach2, thick * wide)),
+      ...[...taper].reverse().map(([along2, thick]) => at(along2 * reach2, -thick * wide))
+    ]);
+  }
+  function mermaidFins(spine2, phase2) {
+    const carry = hung(spine2);
+    const arm = (turn, reach2, under) => {
+      const root = spine2.clear(0.6, -0.04);
+      const shoulder = ARM_SEAT + under + ARM_SWING * Math.sin(turn);
+      const upper = reach2 * ARM_UPPER;
+      const held = shoulder - ARM_BEND;
+      const elbow = [
+        root[0] + Math.cos(shoulder) * upper,
+        root[1] + Math.sin(shoulder) * upper
+      ];
+      const wrist = [
+        elbow[0] + Math.cos(held) * (reach2 - upper) * ARM_JOINT,
+        elbow[1] + Math.sin(held) * (reach2 - upper) * ARM_JOINT
+      ];
+      return limb(UPPER_ARM, root, shoulder, upper, ARM_GIRTH) + limb(FOREARM, elbow, held, reach2 - upper, ARM_GIRTH * 0.9) + limb(HAND, wrist, held + ARM_WRIST, reach2 * ARM_HAND, ARM_GIRTH * 0.84);
+    };
+    return arm(phase2 + Math.PI, ARM_REACH * ARM_FAR, ARM_APART) + rounded2(HEAD.map(([x, y]) => spine2.clear(x, -y))) + hair(phase2 / (Math.PI * 2), true) + arm(phase2, ARM_REACH, 0) + blade(spine2.clear(-0.28, 0.06), 3.48, 0.22, 0.032, 0.055) + blade(spine2.clear(-0.28, -0.06), 2.66, 0.22, 0.032, -0.055) + rounded2([
+      carry([0.08, 0]),
+      carry([-0.03, -0.09]),
+      carry([-0.14, -0.2]),
+      carry([-0.26, -0.3]),
+      carry([-0.4, -0.36]),
+      carry([-0.38, -0.25]),
+      carry([-0.33, -0.14]),
+      carry([-0.26, -0.06]),
+      carry([-0.21, -0.02]),
+      carry([-0.18, 0]),
+      carry([-0.21, 0.02]),
+      carry([-0.26, 0.06]),
+      carry([-0.33, 0.14]),
+      carry([-0.38, 0.25]),
+      carry([-0.4, 0.36]),
+      carry([-0.26, 0.3]),
+      carry([-0.14, 0.2]),
+      carry([-0.03, 0.09])
+    ]);
+  }
+  var mermaidBody = (stroke) => swimmer("mermaid", MERMAID, stroke * Math.PI * 2, mermaidFins);
   var BODIES = {
     dolphin: dolphinBody,
     manta: mantaBody,
+    mermaid: mermaidBody,
     shark: sharkBody,
     turtle: turtleBody
   };
 
-  // ../../codincodv2/assets/js/ornament/walkers.ts
-  var CRAB_SMALLEST = 9;
-  var CRAB_LARGEST = 17;
-  var STARFISH_SMALLEST = 15;
-  var STARFISH_LARGEST = 31;
+  // ../codincodv2/assets/js/ornament/walkers.ts
+  var CRAB_SMALLEST = 0.06;
+  var CRAB_LARGEST = 0.14;
+  var STARFISH_SMALLEST = 0.18;
+  var STARFISH_LARGEST = 0.34;
   var DEPTH_SIZE6 = 0.55;
   var DEPTH_FAR7 = 0.12;
   var DEPTH_NEAR7 = 1;
@@ -4573,7 +4886,7 @@ var __ornament = (() => {
   var WEB = 0.44;
   var RIM = 44;
   var ODD_ARM = 0.22;
-  var ARM_REACH = 0.12;
+  var ARM_REACH2 = 0.12;
   var ARM_SLOWEST = 0.12;
   var ARM_FASTEST = 0.34;
   var FLATTEN = 0.46;
@@ -4654,7 +4967,8 @@ var __ornament = (() => {
       const crab = kind === "crab";
       const back = crab ? random() : random() ** STAR_BACK;
       const depth = DEPTH_FAR7 + back * (DEPTH_NEAR7 - DEPTH_FAR7);
-      const span = crab ? CRAB_SMALLEST + random() * (CRAB_LARGEST - CRAB_SMALLEST) : STARFISH_SMALLEST + random() * (STARFISH_LARGEST - STARFISH_SMALLEST);
+      const across = crab ? CRAB_SMALLEST + random() * (CRAB_LARGEST - CRAB_SMALLEST) : STARFISH_SMALLEST + random() * (STARFISH_LARGEST - STARFISH_SMALLEST);
+      const span = drawnAt(across, BED_OFF) * width;
       const size = span * (1 - DEPTH_SIZE6 + DEPTH_SIZE6 * depth);
       const x = random() * width;
       const odd = [];
@@ -4671,7 +4985,7 @@ var __ornament = (() => {
       const run = crab ? bout(going) : HOLD_LEAST3 + random() * HOLD_SPAN3;
       let quickest = 0;
       for (let at = 0; at < odd.length; at++) {
-        quickest = Math.max(quickest, ((_a2 = odd[at]) != null ? _a2 : 0) * ((_b = rates[at]) != null ? _b : 0) * ARM_REACH * ARM_TIP);
+        quickest = Math.max(quickest, ((_a2 = odd[at]) != null ? _a2 : 0) * ((_b = rates[at]) != null ? _b : 0) * ARM_REACH2 * ARM_TIP);
       }
       doings.push({
         arms,
@@ -4801,7 +5115,7 @@ var __ornament = (() => {
       one.body = starfishBody(
         doing.odd.map((odd, arm) => {
           var _a2;
-          return odd * (1 + Math.sin((_a2 = doing.arms[arm]) != null ? _a2 : 0) * ARM_REACH);
+          return odd * (1 + Math.sin((_a2 = doing.arms[arm]) != null ? _a2 : 0) * ARM_REACH2);
         })
       );
     }
