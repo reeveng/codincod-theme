@@ -4605,66 +4605,76 @@ var __ornament = (() => {
     ]);
   }
   var MERMAID = [
-    { over: 0.032, under: 0.03, x: 0.84 },
-    { over: 0.03, under: 0.028, x: 0.72 },
-    { over: 0.115, under: 0.088, x: 0.6 },
-    { over: 0.108, under: 0.118, x: 0.48 },
-    { over: 0.09, under: 0.095, x: 0.37 },
-    { over: 0.058, under: 0.056, x: 0.26 },
-    { over: 0.058, under: 0.056, x: 0.22 },
-    { over: 0.105, under: 0.118, x: 0.06 },
-    { over: 0.1, under: 0.104, x: -0.08 },
-    { over: 0.08, under: 0.08, x: -0.24 },
-    { over: 0.058, under: 0.056, x: -0.4 },
-    { over: 0.038, under: 0.036, x: -0.52 },
+    { over: 0.042, under: 0.038, x: 0.83 },
+    { over: 0.038, under: 0.035, x: 0.765 },
+    { over: 0.094, under: 0.062, x: 0.685 },
+    { over: 0.092, under: 0.09, x: 0.58 },
+    { over: 0.09, under: 0.142, x: 0.5 },
+    { over: 0.086, under: 0.13, x: 0.45 },
+    { over: 0.078, under: 0.082, x: 0.37 },
+    { over: 0.048, under: 0.048, x: 0.28 },
+    { over: 0.048, under: 0.048, x: 0.24 },
+    { over: 0.12, under: 0.132, x: 0.08 },
+    { over: 0.112, under: 0.118, x: -0.04 },
+    { over: 0.086, under: 0.086, x: -0.2 },
+    { over: 0.06, under: 0.058, x: -0.36 },
+    { over: 0.04, under: 0.038, x: -0.5 },
     { over: 0.024, under: 0.022, x: -0.62 }
   ];
   var HEAD = [
-    [1.04, -0.03],
-    [1, -0.085],
-    [0.94, -0.113],
-    [0.868, -0.115],
-    [0.798, -0.078],
-    [0.775, -0.01],
-    [0.815, 0.052],
-    [0.885, 0.08],
-    [0.96, 0.072],
-    [1.022, 0.028]
+    [1.027, -0.091],
+    [0.986, -0.136],
+    [0.927, -0.155],
+    [0.86, -0.146],
+    [0.802, -0.101],
+    [0.791, -0.034],
+    [0.834, 0.018],
+    [0.902, 0.034],
+    [0.969, 0.016],
+    [1.019, -0.032]
   ];
   var HAIR = [
-    [0.86, 0.07],
-    [0.78, 0.062],
-    [0.7, 0.115],
-    [0.58, 0.185],
-    [0.44, 0.2],
-    [0.28, 0.185],
-    [0.14, 0.155],
-    [0.03, 0.12],
-    [0.14, 0.02],
-    [0.28, 8e-3],
-    [0.44, 0.025],
-    [0.58, 0.04],
-    [0.7, 0],
+    [0.87, 0.115],
+    [0.79, 0.075],
+    [0.71, 0.105],
+    [0.6, 0.145],
+    [0.46, 0.155],
+    [0.32, 0.15],
+    [0.18, 0.135],
+    [0.04, 0.12],
+    [-0.24, 0.115],
+    [0, 0.02],
+    [0.18, 0.02],
+    [0.32, 0.015],
+    [0.46, 0.03],
+    [0.6, 0.045],
+    [0.71, 0.02],
     [0.8, 0]
   ];
   var HAIR_SWING = 0.05;
   var HAIR_WAVES = 0.85;
-  var ARM = [
+  var UPPER_ARM = [
     [0, 1],
-    [0.3, 0.82],
-    [0.55, 0.7],
-    [0.72, 0.56],
-    [0.82, 0.82],
-    [0.95, 0.62],
+    [0.5, 0.88],
+    [1, 0.8]
+  ];
+  var FOREARM = [
+    [0, 0.82],
+    [0.45, 0.64],
+    [0.68, 0.52],
+    [0.8, 0.74],
+    [0.93, 0.58],
     [1, 0.16]
   ];
-  var ARM_SEAT = 0.5;
+  var ARM_SEAT = 0.72;
   var ARM_SWING = 0.18;
-  var ARM_APART = 0.5;
-  var ARM_REACH = 0.5;
-  var ARM_GIRTH = 0.044;
+  var ARM_APART = 0.3;
+  var ARM_REACH = 0.46;
+  var ARM_GIRTH = 0.042;
+  var ARM_UPPER = 0.46;
+  var ARM_BEND = 0.55;
   var ARM_FAR = 0.84;
-  function limb(root, angle, reach2, wide) {
+  function limb(taper, root, angle, reach2, wide) {
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     const at = (along2, off) => [
@@ -4672,8 +4682,8 @@ var __ornament = (() => {
       root[1] + along2 * sin + off * cos
     ];
     return rounded2([
-      ...ARM.map(([along2, thick]) => at(along2 * reach2, thick * wide)),
-      ...[...ARM].reverse().map(([along2, thick]) => at(along2 * reach2, -thick * wide))
+      ...taper.map(([along2, thick]) => at(along2 * reach2, thick * wide)),
+      ...[...taper].reverse().map(([along2, thick]) => at(along2 * reach2, -thick * wide))
     ]);
   }
   function mermaidFins(spine2, phase2) {
@@ -4683,26 +4693,35 @@ var __ornament = (() => {
       const wave2 = HAIR_SWING * back * Math.sin(2 * Math.PI * HAIR_WAVES * back - phase2);
       return spine2.clear(x, lift + wave2);
     };
-    const arm = (turn, reach2, under) => limb(spine2.clear(0.56, -0.022), ARM_SEAT + under + ARM_SWING * Math.sin(turn), reach2, ARM_GIRTH);
-    return arm(phase2 + Math.PI, ARM_REACH * ARM_FAR, ARM_APART) + rounded2(HAIR.map(flow)) + rounded2(HEAD.map(([x, y]) => spine2.clear(x, -y))) + arm(phase2, ARM_REACH, 0) + blade(spine2.clear(-0.32, 0.05), 3.55, 0.2, 0.032, 0.028) + blade(spine2.clear(-0.32, -0.05), 2.73, 0.2, 0.032, -0.028) + rounded2([
+    const arm = (turn, reach2, under) => {
+      const root = spine2.clear(0.62, -0.035);
+      const shoulder = ARM_SEAT + under + ARM_SWING * Math.sin(turn);
+      const upper = reach2 * ARM_UPPER;
+      const elbow = [
+        root[0] + Math.cos(shoulder) * upper,
+        root[1] + Math.sin(shoulder) * upper
+      ];
+      return limb(UPPER_ARM, root, shoulder, upper, ARM_GIRTH) + limb(FOREARM, elbow, shoulder - ARM_BEND, reach2 - upper, ARM_GIRTH * 0.9);
+    };
+    return arm(phase2 + Math.PI, ARM_REACH * ARM_FAR, ARM_APART) + rounded2(HAIR.map(flow)) + rounded2(HEAD.map(([x, y]) => spine2.clear(x, -y))) + arm(phase2, ARM_REACH, 0) + blade(spine2.clear(-0.32, 0.05), 3.55, 0.17, 0.03, 0.026) + blade(spine2.clear(-0.32, -0.05), 2.73, 0.17, 0.03, -0.026) + rounded2([
       carry([0.08, 0]),
-      carry([-0.02, -0.09]),
-      carry([-0.17, -0.22]),
-      carry([-0.32, -0.35]),
-      carry([-0.48, -0.44]),
-      carry([-0.4, -0.3]),
-      carry([-0.31, -0.19]),
-      carry([-0.24, -0.09]),
-      carry([-0.19, -0.03]),
-      carry([-0.17, 0]),
-      carry([-0.19, 0.03]),
-      carry([-0.24, 0.09]),
-      carry([-0.31, 0.19]),
-      carry([-0.4, 0.3]),
-      carry([-0.48, 0.44]),
-      carry([-0.32, 0.35]),
-      carry([-0.17, 0.22]),
-      carry([-0.02, 0.09])
+      carry([-0.02, -0.08]),
+      carry([-0.14, -0.18]),
+      carry([-0.27, -0.28]),
+      carry([-0.4, -0.35]),
+      carry([-0.36, -0.24]),
+      carry([-0.29, -0.15]),
+      carry([-0.23, -0.07]),
+      carry([-0.18, -0.02]),
+      carry([-0.16, 0]),
+      carry([-0.18, 0.02]),
+      carry([-0.23, 0.07]),
+      carry([-0.29, 0.15]),
+      carry([-0.36, 0.24]),
+      carry([-0.4, 0.35]),
+      carry([-0.27, 0.28]),
+      carry([-0.14, 0.18]),
+      carry([-0.02, 0.08])
     ]);
   }
   var mermaidBody = (stroke) => swimmer("mermaid", MERMAID, stroke * Math.PI * 2, mermaidFins);
