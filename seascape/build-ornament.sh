@@ -59,7 +59,7 @@ WANTED=(
   "shoal SPECIES WILD createShoal daySeed freshSeed"
   "sun crescent sunlit sunNow"
   "swarm createSwarm"
-  "visitors BODIES createVisitors"
+  "visitors BODIES VEILS VEIL_INK createVisitors"
   "walkers CRAB_SHELL crabLegs crabShell createWalkers starfishBody"
 )
 

@@ -21,7 +21,12 @@ import {
 } from "../../../codincodv2/assets/js/ornament/passers.ts"
 import { SPECIES, type Shoal } from "../../../codincodv2/assets/js/ornament/shoal.ts"
 import type { Swarm } from "../../../codincodv2/assets/js/ornament/swarm.ts"
-import { BODIES, type Visitors } from "../../../codincodv2/assets/js/ornament/visitors.ts"
+import {
+  BODIES,
+  VEIL_INK,
+  VEILS,
+  type Visitors,
+} from "../../../codincodv2/assets/js/ornament/visitors.ts"
 import { octopusArms, octopusHead, squidArms, squidBody } from "../../../codincodv2/assets/js/ornament/cephalopods.ts"
 import type { Walkers } from "../../../codincodv2/assets/js/ornament/walkers.ts"
 import { disc, ring } from "./light.ts"
@@ -32,6 +37,16 @@ import { trace } from "./trace.ts"
  *  keeps at the back of it. */
 const OPEN_WATER = 0.22
 const DEPTH_INK = 0.65
+
+/**
+ * How much further back a veil stands than the animal wearing it.
+ *
+ * Enough for the depth buffer to settle it and not enough to be a distance. The
+ * solid pass takes its turn by how far back a thing stands rather than by the
+ * order it arrived in, so two drawings at one depth is two drawings fighting
+ * over the same pixels.
+ */
+const BEHIND = 0.002
 
 /** The rest of the ceilings, each one thing's share of full ink. */
 const CRAWLER_INK = 0.42
@@ -168,6 +183,12 @@ export function paintSwarm(pen: Pen, flock: Swarm): void {
  * somewhere, and once in a very long while a thing that is none of those.
  * Heavier than a fish, because what is being read across the whole picture is
  * the shape, and a shape drawn at the shoal's weight is a smudge.
+ *
+ * One of them is not all body, and `VEILS` in the ornament says which and why.
+ * What it hands over is laid in first and a hair behind, so the animal's own
+ * outline takes the depth where the two overlap and only what is streaming
+ * clear of it is drawn sheer. Both or neither: a visitor drawn without the veil
+ * it declares is missing a part of itself rather than drawn more simply.
  */
 export function paintVisitors(pen: Pen, visitors: Visitors): void {
   let drawn = 0
@@ -177,17 +198,28 @@ export function paintVisitors(pen: Pen, visitors: Visitors): void {
     const weight = afloat(VISITOR_INK * guest.weight, guest.depth)
     if (weight <= 0.002) continue
 
-    pen.fill(trace(BODIES[guest.kind](guest.stroke)), {
-      lane: guest.depth,
-      shade: guest.y,
-      weight,
-    }, {
+    const spot = {
       facing: guest.facing,
       scale: guest.size,
       tilt: guest.tilt,
       x: guest.x,
       y: guest.y,
-    })
+    }
+
+    const veil = VEILS[guest.kind]?.(guest.stroke)
+    if (veil) {
+      pen.fill(trace(veil), {
+        lane: guest.depth - BEHIND,
+        shade: guest.y,
+        weight: weight * VEIL_INK,
+      }, spot)
+    }
+
+    pen.fill(trace(BODIES[guest.kind](guest.stroke)), {
+      lane: guest.depth,
+      shade: guest.y,
+      weight,
+    }, spot)
   }
 }
 

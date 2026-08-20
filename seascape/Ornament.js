@@ -73,6 +73,8 @@ var __ornament = (() => {
     STEPS: () => STEPS2,
     SUBMARINE: () => SUBMARINE,
     SUB_SCREW: () => SUB_SCREW,
+    VEILS: () => VEILS,
+    VEIL_INK: () => VEIL_INK,
     WILD: () => WILD,
     WRECK: () => WRECK,
     WRECK_SPAR: () => WRECK_SPAR,
@@ -4675,12 +4677,16 @@ var __ornament = (() => {
     [1, 0.8]
   ];
   var FOREARM = [
-    [0, 0.82],
-    [0.45, 0.64],
-    [0.68, 0.52],
-    [0.8, 0.74],
-    [0.93, 0.58],
-    [1, 0.16]
+    [0, 0.86],
+    [0.42, 0.72],
+    [0.75, 0.58],
+    [1, 0.48]
+  ];
+  var HAND = [
+    [0, 0.72],
+    [0.32, 0.8],
+    [0.7, 0.72],
+    [1, 0.34]
   ];
   var ARM_SEAT = 0.58;
   var ARM_SWING = 0.2;
@@ -4689,6 +4695,9 @@ var __ornament = (() => {
   var ARM_GIRTH = 0.042;
   var ARM_UPPER = 0.46;
   var ARM_BEND = 0.5;
+  var ARM_WRIST = 0.34;
+  var ARM_HAND = 0.26;
+  var ARM_JOINT = 0.86;
   var ARM_FAR = 0.84;
   function limb(taper, root, angle, reach2, wide) {
     const cos = Math.cos(angle);
@@ -4704,22 +4713,22 @@ var __ornament = (() => {
   }
   function mermaidFins(spine2, phase2) {
     const carry = hung(spine2);
-    const crown2 = spine2.at(HAIR_ROOT);
-    const flow = ([x, y]) => {
-      const back = Math.max(0, HAIR_ROOT - x);
-      return [x, crown2 + y - HAIR_SWING * back * Math.sin(2 * Math.PI * HAIR_WAVES * back - phase2)];
-    };
     const arm = (turn, reach2, under) => {
       const root = spine2.clear(0.6, -0.04);
       const shoulder = ARM_SEAT + under + ARM_SWING * Math.sin(turn);
       const upper = reach2 * ARM_UPPER;
+      const held = shoulder - ARM_BEND;
       const elbow = [
         root[0] + Math.cos(shoulder) * upper,
         root[1] + Math.sin(shoulder) * upper
       ];
-      return limb(UPPER_ARM, root, shoulder, upper, ARM_GIRTH) + limb(FOREARM, elbow, shoulder - ARM_BEND, reach2 - upper, ARM_GIRTH * 0.9);
+      const wrist = [
+        elbow[0] + Math.cos(held) * (reach2 - upper) * ARM_JOINT,
+        elbow[1] + Math.sin(held) * (reach2 - upper) * ARM_JOINT
+      ];
+      return limb(UPPER_ARM, root, shoulder, upper, ARM_GIRTH) + limb(FOREARM, elbow, held, reach2 - upper, ARM_GIRTH * 0.9) + limb(HAND, wrist, held + ARM_WRIST, reach2 * ARM_HAND, ARM_GIRTH * 0.84);
     };
-    return arm(phase2 + Math.PI, ARM_REACH * ARM_FAR, ARM_APART) + rounded2(HAIR.map(flow)) + rounded2(HEAD.map(([x, y]) => spine2.clear(x, -y))) + arm(phase2, ARM_REACH, 0) + blade(spine2.clear(-0.28, 0.06), 3.48, 0.22, 0.032, 0.055) + blade(spine2.clear(-0.28, -0.06), 2.8, 0.22, 0.032, -0.055) + rounded2([
+    return arm(phase2 + Math.PI, ARM_REACH * ARM_FAR, ARM_APART) + rounded2(HEAD.map(([x, y]) => spine2.clear(x, -y))) + arm(phase2, ARM_REACH, 0) + blade(spine2.clear(-0.28, 0.06), 3.48, 0.22, 0.032, 0.055) + blade(spine2.clear(-0.28, -0.06), 2.8, 0.22, 0.032, -0.055) + rounded2([
       carry([0.08, 0]),
       carry([-0.03, -0.09]),
       carry([-0.14, -0.2]),
@@ -4741,6 +4750,16 @@ var __ornament = (() => {
     ]);
   }
   var mermaidBody = (stroke) => swimmer("mermaid", MERMAID, stroke * Math.PI * 2, mermaidFins);
+  function mermaidHair(stroke) {
+    const phase2 = stroke * Math.PI * 2;
+    const spine2 = bend("mermaid", phase2);
+    const crown2 = spine2.at(HAIR_ROOT);
+    const flow = ([x, y]) => {
+      const back = Math.max(0, HAIR_ROOT - x);
+      return [x, crown2 + y - HAIR_SWING * back * Math.sin(2 * Math.PI * HAIR_WAVES * back - phase2)];
+    };
+    return rounded2(HAIR.map(flow));
+  }
   var BODIES = {
     dolphin: dolphinBody,
     manta: mantaBody,
@@ -4748,6 +4767,10 @@ var __ornament = (() => {
     shark: sharkBody,
     turtle: turtleBody
   };
+  var VEILS = {
+    mermaid: mermaidHair
+  };
+  var VEIL_INK = 0.55;
 
   // ../codincodv2/assets/js/ornament/walkers.ts
   var CRAB_SMALLEST = 9;
@@ -5119,6 +5142,8 @@ var sunlit = __ornament.sunlit
 var sunNow = __ornament.sunNow
 var createSwarm = __ornament.createSwarm
 var BODIES = __ornament.BODIES
+var VEILS = __ornament.VEILS
+var VEIL_INK = __ornament.VEIL_INK
 var createVisitors = __ornament.createVisitors
 var CRAB_SHELL = __ornament.CRAB_SHELL
 var crabLegs = __ornament.crabLegs

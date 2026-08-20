@@ -178,6 +178,12 @@ the one thing that surface may not be.
 
 - Nothing names a colour. Everything is drawn in the theme's accent and cut out
   in its background, so a theme switch recolours the sea.
+- A thing is one weight, because a body at this distance is one shape the light
+  stopped, and that is what a silhouette is. What is not a body says so: a fine
+  mass scatters light instead of stopping it, so it is handed over as a drawing
+  of its own and laid in behind at a share of the weight. `VEILS` in
+  `visitors.ts` is that, and it is a weight rather than a second colour, so the
+  rule above still holds.
 - Everything reads the same Perlin field, so the plants, the snow and the fish
   agree about which way the water is moving. That agreement is what makes it a
   sea rather than several animations sharing a rectangle.

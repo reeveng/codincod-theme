@@ -1961,8 +1961,10 @@ Item {
     var visited = []
     for (var t = 0; t < visitors.crossing.length && t < visitorSlots; t++) {
       var guest = visitors.crossing[t]
+      var sheer = Ornament.VEILS[guest.kind]
       visited.push({
         body: Ornament.BODIES[guest.kind](guest.stroke),
+        veil: sheer ? sheer(guest.stroke) : "",
         depth: guest.depth,
         facing: guest.facing,
         size: guest.size,
@@ -3846,6 +3848,14 @@ Item {
    *
    * Heavier than a fish. What is being read across the whole picture is the
    * shape, and a shape drawn at the shoal's weight is a smudge.
+   *
+   * One of them is not all body. `VEILS` in the ornament says which and why,
+   * and what it hands over is a second path drawn first and at a share of the
+   * weight, so the animal's own outline covers it where the two overlap and
+   * only what streams clear of the body comes out sheer. Two paths in one
+   * `Shape` rather than a `Repeater`, because a `ShapePath` is not an `Item`
+   * and a `Repeater` will not make one; the ornament declares at most one veil
+   * an animal, and this is that one.
    */
   Repeater {
     model: root.visitorSlots
@@ -3873,6 +3883,18 @@ Item {
 
       Shape {
         preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+          fillColor: root.afloat(
+            guest.one ? guest.one.y : 0,
+            guest.weight * Ornament.VEIL_INK,
+          )
+          fillRule: ShapePath.WindingFill
+          scale: root.drawn(guest.span)
+          strokeColor: "transparent"
+
+          PathSvg { path: guest.one ? guest.one.veil : "" }
+        }
 
         ShapePath {
           fillColor: root.afloat(guest.one ? guest.one.y : 0, guest.weight)

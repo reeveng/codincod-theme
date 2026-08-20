@@ -451,6 +451,19 @@ Window {
             preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
+              fillColor: Qt.rgba(win.ink.r, win.ink.g, win.ink.b, Ornament.VEIL_INK)
+              fillRule: ShapePath.WindingFill
+              scale: win.drawn(95)
+              strokeColor: "transparent"
+
+              PathSvg {
+                path: Ornament.VEILS[guest.modelData]
+                  ? Ornament.VEILS[guest.modelData](0.35)
+                  : ""
+              }
+            }
+
+            ShapePath {
               fillColor: win.ink
               fillRule: ShapePath.WindingFill
               scale: win.drawn(95)
