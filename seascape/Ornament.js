@@ -4649,28 +4649,47 @@ var __ornament = (() => {
     [0.981, 0.045],
     [1.038, -0.011]
   ];
-  var HAIR = [
-    [1.01, -0.05],
-    [0.95, -0.115],
-    [0.86, -0.158],
-    [0.72, -0.178],
-    [0.56, -0.178],
-    [0.4, -0.162],
-    [0.24, -0.132],
-    [0.08, -0.095],
-    [-0.04, -0.052],
-    [0.08, -0.03],
-    [0.24, -0.055],
-    [0.4, -0.068],
-    [0.52, -0.06],
-    [0.64, -0.02],
-    [0.76, 5e-3],
-    [0.87, -0.02],
-    [0.96, 0.015]
-  ];
-  var HAIR_SWING = 0.055;
-  var HAIR_WAVES = 0.8;
+  var HAIR_WAVES = 1.15;
   var HAIR_ROOT = 0.9;
+  var HAIR_STEPS = 9;
+  var HAIR_FALL = 0.12;
+  var HAIR_REACH = 0.9;
+  var HAIR_SPREAD = 0.9;
+  function streaming(back) {
+    return HAIR_FALL * Math.min(1, Math.max(0, back) / HAIR_REACH) ** 1.3 - 0.105;
+  }
+  var LOCKS = [
+    { at: 0.95, dense: true, lift: 0.035, long: 0.42, off: 0.2, swing: 0.02, wide: 0.05 },
+    { at: 0.93, dense: true, lift: -5e-3, long: 0.55, off: 0.8, swing: 0.03, wide: 0.052 },
+    { at: 0.91, dense: true, lift: -0.032, long: 0.5, off: 1.5, swing: 0.035, wide: 0.048 },
+    { at: 0.89, dense: true, lift: -0.052, long: 0.4, off: 2.2, swing: 0.03, wide: 0.04 },
+    { at: 0.93, dense: false, lift: 0.035, long: 0.72, off: 2, swing: 0.05, wide: 0.032 },
+    { at: 0.89, dense: false, lift: -0.06, long: 0.86, off: 2.6, swing: 0.075, wide: 0.03 },
+    { at: 0.92, dense: false, lift: -5e-3, long: 0.95, off: 3.3, swing: 0.06, wide: 0.034 },
+    { at: 0.86, dense: false, lift: -0.075, long: 0.68, off: 4, swing: 0.085, wide: 0.024 },
+    { at: 0.9, dense: false, lift: 0.05, long: 1.04, off: 4.7, swing: 0.07, wide: 0.026 },
+    { at: 0.88, dense: false, lift: -0.035, long: 1.12, off: 5.5, swing: 0.09, wide: 0.022 }
+  ];
+  function lock(spine2, phase2, hair2) {
+    const crown2 = spine2.at(HAIR_ROOT);
+    const over = [];
+    const under = [];
+    for (let step = 0; step <= HAIR_STEPS; step += 1) {
+      const along2 = step / HAIR_STEPS;
+      const back = HAIR_ROOT - hair2.at + hair2.long * along2;
+      const wave2 = Math.sin(2 * Math.PI * HAIR_WAVES * along2 * hair2.long - phase2 - hair2.off);
+      const half2 = hair2.wide * (1 - along2) ** 0.55;
+      const y = crown2 + streaming(back) + hair2.lift * (1 + HAIR_SPREAD * along2) + hair2.swing * along2 * along2 * wave2;
+      over.push([hair2.at - hair2.long * along2, y - half2]);
+      under.push([hair2.at - hair2.long * along2, y + half2]);
+    }
+    return rounded2([...over, ...under.reverse()]);
+  }
+  function hair(stroke, dense) {
+    const phase2 = stroke * Math.PI * 2;
+    const spine2 = bend("mermaid", phase2);
+    return LOCKS.filter((each) => each.dense === dense).map((each) => lock(spine2, phase2, each)).join("");
+  }
   var UPPER_ARM = [
     [0, 1],
     [0.5, 0.88],
@@ -4728,7 +4747,7 @@ var __ornament = (() => {
       ];
       return limb(UPPER_ARM, root, shoulder, upper, ARM_GIRTH) + limb(FOREARM, elbow, held, reach2 - upper, ARM_GIRTH * 0.9) + limb(HAND, wrist, held + ARM_WRIST, reach2 * ARM_HAND, ARM_GIRTH * 0.84);
     };
-    return arm(phase2 + Math.PI, ARM_REACH * ARM_FAR, ARM_APART) + rounded2(HEAD.map(([x, y]) => spine2.clear(x, -y))) + arm(phase2, ARM_REACH, 0) + blade(spine2.clear(-0.28, 0.06), 3.48, 0.22, 0.032, 0.055) + blade(spine2.clear(-0.28, -0.06), 2.8, 0.22, 0.032, -0.055) + rounded2([
+    return arm(phase2 + Math.PI, ARM_REACH * ARM_FAR, ARM_APART) + rounded2(HEAD.map(([x, y]) => spine2.clear(x, -y))) + hair(phase2 / (Math.PI * 2), true) + arm(phase2, ARM_REACH, 0) + blade(spine2.clear(-0.28, 0.06), 3.48, 0.22, 0.032, 0.055) + blade(spine2.clear(-0.28, -0.06), 2.66, 0.22, 0.032, -0.055) + rounded2([
       carry([0.08, 0]),
       carry([-0.03, -0.09]),
       carry([-0.14, -0.2]),
@@ -4750,16 +4769,7 @@ var __ornament = (() => {
     ]);
   }
   var mermaidBody = (stroke) => swimmer("mermaid", MERMAID, stroke * Math.PI * 2, mermaidFins);
-  function mermaidHair(stroke) {
-    const phase2 = stroke * Math.PI * 2;
-    const spine2 = bend("mermaid", phase2);
-    const crown2 = spine2.at(HAIR_ROOT);
-    const flow = ([x, y]) => {
-      const back = Math.max(0, HAIR_ROOT - x);
-      return [x, crown2 + y - HAIR_SWING * back * Math.sin(2 * Math.PI * HAIR_WAVES * back - phase2)];
-    };
-    return rounded2(HAIR.map(flow));
-  }
+  var mermaidHair = (stroke) => hair(stroke, false);
   var BODIES = {
     dolphin: dolphinBody,
     manta: mantaBody,
