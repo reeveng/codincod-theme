@@ -12,12 +12,13 @@
  * the plants stand and which way they are bending, and stops.
  */
 import { createBiome } from "../../../codincodv2/assets/js/ornament/biome.ts"
+import { type Kind, manyIn } from "../../../codincodv2/assets/js/ornament/census.ts"
 import { createCephalopods } from "../../../codincodv2/assets/js/ornament/cephalopods.ts"
 import { createClouds } from "../../../codincodv2/assets/js/ornament/cloud.ts"
 import { createCrags } from "../../../codincodv2/assets/js/ornament/crags.ts"
 import { createDrift } from "../../../codincodv2/assets/js/ornament/drift.ts"
 import { createFlora, type Plant } from "../../../codincodv2/assets/js/ornament/flora.ts"
-import { createJellies } from "../../../codincodv2/assets/js/ornament/jellies.ts"
+import { createJellies, KINDS as JELLY_KINDS } from "../../../codincodv2/assets/js/ornament/jellies.ts"
 import { createNemos } from "../../../codincodv2/assets/js/ornament/nemos.ts"
 import { createPassers } from "../../../codincodv2/assets/js/ornament/passers.ts"
 import { thriving } from "../../../codincodv2/assets/js/ornament/plenty.ts"
@@ -25,7 +26,7 @@ import { createRays } from "../../../codincodv2/assets/js/ornament/rays.ts"
 import { createReef, type Reef } from "../../../codincodv2/assets/js/ornament/reef.ts"
 import { createRelics } from "../../../codincodv2/assets/js/ornament/relics.ts"
 import { createSeabed, type Seabed } from "../../../codincodv2/assets/js/ornament/seabed.ts"
-import { createShoal, daySeed, WILD } from "../../../codincodv2/assets/js/ornament/shoal.ts"
+import { createShoal, daySeed, KINDS as FISH_KINDS, wild } from "../../../codincodv2/assets/js/ornament/shoal.ts"
 import { createSwarm } from "../../../codincodv2/assets/js/ornament/swarm.ts"
 import { createVisitors } from "../../../codincodv2/assets/js/ornament/visitors.ts"
 import { createWalkers } from "../../../codincodv2/assets/js/ornament/walkers.ts"
@@ -122,10 +123,11 @@ let seabed: Seabed | null = null
 let box = { height: 0, width: 0 }
 
 /**
- * How good a year this water is having, and the light the shoal was last told
- * to be the size of.
+ * How good a year this water is having, which sea it is, and the light the
+ * shoal was last told to be the size of.
  */
 let thrift = 1
+let sown = 0
 let aimed = -1
 
 /**
@@ -151,19 +153,25 @@ let visitors: ReturnType<typeof createVisitors> | null = null
 let walkers: ReturnType<typeof createWalkers> | null = null
 let wreckage: ReturnType<typeof createRelics> | null = null
 
-/** How many of each the box is worth, and the ceilings on them. */
-const FISH = { least: 6, most: 44, night: 0.55, per: 62_000 }
-const MOTES = { least: 40, most: 280, per: 12_500 }
-const CRAWLERS = { crabs: 11, mostCrabs: 28, mostStarfish: 24, starfish: 9 }
 /**
- * How many jellyfish a thousand pixels of water is worth, and the ceiling.
+ * The floors and ceilings on what the water is allowed to hold.
  *
- * Counted through the day the way the plants are, because that is what a bloom
- * is: the same water in the same place with twenty in it one week and two the
- * next. Nothing else in this scene varies like that, and nothing else in the
- * sea does either.
+ * How many of each there are is `census.ts`'s answer now, and these are what
+ * this renderer will actually carry: a floor so a sliver of a screen still has
+ * a sea in it, and a ceiling so a bloom is a busy water rather than a dropped
+ * frame. `night` is the share of a shoal that is still out after dark.
  */
-const JELLIES = { most: 16, per: 2.4 }
+const FISH = { least: 6, most: 52, night: 0.55 }
+const MOTES = { least: 40, most: 280, per: 12_500 }
+const CRAWLERS = { mostCrabs: 14, mostStarfish: 14 }
+/**
+ * The most jellyfish this renderer will draw.
+ *
+ * A ceiling and nothing else. What decides how many are actually in the water
+ * is the bloom `census.ts` is or is not having, which is what a bloom is: the
+ * same water in the same place with twenty in it one week and two the next.
+ */
+const JELLIES = { most: 20 }
 const SHAFTS = 5
 /**
  * How many clouds are over the water.
@@ -176,13 +184,18 @@ const SHAFTS = 5
 const CLOUDS = 4
 const VENTS = 3
 const SPECKS = 420
-const SQUIDS = 2
-const OCTOPUSES = 2
+const MOST_INKLINGS = 4
 
-/** How long a fish is, and how much of its length it swims in a second. */
+/**
+ * How much of its own length a fish swims in a second.
+ *
+ * How long it is, is no longer a number here. It was a pair of pixel counts
+ * picked for this screen, and what it is now is a real fish at a real distance
+ * out of `sizes.ts`, which the shoal works out from the width it is handed. The
+ * two came to the same thing at this size, which is the only reason nobody had
+ * noticed the desktop and the site disagreed about how big a fish is.
+ */
 const CRUISE = 0.8
-const SHORTEST = 52
-const LONGEST = 92
 
 /**
  * How far the water is wound on before anybody sees it, in steps of a tenth.
@@ -199,6 +212,24 @@ function spread(perThousand: number, most: number, width: number): number {
 /** The same, for anything that grows, which is as thick as the day decided. */
 function lush(perThousand: number, most: number, width: number, day: number): number {
   return spread(perThousand * day, most, width)
+}
+
+/**
+ * The same, for anything that swims or walks, which is as many as the sea holds.
+ *
+ * The density is not this file's to pick. `census.ts` says how many of an
+ * animal a stretch of reef carries and how much of a day today is for it; what
+ * is left here is the floor and the ceiling this renderer can draw between.
+ */
+function alive(
+  kinds: readonly Kind[],
+  least: number,
+  most: number,
+  width: number,
+  height: number,
+  seed: number,
+): number {
+  return Math.max(least, Math.min(most, Math.round(manyIn(kinds, width, height, seed))))
 }
 
 /**
@@ -244,6 +275,7 @@ export function build(width: number, height: number, seed: number, tolerance: nu
 
   const day = thriving(seed)
   thrift = day
+  sown = seed
   aimed = daylight
   const water = createBiome()
 
@@ -284,31 +316,29 @@ export function build(width: number, height: number, seed: number, tolerance: nu
 
   walkers = createWalkers({
     about: water.about,
-    crabs: lush(CRAWLERS.crabs, CRAWLERS.mostCrabs, width, day),
+    crabs: alive(["crab"], LEAST, CRAWLERS.mostCrabs, width, height, seed),
     floor: seabed.floorAt,
     seed,
-    starfish: lush(CRAWLERS.starfish, CRAWLERS.mostStarfish, width, day),
+    starfish: alive(["starfish"], LEAST, CRAWLERS.mostStarfish, width, height, seed),
     tolerance,
     width,
   })
 
   shoal = createShoal({
-    count: fishCount(width, height, day),
+    count: fishCount(width, height, seed),
     cruise: CRUISE,
     height,
-    longest: LONGEST,
     seed,
-    shortest: SHORTEST,
-    species: WILD,
+    species: wild(seed),
     width,
   })
 
   inklings = createCephalopods({
     floor: seabed.floorAt,
     height,
-    octopuses: OCTOPUSES,
+    octopuses: alive(["octopus"], 1, MOST_INKLINGS, width, height, seed),
     seed,
-    squids: SQUIDS,
+    squids: alive(["squid"], 1, MOST_INKLINGS, width, height, seed),
     width,
   })
 
@@ -331,7 +361,7 @@ export function build(width: number, height: number, seed: number, tolerance: nu
   })
 
   jellies = createJellies({
-    count: lush(JELLIES.per, JELLIES.most, width, day),
+    count: alive(JELLY_KINDS, 1, JELLIES.most, width, height, seed),
     floor: seabed.floorAt,
     height,
     seed,
@@ -371,10 +401,10 @@ const DAWN_STEP = 0.01
  * Fewer at night, because a shoal is a daylight thing: what is out after dark
  * is the animals that were always out after dark.
  */
-function fishCount(width: number, height: number, day: number): number {
-  const full = Math.max(FISH.least, Math.min(FISH.most, Math.round((width * height) / FISH.per)))
+function fishCount(width: number, height: number, seed: number): number {
+  const full = alive(FISH_KINDS, FISH.least, FISH.most, width, height, seed)
   const hour = FISH.night + (1 - FISH.night) * daylight
-  return Math.max(FISH.least, Math.round(full * hour * Math.sqrt(day)))
+  return Math.max(FISH.least, Math.round(full * hour))
 }
 
 function moteCount(width: number, height: number): number {
@@ -539,7 +569,7 @@ export function over(): number {
   // never to do. `Seascape.qml` says the same in `onDaylightChanged`.
   if (shoal && Math.abs(daylight - aimed) > DAWN_STEP) {
     aimed = daylight
-    shoal.hold(fishCount(box.width, box.height, thrift))
+    shoal.hold(fishCount(box.width, box.height, sown))
   }
 
   if (crags) paintCrags(pen, crags, box)
