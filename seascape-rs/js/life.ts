@@ -9,6 +9,17 @@
  */
 import type { Cephalopods } from "../../../codincodv2/assets/js/ornament/cephalopods.ts"
 import { frameAt, SPAN } from "../../../codincodv2/assets/js/ornament/fish_shape.ts"
+import {
+  ARM_GIRTH as JELLY_ARM,
+  armsOf,
+  bell,
+  combRows,
+  HAIR_GIRTH,
+  hairOf,
+  type Jellies,
+  moonMarks,
+  sparks,
+} from "../../../codincodv2/assets/js/ornament/jellies.ts"
 import type { Nemos } from "../../../codincodv2/assets/js/ornament/nemos.ts"
 import {
   HULL,
@@ -56,6 +67,8 @@ const FROTH_INK = 0.3
 const FROTH_LET_GO = 0.45
 const HAZE_INK = 0.04
 const HULL_INK = 0.16
+const JELLY_INK = 0.17
+const JELLY_LIGHT = 0.5
 const PING_INK = 0.62
 const SPECK_INK = 0.16
 const VISITOR_INK = 0.42
@@ -264,6 +277,101 @@ export function paintInklings(pen: Pen, inklings: Cephalopods): void {
 
     pen.fill(trace(octopusHead(octopus.breath)), mark, spot)
     pen.line(octopusArms(octopus), { ...mark, width: ARM_GIRTH * octopus.size }, spot)
+  }
+}
+
+/**
+ * The jellyfish, all seven, and one of them is a float and two are not
+ * jellyfish at all.
+ *
+ * Lighter than anything else in the water on purpose. A bell is a bag of water
+ * inside water: it stops a little of the light and passes the rest, and drawn
+ * at a fish's weight it comes out as a cut-out mushroom. What hangs under one
+ * is lighter again, at the share `visitors.ts` settled on for a mermaid's
+ * hair, and for the reason it gives there: a fine mass scatters light where a
+ * body stops it.
+ *
+ * The order is the animal's own. Whatever hangs goes in first and a hair
+ * further back, so the bell takes the depth where the two overlap and only
+ * what is streaming clear of it is drawn sheer. Then the marks, punched out of
+ * the bell the way a fish's eye is punched out of its head, and last the two
+ * kinds that carry a light of their own.
+ */
+export function paintJellies(pen: Pen, jellies: Jellies): void {
+  for (const one of jellies.jellies) {
+    const weight = afloat(JELLY_INK, one.depth)
+    if (weight <= 0.002) continue
+
+    const spot = {
+      facing: one.facing,
+      scale: one.size,
+      tilt: one.tilt,
+      x: one.x,
+      y: one.y,
+    }
+    const mark = { lane: one.depth, shade: one.y, weight }
+    const behind = { ...mark, lane: one.depth - BEHIND }
+
+    const hair = hairOf(one)
+    if (hair.length > 0) {
+      pen.line(hair, {
+        ...behind,
+        weight: weight * VEIL_INK,
+        width: Math.max(0.6, HAIR_GIRTH[one.kind] * one.size),
+      }, spot)
+    }
+
+    const arms = armsOf(one)
+    if (arms.length > 0) {
+      pen.line(arms, { ...behind, width: JELLY_ARM[one.kind] * one.size }, spot)
+    }
+
+    pen.fill(trace(bell(one.kind, one.squeeze)), mark, spot)
+
+    // The four horseshoes, which are the reason a moon jelly is the jellyfish
+    // everybody can name. Punched back out of the bell rather than drawn over
+    // it, so they read as the animal being see-through.
+    if (one.kind === "moon") {
+      pen.line(moonMarks(one.squeeze), {
+        ...mark,
+        weight: weight * CUT_SHADE,
+        width: Math.max(0.8, 0.03 * one.size),
+      }, spot)
+    }
+
+    // The comb rows, which are the water's own light taken apart by eight rows
+    // of beating cilia, and the crown jelly's alarm, which is light the animal
+    // made. Both are drawn in the moon's colour, since the palette here has no
+    // blue in it and nothing else in this water glows at all.
+    for (const row of combRows(one)) {
+      pen.line([row.points], {
+        alpha: JELLY_LIGHT * row.glow,
+        lane: one.depth,
+        shade: OWN,
+        tone: TONE.moon,
+        width: Math.max(0.8, 0.05 * one.size),
+      }, spot)
+    }
+
+    for (const flare of sparks(one)) {
+      // A light is a middle and a reach, so it cannot be handed a spot and has
+      // to be stood in the water here. Mirrored and then turned, in that
+      // order, which is the order `Spot` says and the order everything in this
+      // scene has got wrong at least once.
+      const across = flare.x * one.size * one.facing
+      const down = flare.y * one.size
+      const cos = Math.cos(one.tilt)
+      const sin = Math.sin(one.tilt)
+
+      pen.light(one.x + across * cos - down * sin, one.y + across * sin + down * cos, {
+        alpha: JELLY_LIGHT * flare.glow,
+        fall: 1.6,
+        lane: one.depth,
+        shade: OWN,
+        tone: TONE.moon,
+        width: one.size * 0.34,
+      })
+    }
   }
 }
 

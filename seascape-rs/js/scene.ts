@@ -17,6 +17,7 @@ import { createClouds } from "../../../codincodv2/assets/js/ornament/cloud.ts"
 import { createCrags } from "../../../codincodv2/assets/js/ornament/crags.ts"
 import { createDrift } from "../../../codincodv2/assets/js/ornament/drift.ts"
 import { createFlora, type Plant } from "../../../codincodv2/assets/js/ornament/flora.ts"
+import { createJellies } from "../../../codincodv2/assets/js/ornament/jellies.ts"
 import { createNemos } from "../../../codincodv2/assets/js/ornament/nemos.ts"
 import { createPassers } from "../../../codincodv2/assets/js/ornament/passers.ts"
 import { thriving } from "../../../codincodv2/assets/js/ornament/plenty.ts"
@@ -31,6 +32,7 @@ import { createWalkers } from "../../../codincodv2/assets/js/ornament/walkers.ts
 import { paintRays, paintSnow } from "./light.ts"
 import {
   paintInklings,
+  paintJellies,
   paintNemos,
   paintPassers,
   paintShoal,
@@ -139,6 +141,7 @@ let crags: ReturnType<typeof createCrags> | null = null
 let drift: ReturnType<typeof createDrift> | null = null
 let flock: ReturnType<typeof createSwarm> | null = null
 let inklings: ReturnType<typeof createCephalopods> | null = null
+let jellies: ReturnType<typeof createJellies> | null = null
 let light: ReturnType<typeof createRays> | null = null
 let nemos: ReturnType<typeof createNemos> | null = null
 let passers: ReturnType<typeof createPassers> | null = null
@@ -152,6 +155,15 @@ let wreckage: ReturnType<typeof createRelics> | null = null
 const FISH = { least: 6, most: 44, night: 0.55, per: 62_000 }
 const MOTES = { least: 40, most: 280, per: 12_500 }
 const CRAWLERS = { crabs: 11, mostCrabs: 28, mostStarfish: 24, starfish: 9 }
+/**
+ * How many jellyfish a thousand pixels of water is worth, and the ceiling.
+ *
+ * Counted through the day the way the plants are, because that is what a bloom
+ * is: the same water in the same place with twenty in it one week and two the
+ * next. Nothing else in this scene varies like that, and nothing else in the
+ * sea does either.
+ */
+const JELLIES = { most: 16, per: 2.4 }
 const SHAFTS = 5
 /**
  * How many clouds are over the water.
@@ -318,6 +330,15 @@ export function build(width: number, height: number, seed: number, tolerance: nu
     return about
   })
 
+  jellies = createJellies({
+    count: lush(JELLIES.per, JELLIES.most, width, day),
+    floor: seabed.floorAt,
+    height,
+    seed,
+    water,
+    width,
+  })
+
   wreckage = createRelics({ floor: seabed.floorAt, height, seed, width })
   passers = createPassers({ eager: rushed, height, seed, width })
   visitors = createVisitors({ eager: rushed, height, seed, water, width })
@@ -412,6 +433,7 @@ export function wind(seconds: number): void {
     light?.step(WIND_STEP)
     clouds?.step(WIND_STEP)
     inklings?.step(WIND_STEP, rushed ? (passers?.startle ?? null) : null)
+    jellies?.step(WIND_STEP, felt())
     walkers?.step(WIND_STEP)
     nemos?.step(WIND_STEP)
     wreckage?.step(WIND_STEP)
@@ -436,6 +458,7 @@ export function step(seconds: number): void {
   clouds?.step(seconds)
   flora?.step(seconds)
   inklings?.step(seconds, passers?.startle ?? null)
+  jellies?.step(seconds, felt())
   walkers?.step(seconds)
   reef?.step(seconds)
   nemos?.step(seconds)
@@ -529,6 +552,7 @@ export function over(): number {
   if (nemos) paintNemos(pen, nemos)
   if (flock) paintSwarm(pen, flock)
   if (inklings) paintInklings(pen, inklings)
+  if (jellies) paintJellies(pen, jellies)
   if (walkers) paintWalkers(pen, walkers)
   if (visitors) paintVisitors(pen, visitors)
   if (passers) paintPassers(pen, passers)

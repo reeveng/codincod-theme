@@ -58,6 +58,21 @@ renders them. Both the website and the desktop get all of it.
       six animals on a belt. `shoal.ts`
 - [x] **Squid**: jet and drift, the opposite rhythm to a fish. A hard pulse,
       then a long passive glide with the tentacles trailing. `cephalopods.ts`
+- [x] **Seven jellyfish**, and the differences between them are the reason
+      there are seven. A moon jelly gets a second push out of its own refill,
+      which is measured and free; a barrel jelly has no marginal tentacles at
+      all and eight fused arms instead; a lion's mane carries its hair in eight
+      clusters; a box jelly has twenty-four eyes, reads the water and steers
+      round what is in it; a crown jelly runs a wave of light round its margin
+      when something touches it. Two of them are not jellyfish: a man o' war is
+      a colony that cannot swim and sails on its crest, and a comb jelly is a
+      ctenophore that never pulses and glides mouth first with the light coming
+      apart along its rows. Four of the seven do not answer a startle at all,
+      because there is nothing in them that could. Native renderer only.
+      `jellies.ts`
+- [x] **A bloom is a kind of day.** How many are in the water is counted
+      through the day's own number, the way the plants are, so one week has
+      twenty and the next has two. `plenty.ts`
 - [x] **Octopuses**: on the bottom rather than in the water, and the only thing
       in this water with a repertoire rather than a rhythm. It crawls, works its
       arms into the stones without moving, sits, buries itself, walks on the
@@ -165,6 +180,7 @@ is the point rather than a gap:
 | the shoal, all five kinds | yes | yes | yes | yes |
 | the lens: grain, vignette | yes | yes | no | no |
 | cephalopods, relics, passers | yes | yes | no | no |
+| jellyfish, all seven kinds | yes | no | no | no |
 | floor, flora, rays | yes | yes | hand-composed art | no |
 | the hour | yes | yes | yes | no |
 | every screen on the desk | no | yes | n/a | n/a |
