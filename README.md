@@ -19,10 +19,13 @@ rest, so this one file re-colours alacritty, foot, kitty, ghostty, btop, helix,
 neovim, vscode, chromium, obsidian, the lock screen, Hyprland's borders, the
 bar, and the keyboard's own lights.
 
-The sea is a second step, and the theme is complete without it:
+The sea is a second step, and the theme is complete without it. Omarchy never
+runs a theme's own code, which is right of it, so installing the theme cannot
+start the water. The command above leaves this repository cloned where themes
+live, and the sea is installed from there:
 
 ```bash
-./install.sh
+~/.config/omarchy/themes/codincod/install.sh
 ```
 
 The clip above is the plugin itself, recorded offscreen a frame at a time. It
@@ -50,12 +53,14 @@ rather than along one line, and a fish that swims out of the picture is gone, so
 nothing loops.
 
 ```bash
-./install.sh
+~/.config/omarchy/themes/codincod/install.sh   # where the theme install put it
+./install.sh                                   # or from a clone of your own
 ```
 
 That builds `seascape-rs/`, which draws the water on the graphics card, and
 starts it as a service of your session. It wants `cargo`, and the first build
-takes a few minutes. The water is drawn in this theme's own two colours, which
+takes a few minutes. It says which of the two it did when it is done, and
+`systemctl --user status seascape.service` is where it says why it did not. The water is drawn in this theme's own two colours, which
 `SEASCAPE_INK=` and `SEASCAPE_SURFACE=` at install time will change.
 
 It turns off every wallpaper the shell would otherwise draw, since two of them
