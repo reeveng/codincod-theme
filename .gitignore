@@ -6,3 +6,6 @@ seascape/preview.png
 # a stray directory in `git status` is the thing that makes somebody stop
 # trusting `git status`.
 seascape/.ornament-entry/
+
+# Written by `seascape` with no `out=`, which is how a still gets looked at.
+seascape-rs/bed.png

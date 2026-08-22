@@ -23,6 +23,12 @@ renders them. Both the website and the desktop get all of it.
       them, comes back to the same shape after 29.53, and for the nights it is
       under the ground there is no moon over the water at all. The craters go
       out one at a time as the terminator crosses them. `sun.ts`
+- [x] **Weather**, over both of them and under the whole sea: masses that cross
+      the sky on headings of their own, some tracking flat across it and some
+      rising and falling in place. What they take is the halo they cover and a
+      share of the shaft below it, and what they give back is the light they
+      took, drawn smaller than the mass that took it. Native renderer only; the
+      plugin has a clear sky. `cloud.ts`
 
 ## The bottom
 
@@ -52,6 +58,36 @@ renders them. Both the website and the desktop get all of it.
       six animals on a belt. `shoal.ts`
 - [x] **Squid**: jet and drift, the opposite rhythm to a fish. A hard pulse,
       then a long passive glide with the tentacles trailing. `cephalopods.ts`
+- [x] **Eight jellyfish**, and the differences between them are the reason
+      there are eight. A moon jelly gets a second push out of its own refill,
+      which is measured and free; a barrel jelly has no marginal tentacles at
+      all and eight fused arms instead; a lion's mane carries its hair in eight
+      clusters; a box jelly has twenty-four eyes, reads the water and steers
+      round what is in it; a mauve stinger has a bell covered in warts that
+      sting on their own. Two of them are not jellyfish: a man o' war is a
+      colony that cannot swim and sails on its crest, and a comb jelly is a
+      ctenophore that never pulses and glides mouth first. Only one of the
+      eight moves out of the way of anything, because only one of them can see.
+      Native renderer only. `jellies.ts`
+- [x] **Three of them make light, and it is a night thing.** Around half the
+      medusae in the sea are bioluminescent and none of it is left on: it fires
+      when something touches the animal and fades over seconds, and what fires
+      it is usually a fish blundering into it rather than anything rare. Three
+      displays, and they are not one display at three strengths: a crown jelly
+      runs a wave round its own margin, turn after turn, which is an
+      advertisement for something big enough to eat whatever has hold of it; a
+      mauve stinger washes bell, arms and tentacles at once, and is named for
+      it; a comb jelly lights the eight rows it already has. A flash is
+      measured against the water around it, so all of it is worth almost
+      nothing at noon.
+- [x] **The comb jelly's rows are lit twice by two different things.** The
+      colours running along them in daylight are not light the animal made: the
+      rows are a diffraction grating and that is the water's own light taken
+      apart. So the two lights on one set of lines want opposite hours, and the
+      one you see at midnight is the one that flashes.
+- [x] **A bloom is a kind of day.** How many are in the water is counted
+      through the day's own number, the way the plants are, so one week has
+      twenty and the next has two. `plenty.ts`
 - [x] **Octopuses**: on the bottom rather than in the water, and the only thing
       in this water with a repertoire rather than a rhythm. It crawls, works its
       arms into the stones without moving, sits, buries itself, walks on the
@@ -81,6 +117,10 @@ surprise with a page describing it is a feature with a whimsical name, and the
 whole of one is somebody finding it themselves. They are drawn in `relics.ts`
 out of shapes in `Codincod.Social.Marks`, which is where to read if you are the
 one maintaining them.
+
+There is one in the water as well, and it keeps an appointment rather than
+running on odds: about one day in the month has it and the rest do not. It is in
+`visitors.ts` with the animals, and it is left to be found the same way.
 
 - [ ] More, and rarer.
 
@@ -114,9 +154,12 @@ finished frame. `Lens.qml`, and `lens.frag` beside it.
       crossing that happens once a day.
 - [x] **Depth of field**: the far wall soft, the near rock soft by how far
       forward each mass of it stands, everything between them as sharp as it was.
-      Neither group moves, so each is rendered to a texture once and blurred once,
-      however long the sea is left on show; a blur of the fish would be that work
-      again on every frame, which is the whole reason those two and nothing else.
+      Neither group moves, so the plugin renders each to a texture once and blurs
+      it once, however long the sea is left on show; a blur of the fish would be
+      that work again on every frame, which is the whole reason those two and
+      nothing else. The native renderer draws and blurs them every frame instead,
+      because it can: a quarter-size picture and two passes of nine taps over the
+      rock alone measured inside the noise of a frame.
       The near rock takes less of it than it wants to. It is nearly black on dark
       water, so past about a quarter the blur does not defocus the branches on it,
       it deletes them.
@@ -143,17 +186,19 @@ second opinion about colour laid over the first.
 
 ## What each surface draws
 
-Three renderers, one set of simulations. They do not all draw all of it, and
-that is the point rather than a gap:
+Four renderers, one set of simulations. They do not all draw all of it, and that
+is the point rather than a gap:
 
-| | desktop | porthole | water behind a hero |
-| --- | --- | --- | --- |
-| renderer | `Seascape.qml` | `glass.ts` + HEEx | `water.ts` |
-| the shoal, all five kinds | yes | yes | yes |
-| the lens: grain, vignette | yes | no | no |
-| cephalopods, relics, passers | yes | no | no |
-| floor, flora, rays | yes | hand-composed art | no |
-| the hour | yes | yes | no |
+| | desktop | desktop, as it shipped | porthole | water behind a hero |
+| --- | --- | --- | --- | --- |
+| renderer | `seascape-rs/` | `Seascape.qml` | `glass.ts` + HEEx | `water.ts` |
+| the shoal, all five kinds | yes | yes | yes | yes |
+| the lens: grain, vignette | yes | yes | no | no |
+| cephalopods, relics, passers | yes | yes | no | no |
+| jellyfish, all eight kinds | yes | no | no | no |
+| floor, flora, rays | yes | yes | hand-composed art | no |
+| the hour | yes | yes | yes | no |
+| every screen on the desk | no | yes | n/a | n/a |
 
 The porthole's floor is authored scenes rather than simulation, and the water
 behind a hero is a band of open water with a page's own words in it. A
@@ -163,7 +208,15 @@ the one thing that surface may not be.
 ## Rules the whole scene keeps
 
 - Nothing names a colour. Everything is drawn in the theme's accent and cut out
-  in its background, so a theme switch recolours the sea.
+  in its background, so a theme switch recolours the sea. The water crosses to
+  the new pair over a second or so rather than arriving in it, since two
+  colours swapped between one frame and the next are a flash on a wallpaper.
+- A thing is one weight, because a body at this distance is one shape the light
+  stopped, and that is what a silhouette is. What is not a body says so: a fine
+  mass scatters light instead of stopping it, so it is handed over as a drawing
+  of its own and laid in behind at a share of the weight. `VEILS` in
+  `visitors.ts` is that, and it is a weight rather than a second colour, so the
+  rule above still holds.
 - Everything reads the same Perlin field, so the plants, the snow and the fish
   agree about which way the water is moving. That agreement is what makes it a
   sea rather than several animations sharing a rectangle.
@@ -171,8 +224,10 @@ the one thing that surface may not be.
   the place is the same place all day and the life in it is not.
 - The desktop's seed is the calendar day, so tomorrow is somewhere else: a fixed
   one meant whatever that number held was all anybody ever saw, and the rarest
-  thing down there falls to about one sea in ten. A screen takes the new day up only once it is
-  covered, so the ground never moves while somebody is looking at it.
+  thing down there falls to about one sea in ten. A screen takes the new day up
+  on any second it is covered, so the ground never moves while somebody is
+  looking at it and a desk left under a full screen of windows at midnight is
+  still owed its day at noon.
 - The day decides how much grew as well as where. Every count of a living thing
   goes through one multiplier off the same seed, weighted so that most water is
   ordinary and the bed you cannot see the floor through is something you wait
@@ -191,6 +246,128 @@ the one thing that surface may not be.
 - Nothing advances while the wallpaper is covered.
 - It is ornament, so it is allowed to do nothing. Every branch that cannot get
   what it needs returns quietly.
+
+## The native renderer
+
+`seascape-rs/` is the water again, on the card, and it is what `install.sh`
+installs. The same simulations decide the same scene: the ornament is bundled
+into `js/scene.js` and hosted in V8, so what a fish is doing is settled by the
+same TypeScript the site runs and nothing about the animals is written twice.
+What is written twice is the drawing, and only the drawing.
+
+Three things cross from the simulation to the renderer, and nothing else does.
+
+**The bed, once.** The ground, the reef and every plant as a tree of limbs. It
+is tessellated once, uploaded once, and then bent on the card: a limb carries
+where it is rooted and which limb it grows off, a plant carries how far it is
+leaning this frame, and the vertex shader walks the tree. So a bed of two
+hundred plants costs two numbers a plant a frame rather than a recut.
+
+**Everything else, every frame,** as drawings. A drawing is a shape, a colour to
+mix it from, how heavy it is, how it gives out and how far back it stands. There
+is no fish in the renderer and no moon either: `js/` says what a thing looks
+like and the ornament stays the one place any of it is decided. They are cut
+with lyon and drawn in two passes, one sorted by depth for anything solid and
+one painted in order for anything the water is seen through, since two lights
+over one another are a painting rather than a stack of depths.
+
+**The rock the lens gave up on,** as a picture of its own. See the depth of
+field above.
+
+Colour is a fragment's own business rather than a vertex's. Every shape carries
+a weight and which of the theme's colours to mix from, and the shader reads the
+water at the height the fragment is at, which is how a thing that fades to
+nothing fades into the water it is actually in rather than into a hole.
+
+### Knowing when nobody is looking
+
+Wayland has no way to tell a surface that nothing can see it, and the frames
+keep being offered to a wallpaper behind a full screen of windows: measured, a
+third of a core spent on a picture nobody is looking at. So the compositor is
+asked instead, once a second, on Hyprland's own socket, and a single window
+anywhere on the active workspace means the water is covered. `Background.qml`
+asks the same question of the same compositor through Quickshell and settles it
+the same way. Covered, the frame is still asked for and nothing else happens, so
+the moment a window closes the water is there rather than a second behind.
+
+One frame is drawn however covered it is. A layer surface with no buffer on it
+was never mapped, and a rule about not advancing is a rule about the water
+waiting rather than about the wallpaper being a black rectangle. That one cost a
+black desktop for a minute.
+
+### Held against the plugin
+
+The QML plugin is the reference. Neither renderer is right by construction, so
+the way a difference gets found is a still of the same sea at the same hour off
+both of them:
+
+```bash
+cd seascape    && ./look.sh preview.qml width=1600 height=1000 seed=7 daylight=1 march=0.3 out=/tmp/qml.png
+cd seascape-rs && cargo run --release -- width=1600 height=1000 seed=7 daylight=1 march=0.3 out=/tmp/rs.png
+```
+
+Both harnesses take the same arguments and both mean the same thing by them.
+`daylight`, `dusk`, `march` and `lit` ask for an hour rather than reading one
+off the clock, which two stills taken in different minutes cannot be compared
+without. Both wind the rare things on, so a boat and a shark are in the picture
+rather than waiting for an evening. Both hold the water for three seconds before
+the grab, because a manta covers a couple of hundred px in three seconds.
+
+What that turned up, in order: a moon clipped by the island because the body was
+drawn about the origin and moved afterwards, a hairline down the moon's lit limb
+where the curve renderer split the arc, grain as full-height vertical streaks
+because a `vec2` in a uniform is laid out aligned by the shader and packed by
+the host, and the sea being drawn without a boat in it because `eager` was not
+passed on.
+
+### What a frame costs there
+
+At 2560x1440 on the same AMD 780M, with the water `rushed`, averaged over 200
+frames: about 20ms, against the plugin's 54ms. The simulation is 1.4ms of it,
+publishing is under a tenth of a millisecond, cutting what moved is 8ms, and the
+card is the rest. The tick is 33ms, so the plugin never made it and this clears
+it with the frame to spare.
+
+The simulation is the same JavaScript in both, and it is fifteen times cheaper
+here. That is the boundary rather than the engine: QML's V4 copies values across
+into QML types, and V8 writes floats into a buffer the renderer reads straight
+out of.
+
+### What it reads off the desktop
+
+Four things, and none of them are in the water. Which sea today is, out of the
+same ornament the plugin asks. Whether anybody can see it, above. The picture
+the machine is wearing, out of `omarchy/current/background`, which is hung
+behind the water and cropped to each screen: the sea is drawn at most of an
+alpha and has been since the plugin, so what is under it is somebody's
+wallpaper rather than a flat fill. And the two colours it draws in, which are the accent and the background of the theme the
+desktop is wearing, read off `omarchy/current/theme/colors.toml` and re-read
+when that file changes, so a theme switch recolours the sea rather than leaving
+one theme's water on another theme's desktop. `ink=` and `surface=` on the
+command line take it out of that arrangement, since an argument is somebody
+having decided.
+
+Every screen gets its own surface, its own sea and its own weather, and they
+share one card. Two panels are two beds rather than one stretched over both:
+they are different sizes, a bed is cut to fit the box it grew in, and a fish
+that swam off one towards the other could never arrive. Whether anybody is
+looking is asked screen by screen, since a desk can hold a full screen of code
+and an empty desktop beside it.
+
+A screen that changes size is fitted again from nothing rather than stretched:
+the bed is cut to fit the box it grew in, and every texture the card holds is
+that size. A screen that changes how dense it is gets the same water out of a
+different number of pixels: the sea is laid out in the units a desktop is laid
+out in, and the buffer is as many pixels as the screen actually has.
+
+### What it does not do
+
+Two things the plugin has, both of them about the picture rather than the water.
+A wallpaper that changes wipes across underneath the fish on the plugin, because
+the shell owns two images and a mask; here it is swapped between frames. And a
+screen set to a fraction of a scale is drawn at the whole number above it and
+handed to the compositor to bring down, since nothing here speaks
+`wp_fractional_scale_v1` yet.
 
 ## Looking at it
 
@@ -225,10 +402,14 @@ one.
 `settle` winds the scene on before the grab, and it is the only way to catch a
 boat.
 
-## What it costs
+## What the plugin costs
+
+Everything under this heading is the QML plugin, which is where all of this was
+worked out and is still the reference. What the native renderer costs is a
+section of its own, above.
 
 ```bash
-# Where a frame goes, at a desktop's size, on the renderer the desktop uses.
+# Where a frame goes, at a desktop's size, on Qt's curve renderer.
 ./bench.sh frames=120 width=2560 height=1440
 
 # The same water with a layer left out, which is the only way to price one.
@@ -370,10 +551,9 @@ which is the same shipping problem as writing the thing in Rust or C++ outright,
 and it would still be copying values out of linear memory for QML to read.
 
 A compiled type that hands the scene graph its geometry directly would break the
-boundary properly. It also ends the arrangement where the site and the desktop
-run the same TypeScript, and it is the case decision 27 in the CodinCod
-repository says would reverse its whole design. It is not off the table. It is a
-different project.
+boundary properly. That is `seascape-rs/`, and it did not end the arrangement
+where the site and the desktop run the same TypeScript: it hosts the same
+TypeScript in V8 and hands triangles to the card. See below.
 
 So a frame of this scene at this size will not go under about 25ms, and 200
 frames a second is 5ms. The number worth aiming at is the tick, which is 33ms.

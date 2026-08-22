@@ -56,10 +56,10 @@ WANTED=(
   "reef KINDS SHAPES createReef"
   "relics BLOCK_CARD BLOCK_LINES CHEST_BANDS CHEST_BODY CHEST_LOCK LAPTOP_BASE LAPTOP_LINES LAPTOP_SCREEN SMOKER SMOKER_LIP WRECK WRECK_SPAR createRelics"
   "seabed createSeabed"
-  "shoal SPECIES WILD createShoal daySeed freshSeed"
+  "shoal SPECIES createShoal daySeed freshSeed wild"
   "sun crescent sunlit sunNow"
   "swarm createSwarm"
-  "visitors BODIES createVisitors"
+  "visitors BODIES VEILS VEIL_INK createVisitors"
   "walkers CRAB_SHELL crabLegs crabShell createWalkers starfishBody"
 )
 

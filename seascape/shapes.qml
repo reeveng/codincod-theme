@@ -435,7 +435,7 @@ Window {
     // wrong it gets wrong at four hundred px here and at an inch out there,
     // and an inch of dark green is where a torn fin goes to hide.
     Repeater {
-      model: ["dolphin", "manta", "shark", "turtle"]
+      model: ["dolphin", "manta", "mermaid", "shark", "turtle"]
 
       delegate: Plate {
         id: guest
@@ -449,6 +449,19 @@ Window {
 
           Shape {
             preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+              fillColor: Qt.rgba(win.ink.r, win.ink.g, win.ink.b, Ornament.VEIL_INK)
+              fillRule: ShapePath.WindingFill
+              scale: win.drawn(95)
+              strokeColor: "transparent"
+
+              PathSvg {
+                path: Ornament.VEILS[guest.modelData]
+                  ? Ornament.VEILS[guest.modelData](0.35)
+                  : ""
+              }
+            }
 
             ShapePath {
               fillColor: win.ink
