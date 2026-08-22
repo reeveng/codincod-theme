@@ -208,7 +208,9 @@ the one thing that surface may not be.
 ## Rules the whole scene keeps
 
 - Nothing names a colour. Everything is drawn in the theme's accent and cut out
-  in its background, so a theme switch recolours the sea.
+  in its background, so a theme switch recolours the sea. The water crosses to
+  the new pair over a second or so rather than arriving in it, since two
+  colours swapped between one frame and the next are a flash on a wallpaper.
 - A thing is one weight, because a body at this distance is one shape the light
   stopped, and that is what a silhouette is. What is not a body says so: a fine
   mass scatters light instead of stopping it, so it is handed over as a drawing
@@ -222,8 +224,10 @@ the one thing that surface may not be.
   the place is the same place all day and the life in it is not.
 - The desktop's seed is the calendar day, so tomorrow is somewhere else: a fixed
   one meant whatever that number held was all anybody ever saw, and the rarest
-  thing down there falls to about one sea in ten. A screen takes the new day up only once it is
-  covered, so the ground never moves while somebody is looking at it.
+  thing down there falls to about one sea in ten. A screen takes the new day up
+  on any second it is covered, so the ground never moves while somebody is
+  looking at it and a desk left under a full screen of windows at midnight is
+  still owed its day at noon.
 - The day decides how much grew as well as where. Every count of a living thing
   goes through one multiplier off the same seed, weighted so that most water is
   ordinary and the bed you cannot see the floor through is something you wait

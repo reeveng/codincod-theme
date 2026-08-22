@@ -47,6 +47,11 @@ const TICK: f64 = 1.0 / 30.0;
 /// frame, which is the whole point of asking rather than drawing.
 const ASK: f64 = 1.0;
 
+/// How long the water takes to cross from one theme's colours to the next's, in
+/// seconds. Long enough to read as the light changing over the sea, short
+/// enough that nobody is left waiting for a desktop they have already changed.
+const CROSS: f64 = 1.6;
+
 fn main() {
     // Below nothing means the sea the calendar day picked, which is what a
     // wallpaper wants: a fixed seed is one sea for the life of the machine.
@@ -82,8 +87,7 @@ fn main() {
         conn: conn.clone(),
         card: None,
         screens: Vec::new(),
-        ink,
-        surface_hue,
+        wearing: Wearing::new(ink, surface_hue),
         seed,
         settle,
         tolerance,
@@ -276,6 +280,66 @@ impl Screen {
     }
 }
 
+/// The colours a theme wrote, on their way into the water.
+///
+/// A desktop is changed in an instant and a sea is not: the two colours the
+/// whole picture is lit by, swapped between one frame and the next, are a flash
+/// on a wallpaper. So a new theme is somewhere to get to, and every frame until
+/// it arrives is a mix of where the water was and where it is going. A change
+/// made half way through another one starts from the mix on the screen rather
+/// than from the theme before it, which is what keeps two changes in a row from
+/// jumping back.
+struct Wearing {
+    /// Where the water was when the theme last changed.
+    was: ([f32; 4], [f32; 4]),
+    /// And what it is on its way to, which is what the theme says now.
+    to: ([f32; 4], [f32; 4]),
+    /// When it set off, or nothing at all if it has never been anywhere.
+    since: Option<std::time::Instant>,
+}
+
+impl Wearing {
+    fn new(ink: [f32; 4], surface: [f32; 4]) -> Self {
+        Wearing {
+            was: (ink, surface),
+            to: (ink, surface),
+            since: None,
+        }
+    }
+
+    /// The colours this frame is drawn in.
+    fn now(&self) -> ([f32; 4], [f32; 4]) {
+        let over = self
+            .since
+            .map_or(1.0, |since| since.elapsed().as_secs_f64() / CROSS)
+            .clamp(0.0, 1.0);
+        // Eased at both ends, so that a change of theme starts and stops the
+        // way light does rather than the way a slider does.
+        let over = (over * over * (3.0 - 2.0 * over)) as f32;
+
+        (
+            mix(self.was.0, self.to.0, over),
+            mix(self.was.1, self.to.1, over),
+        )
+    }
+
+    /// What the desktop is wearing now, from wherever the water has got to.
+    fn told(&mut self, ink: [f32; 4], surface: [f32; 4]) {
+        if self.to == (ink, surface) {
+            return;
+        }
+
+        self.was = self.now();
+        self.to = (ink, surface);
+        self.since = Some(std::time::Instant::now());
+    }
+}
+
+/// One colour part of the way to another.
+fn mix(from: [f32; 4], to: [f32; 4], over: f32) -> [f32; 4] {
+    std::array::from_fn(|at| from[at] + (to[at] - from[at]) * over)
+}
+
 struct Wall {
     compositor: CompositorState,
     conn: Connection,
@@ -287,8 +351,8 @@ struct Wall {
     /// after that.
     card: Option<Card>,
     screens: Vec<Screen>,
-    ink: [f32; 4],
-    surface_hue: [f32; 4],
+    /// The two colours the water is drawn in, and the two it is on its way to.
+    wearing: Wearing,
     seed: f64,
     settle: f64,
     tolerance: f64,
@@ -521,8 +585,7 @@ impl Wall {
         if wore != self.wore && self.told.0.is_empty() && self.told.1.is_empty() {
             self.wore = wore;
             let pot = paint_pot();
-            self.ink = hue(&pot.0);
-            self.surface_hue = hue(&pot.1);
+            self.wearing.told(hue(&pot.0), hue(&pot.1));
         }
 
         // A picture is changed about as often as a theme is, and by the same
@@ -539,24 +602,26 @@ impl Wall {
 
             // A day is a different sea, and the change of one is a seabed
             // rearranging itself, so it happens behind whatever window is
-            // covering the water rather than in front of somebody.
-            let screen = &mut self.screens[at];
-            let over = screen
+            // covering the water rather than in front of somebody. Whenever the
+            // water is covered and owed a day rather than on the moment it is
+            // covered: a desk left under a full screen of windows at midnight
+            // is covered on every second of the new day and on none of them is
+            // it the second the covering happened.
+            self.screens[at].hidden = hidden;
+            let over = self.screens[at]
                 .scene
                 .as_mut()
                 .is_some_and(|scene| scene.today() != scene.planted());
-            let was = screen.hidden;
-            if hidden && !was && over {
+            if hidden && over {
                 self.replant(at);
             }
-            self.screens[at].hidden = hidden;
         }
     }
 
     fn draw(&mut self, at: usize, qh: &QueueHandle<Self>) {
         self.ask();
 
-        let (ink, surface_hue) = (self.ink, self.surface_hue);
+        let (ink, surface_hue) = self.wearing.now();
         let screen = &mut self.screens[at];
         if screen.paint.is_none() || screen.scene.is_none() {
             return;
@@ -785,3 +850,56 @@ impl ProvidesRegistryState for Wall {
 
 delegate_registry!(Wall);
 delegate_dispatch2!(Wall);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
+    const BLUE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
+    const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+
+    #[test]
+    fn a_theme_nobody_changed_is_the_theme_it_is() {
+        let wearing = Wearing::new(GREEN, BLACK);
+
+        assert_eq!(wearing.now(), (GREEN, BLACK));
+    }
+
+    #[test]
+    fn a_new_theme_is_somewhere_to_get_to() {
+        let mut wearing = Wearing::new(GREEN, BLACK);
+        wearing.told(BLUE, BLACK);
+
+        // The frame the theme changed on is still the old colours, and the
+        // water is on its way rather than there.
+        let (ink, _) = wearing.now();
+        assert!(ink[2] < 0.5, "the sea flashed instead of crossing: {ink:?}");
+
+        wearing.since = Some(std::time::Instant::now() - std::time::Duration::from_secs(9));
+        assert_eq!(wearing.now(), (BLUE, BLACK));
+    }
+
+    #[test]
+    fn a_theme_changed_mid_crossing_starts_from_the_screen() {
+        let mut wearing = Wearing::new(GREEN, BLACK);
+        wearing.told(BLUE, BLACK);
+        wearing.since =
+            Some(std::time::Instant::now() - std::time::Duration::from_secs_f64(CROSS / 2.0));
+
+        let (midway, _) = wearing.now();
+        wearing.told(GREEN, BLACK);
+
+        // Half a crossing is half of each colour, and that half-and-half is
+        // where the next one sets off from rather than the theme before it.
+        let (was, _) = wearing.was;
+        assert!(
+            midway[1] > 0.4 && midway[1] < 0.6,
+            "not half way: {midway:?}"
+        );
+        assert!(
+            (was[1] - midway[1]).abs() < 0.01,
+            "a second change jumped back: {was:?} against {midway:?}"
+        );
+    }
+}
