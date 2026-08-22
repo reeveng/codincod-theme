@@ -7,20 +7,21 @@
 use std::ffi::c_void;
 
 pub struct Sim {
-    isolate: v8::OwnedIsolate,
     context: v8::Global<v8::Context>,
     sea: v8::Global<v8::Object>,
     /// The bridge's own buffer, borrowed rather than copied. V8 allocates it
     /// once and never moves it, so a frame costs nothing to read.
     floats: *const f32,
     room: usize,
+    /// Last, because it is dropped last: a handle into an isolate that has
+    /// already been disposed is a handle into nothing, and Rust drops a struct's
+    /// fields in the order they are written.
+    isolate: v8::OwnedIsolate,
 }
 
 impl Sim {
     pub fn new(source: &str) -> Self {
-        let platform = v8::new_default_platform(0, false).make_shared();
-        v8::V8::initialize_platform(platform);
-        v8::V8::initialize();
+        hosted();
 
         let mut isolate = v8::Isolate::new(v8::CreateParams::default());
         let (context, sea, floats, room) = {
@@ -62,17 +63,32 @@ impl Sim {
             )
         };
 
+        // V8 enters an isolate as it is made, and a thread may only leave the
+        // one it entered last. Two seas exist at once every time one is planted
+        // to replace another, so this one is left rather than held: `call`
+        // enters it for as long as it is running and nothing else does.
+        unsafe { isolate.exit() };
+
         Sim {
-            isolate,
             context,
             sea,
             floats,
             room,
+            isolate,
         }
     }
 
     /// One of the bridge's functions, with numbers in and a number out.
     pub fn call(&mut self, name: &str, args: &[f64]) -> f64 {
+        unsafe { self.isolate.enter() };
+        let out = self.said(name, args);
+        unsafe { self.isolate.exit() };
+        out
+    }
+
+    /// The call itself, in a block of its own so that every scope it opens is
+    /// shut before the isolate is left.
+    fn said(&mut self, name: &str, args: &[f64]) -> f64 {
         v8::scope!(let handle_scope, &mut self.isolate);
         let context = v8::Local::new(handle_scope, &self.context);
         let scope = &v8::ContextScope::new(handle_scope, context);
@@ -100,6 +116,35 @@ impl Sim {
         assert!(floats <= self.room, "a frame outgrew the bridge's buffer");
         unsafe { std::slice::from_raw_parts(self.floats, floats) }
     }
+}
+
+impl Drop for Sim {
+    /// An isolate is disposed by the thread standing in it, and this one is
+    /// left standing in nothing between calls. So it is entered for the last
+    /// time here, before the handles into it are dropped and before it is.
+    fn drop(&mut self) {
+        unsafe { self.isolate.enter() };
+    }
+}
+
+/// V8 itself, which a process gets one of.
+///
+/// The platform belongs to the process rather than to an isolate, and the crate
+/// that keeps that state panics on being handed a second one. A sea is planted
+/// again whenever the day turns over, a screen arrives or a screen changes
+/// size, so a second `Sim` is ordinary rather than exceptional: the first one
+/// starts V8 and the rest are given the one already running.
+///
+/// Never disposed. Stopping V8 is permanent and the last thing a process does
+/// is exit, which stops it anyway.
+fn hosted() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+
+    ONCE.call_once(|| {
+        let platform = v8::new_default_platform(0, false).make_shared();
+        v8::V8::initialize_platform(platform);
+        v8::V8::initialize();
+    });
 }
 
 /// V8 keeps raw pointers to its own allocations; this only exists so the
