@@ -44,10 +44,22 @@ pub struct Frame {
 }
 
 /// Where a frame's time went, in milliseconds.
+///
+/// Five numbers rather than one, because the four things a frame is made of
+/// are paid for in different places: two of them are the ornament running, one
+/// is the bed bending and one is a tessellator. A total says a frame is dear
+/// and says nothing about which of the four to go and look at.
 #[derive(Default)]
 pub struct Spent {
+    /// The simulation carried forward, in the ornament.
     pub step: f64,
+    /// And the bed's own frame published out of it.
     pub publish: f64,
+    /// The bed bent to that frame, here.
+    pub bed: f64,
+    /// Everything over the bed, drawn in the ornament.
+    pub told: f64,
+    /// And cut into triangles, here.
     pub cut: f64,
     /// Whether the triangles moved, which only a crown redrawing itself does.
     pub redrawn: bool,
@@ -168,11 +180,14 @@ impl Scene {
         let redrawn = self
             .bed
             .take(self.sim.frame(floats), &mut self.geo, &mut self.swings);
+        let bed = ms(c);
 
         // And everything that is not the bed, which is cut again whatever
         // happened: a fish is somewhere new every frame there is.
+        let d = std::time::Instant::now();
         let floats = self.sim.call("over", &[]) as usize;
         let told = self.sim.frame(floats);
+        let drawn = ms(d);
         self.frame = Frame {
             sway: [told[0], told[1]],
             tilt: told[2],
@@ -180,12 +195,15 @@ impl Scene {
             turn: told[4],
             daylight: told[5],
         };
+        let e = std::time::Instant::now();
         self.over.take(&told[6..]);
 
         Spent {
             step,
             publish,
-            cut: ms(c),
+            bed,
+            told: drawn,
+            cut: ms(e),
             redrawn,
         }
     }

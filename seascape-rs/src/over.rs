@@ -12,13 +12,19 @@
 //! things are and says only what they look like, which is what keeps the
 //! ornament the one place any of it is decided.
 use lyon_tessellation::geom::point;
-use lyon_tessellation::path::{LineCap, Path};
+use lyon_tessellation::path::math::Point;
+use lyon_tessellation::path::{LineCap, PathEvent};
 use lyon_tessellation::{
     BuffersBuilder, FillOptions, FillRule, FillTessellator, FillVertex, StrokeOptions,
     StrokeTessellator, StrokeVertex, VertexBuffers,
 };
 
 use crate::paint::{Batch, Vertex, DOWN_THE_BOX, ROUND};
+
+/// How far a cut curve may sit from the curve it is cutting, in the units the
+/// scene is laid out in. A tenth of a point is finer than a screen can show and
+/// is what both tessellators are held to.
+const TOLERANCE: f32 = 0.1;
 
 /// What a drawing is drawn as.
 const FILL: u8 = 0;
@@ -46,6 +52,11 @@ pub struct Over {
     soft: Vec<Layer>,
     fill: FillTessellator,
     stroke: StrokeTessellator,
+    /// The drawing being cut, as the path it is. Kept between drawings and
+    /// between frames: a sea is a few hundred shapes a frame at thirty frames
+    /// a second, and a buffer a shape is the sort of housekeeping that costs
+    /// more than the work.
+    events: Vec<PathEvent>,
     height: f32,
     width: f32,
 }
@@ -104,6 +115,7 @@ impl Over {
 
         let mut cursor = Cursor { at: 0, floats };
         let count = cursor.next() as usize;
+        let mut events = std::mem::take(&mut self.events);
 
         for _ in 0..count {
             let drawing = Drawing {
@@ -119,20 +131,49 @@ impl Over {
                 thin: cursor.next(),
                 soft: cursor.next(),
             };
+            // A fill wants its outlines shut and a stroke wants them open, and
+            // both want them as the events a tessellator reads rather than as a
+            // path built to be thrown away. The lightest form is a point and a
+            // reach, so the first point is kept whatever the form.
+            let closed = !matches!(drawing.form, STROKE);
+            let least = if closed { 3 } else { 2 };
+
+            events.clear();
+            let mut first = None;
             let parts = cursor.next() as usize;
-            let mut pieces: Vec<Vec<(f32, f32)>> = Vec::with_capacity(parts);
             for _ in 0..parts {
                 let n = cursor.next() as usize;
-                let mut points = Vec::with_capacity(n);
-                for _ in 0..n {
-                    let x = cursor.next();
-                    let y = cursor.next();
-                    points.push((x, y));
+                let mut from = point(0.0, 0.0);
+                let mut opened = point(0.0, 0.0);
+                for at in 0..n {
+                    let to = point(cursor.next(), cursor.next());
+                    if first.is_none() {
+                        first = Some(to);
+                    }
+                    if n < least {
+                        continue;
+                    }
+                    if at == 0 {
+                        opened = to;
+                        events.push(PathEvent::Begin { at: to });
+                    } else {
+                        events.push(PathEvent::Line { from, to });
+                    }
+                    from = to;
                 }
-                pieces.push(points);
+                if n >= least {
+                    events.push(PathEvent::End {
+                        last: from,
+                        first: opened,
+                        close: closed,
+                    });
+                }
             }
-            self.cut(&drawing, &pieces);
+
+            self.cut(&drawing, &events, first);
         }
+
+        self.events = events;
     }
 
     pub fn solid(&self) -> Batch {
@@ -178,12 +219,12 @@ impl Over {
         }
     }
 
-    fn cut(&mut self, drawing: &Drawing, parts: &[Vec<(f32, f32)>]) {
+    fn cut(&mut self, drawing: &Drawing, path: &[PathEvent], first: Option<Point>) {
         match drawing.form {
-            LIGHT => self.light(drawing, parts.first().map(|p| p.as_slice()).unwrap_or(&[])),
+            LIGHT => self.light(drawing, first),
             WASH => self.wash(drawing),
-            STROKE => self.line(drawing, parts),
-            _ => self.shape(drawing, parts),
+            STROKE => self.line(drawing, path),
+            _ => self.shape(drawing, path),
         }
     }
 
@@ -207,74 +248,49 @@ impl Over {
         drawing.alpha < 0.999 || drawing.form == LIGHT || drawing.form == WASH
     }
 
-    fn shape(&mut self, drawing: &Drawing, parts: &[Vec<(f32, f32)>]) {
-        let mut builder = Path::builder();
-        let mut drawn = false;
-        for points in parts {
-            if points.len() < 3 {
-                continue;
-            }
-            drawn = true;
-            builder.begin(point(points[0].0, points[0].1));
-            for p in &points[1..] {
-                builder.line_to(point(p.0, p.1));
-            }
-            builder.close();
-        }
-        if !drawn {
+    fn shape(&mut self, drawing: &Drawing, path: &[PathEvent]) {
+        if path.is_empty() {
             return;
         }
-        let path = builder.build();
 
+        // The tessellator is lifted out of the scene for the length of the cut,
+        // because the batch it writes into is the scene's as well and one of
+        // them has to let go. It goes back below.
         let seed = self.seed(drawing);
-        let mut geo = VertexBuffers::<Vertex, u32>::new();
-        let _ = self.fill.tessellate_path(
-            &path,
+        let mut fill = std::mem::take(&mut self.fill);
+        let _ = fill.tessellate(
+            path.iter().copied(),
             // Winding, because an animal is several closed shapes meant to
             // overlap: a body, a tail swung off its joint, a fin rooted inside
             // the back. Counting crossings instead cancels every overlap and
             // leaves the thing looking unstitched.
-            &FillOptions::tolerance(0.1).with_fill_rule(FillRule::NonZero),
-            &mut BuffersBuilder::new(&mut geo, |v: FillVertex| Vertex {
+            &FillOptions::tolerance(TOLERANCE).with_fill_rule(FillRule::NonZero),
+            &mut BuffersBuilder::new(self.bin(drawing), |v: FillVertex| Vertex {
                 pos: v.position().to_array(),
                 ..seed
             }),
         );
-        join(&mut geo, self.bin(drawing));
+        self.fill = fill;
     }
 
-    fn line(&mut self, drawing: &Drawing, parts: &[Vec<(f32, f32)>]) {
-        let mut builder = Path::builder();
-        let mut drawn = false;
-        for points in parts {
-            if points.len() < 2 {
-                continue;
-            }
-            drawn = true;
-            builder.begin(point(points[0].0, points[0].1));
-            for p in &points[1..] {
-                builder.line_to(point(p.0, p.1));
-            }
-            builder.end(false);
-        }
-        if !drawn {
+    fn line(&mut self, drawing: &Drawing, path: &[PathEvent]) {
+        if path.is_empty() {
             return;
         }
-        let path = builder.build();
 
         let seed = self.seed(drawing);
-        let mut geo = VertexBuffers::<Vertex, u32>::new();
-        let _ = self.stroke.tessellate_path(
-            &path,
-            &StrokeOptions::tolerance(0.1)
+        let mut stroke = std::mem::take(&mut self.stroke);
+        let _ = stroke.tessellate(
+            path.iter().copied(),
+            &StrokeOptions::tolerance(TOLERANCE)
                 .with_line_width(drawing.width.max(0.1))
                 .with_line_cap(LineCap::Round),
-            &mut BuffersBuilder::new(&mut geo, |v: StrokeVertex| Vertex {
+            &mut BuffersBuilder::new(self.bin(drawing), |v: StrokeVertex| Vertex {
                 pos: v.position().to_array(),
                 ..seed
             }),
         );
-        join(&mut geo, self.bin(drawing));
+        self.stroke = stroke;
     }
 
     /// A round light: one quad, with the falling off done in the shader.
@@ -284,10 +300,11 @@ impl Over {
     /// middle for every pixel it fills, so the light is a box with the middle
     /// marked and the shader does the rest, and there is no ring of facets
     /// where a fan's outer edge cuts the curve.
-    fn light(&mut self, drawing: &Drawing, points: &[(f32, f32)]) {
-        let Some((cx, cy)) = points.first().copied() else {
+    fn light(&mut self, drawing: &Drawing, at: Option<Point>) {
+        let Some(at) = at else {
             return;
         };
+        let (cx, cy) = (at.x, at.y);
         if drawing.width <= 0.0 || drawing.alpha <= 0.0 {
             return;
         }
@@ -335,11 +352,4 @@ impl Over {
             .indices
             .extend([base, base + 1, base + 2, base, base + 2, base + 3]);
     }
-}
-
-/// Add one tessellation to the batch it belongs in.
-fn join(geo: &mut VertexBuffers<Vertex, u32>, into: &mut VertexBuffers<Vertex, u32>) {
-    let base = into.vertices.len() as u32;
-    into.vertices.append(&mut geo.vertices);
-    into.indices.extend(geo.indices.iter().map(|i| i + base));
 }

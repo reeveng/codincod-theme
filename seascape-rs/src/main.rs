@@ -87,7 +87,8 @@ fn main() {
             paint.soften(&scene.soft());
             paint.draw(&view, vertices, indices, spent.redrawn, over, glass);
         }
-        let (mut step, mut publish, mut cut, mut drawn) = (0.0, 0.0, 0.0, 0.0);
+        let (mut step, mut publish, mut bed, mut told, mut cut, mut drawn) =
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
         for _ in 0..laps {
             let spent = scene.advance(0.033);
             let (vertices, indices) = scene.geometry();
@@ -101,14 +102,18 @@ fn main() {
             drawn += t.elapsed().as_secs_f64() * 1000.0;
             step += spent.step;
             publish += spent.publish;
+            bed += spent.bed;
+            told += spent.told;
             cut += spent.cut;
         }
         let each = 1.0 / laps as f64;
-        let frame = (step + publish + cut + drawn) * each;
+        let frame = (step + publish + bed + told + cut + drawn) * each;
         println!(
-            "a frame: step {:.2}ms  publish {:.2}ms  cut {:.2}ms  draw {:.2}ms  = {:.2}ms, {:.0} a second",
+            "a frame: step {:.2}  publish {:.2}  bed {:.2}  drawn {:.2}  cut {:.2}  card {:.2}  = {:.2}ms, {:.0} a second",
             step * each,
             publish * each,
+            bed * each,
+            told * each,
             cut * each,
             drawn * each,
             frame,
