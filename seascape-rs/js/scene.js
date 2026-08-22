@@ -2054,17 +2054,38 @@ var Sea = (() => {
   var PERCH_LARGEST = 1.9;
   var PERCH_WANDER = 0.6;
   var ISLE_DEEP = 0.04;
-  var ISLE_SPAN_LEAST = 0.3;
-  var ISLE_SPAN_SPAN = 0.36;
-  var ISLE_RISE_LEAST = 0.78;
-  var ISLE_RISE_SPAN = 0.45;
-  var ISLE_STEPS = 90;
+  var ISLE_RISE_LEAST = 0.1;
+  var ISLE_RISE_SPAN = 0.78;
+  var ISLE_RISE_BIAS = 2.4;
+  var ISLE_PITCH_LEAST = 0.42;
+  var ISLE_PITCH_SPAN = 0.4;
+  var ISLE_LOPSIDED = 2;
+  var ISLE_WIDEST = 0.6;
+  var ISLE_TOE_LEAST = 0.7;
+  var ISLE_TOE_SPAN = 1.1;
+  var SPURS_LEAST = 2;
+  var SPURS_SPAN = 3;
+  var SPUR_OUT_LEAST = 0.4;
+  var SPUR_OUT_SPAN = 0.8;
+  var SPUR_REACH_LEAST = 0.12;
+  var SPUR_REACH_SPAN = 0.28;
+  var SPUR_RISE_LEAST = 0.1;
+  var SPUR_RISE_SPAN = 0.36;
+  var ISLE_RELIEF = 0.34;
+  var ISLE_RELIEF_LEAST = 0.065;
+  var ISLE_RELIEF_CELLS = 2.6;
+  var ISLE_RELIEF_OCTAVES = 5;
+  var ISLE_RELIEF_FALL = 0.54;
+  var ISLE_RELIEF_STEP = 2.3;
+  var ISLE_RELIEF_FOOT = 0.16;
+  var ISLE_STEPS = 320;
   var MIN_SPAN4 = 1;
   function createCrags(options) {
     const random = makeRandom(stir(options.seed ^ 15529) | 0);
     const rough = makeNoise2(options.seed ^ 39441);
     const bite = makeNoise2(options.seed ^ 2839);
     const bedding = makeNoise2(options.seed ^ 32307);
+    const carve = makeNoise2(options.seed ^ 41342);
     let width = Math.max(MIN_SPAN4, options.width);
     let height = Math.max(MIN_SPAN4, options.height);
     let floor = options.floor;
@@ -2191,17 +2212,70 @@ var Sea = (() => {
       }
       return { depth: NEAR, edge: "top", outline: outline2, perches: settle(outline2, -1, Math.PI / 2, 1) };
     }
-    function raise() {
+    const slope = (reach2) => ({
+      reach: Math.min(width * ISLE_WIDEST, reach2),
+      toe: ISLE_TOE_LEAST + random() * ISLE_TOE_SPAN
+    });
+    function land() {
       const middle = width * (0.15 + random() * 0.7);
-      const span = width * (ISLE_SPAN_LEAST + random() * ISLE_SPAN_SPAN);
-      const rise = height * (ISLE_RISE_LEAST + random() * ISLE_RISE_SPAN);
-      const grain = makeNoise2(random() * 65535 | 0);
+      const rise = height * (ISLE_RISE_LEAST + random() ** ISLE_RISE_BIAS * ISLE_RISE_SPAN);
+      const pitch = ISLE_PITCH_LEAST + random() * ISLE_PITCH_SPAN;
+      const spread2 = Math.PI / 2 * rise / Math.tan(pitch);
+      const stretch = 1 + random() * (ISLE_LOPSIDED - 1);
+      const longer = random() < 0.5 ? -1 : 1;
+      const peak = {
+        left: slope(spread2 * (longer < 0 ? stretch : 1)),
+        middle,
+        right: slope(spread2 * (longer < 0 ? 1 : stretch)),
+        rise
+      };
+      const many = SPURS_LEAST + Math.floor(random() * (SPURS_SPAN + 1));
+      const spurs = Array.from({ length: many }, () => {
+        const out = random() < 0.5 ? -1 : 1;
+        const side2 = out < 0 ? peak.left : peak.right;
+        const span = side2.reach * (SPUR_REACH_LEAST + random() * SPUR_REACH_SPAN);
+        return {
+          left: slope(span),
+          middle: middle + out * side2.reach * (SPUR_OUT_LEAST + random() * SPUR_OUT_SPAN),
+          right: slope(span * (0.6 + random() * 0.8)),
+          rise: rise * (SPUR_RISE_LEAST + random() * SPUR_RISE_SPAN)
+        };
+      });
+      return [peak, ...spurs];
+    }
+    function stands(x, hill) {
+      const side2 = x < hill.middle ? hill.left : hill.right;
+      const along2 = Math.abs(x - hill.middle) / side2.reach;
+      if (along2 >= 1) return 0;
+      return hill.rise * ((1 + Math.cos(along2 * Math.PI)) / 2) ** side2.toe;
+    }
+    function relief(along2) {
+      let sum = 0;
+      let weight = 0;
+      let strength = 1;
+      let cells = ISLE_RELIEF_CELLS;
+      for (let octave = 0; octave < ISLE_RELIEF_OCTAVES; octave++) {
+        sum += strength * (1 - Math.abs(carve(along2 * cells, octave * 3.7)));
+        weight += strength;
+        strength *= ISLE_RELIEF_FALL;
+        cells *= ISLE_RELIEF_STEP;
+      }
+      return sum / weight - 0.5;
+    }
+    function raise() {
+      const masses = land();
+      const peak = masses[0];
       const outline2 = [];
+      if (!peak) return { depth: ISLE_DEEP, outline: outline2 };
+      const own2 = (peak.left.reach + peak.right.reach) / 2;
+      const weather = Math.max(peak.rise * ISLE_RELIEF, height * ISLE_RELIEF_LEAST);
       for (let at2 = 0; at2 <= ISLE_STEPS; at2++) {
         const x = -OVERHANG + at2 / ISLE_STEPS * (width + OVERHANG * 2);
-        const t = (x - (middle - span / 2)) / span;
-        const lift = t <= 0 || t >= 1 ? 0 : rise * ((1 - Math.cos(t * Math.PI * 2)) / 2) * (1 + grain(t * 3.4, 0) * 0.3);
-        outline2.push({ x, y: floor(x, ISLE_DEEP) - lift });
+        let lift = 0;
+        for (const hill of masses) lift = Math.max(lift, stands(x, hill));
+        const ashore = Math.min(1, lift / (peak.rise * ISLE_RELIEF_FOOT));
+        const rough2 = weather * relief((x - peak.middle) / own2) * ashore;
+        outline2.push({ x, y: floor(x, ISLE_DEEP) - Math.max(0, lift + rough2) });
       }
       return { depth: ISLE_DEEP, outline: outline2 };
     }
