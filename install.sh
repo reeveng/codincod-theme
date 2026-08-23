@@ -13,8 +13,14 @@
 # in QML, which is where this started and what to fall back to on a machine the
 # native one will not build on.
 #
-# Whichever is installed turns the other one off. Two wallpapers on the
-# background layer is a coin toss over which one you see.
+# Whichever is installed turns the other one off. Two wallpapers on one layer is
+# a coin toss over which one you see.
+#
+# Either way the water is this theme's and stops when the theme does. The native
+# renderer draws on the layer above Omarchy's own background rather than in
+# place of it, and a hook stops its service when you wear something else; the
+# QML one is the background plugin and puts the sea away itself. Switch theme
+# and you get that theme's wallpaper, which is the whole of what a theme is.
 
 set -euo pipefail
 
@@ -24,6 +30,15 @@ ID="${SEASCAPE_ID:-${USER:-$(id -un)}.background}"
 TARGET="$PLUGINS/$ID"
 BIN="$HOME/.local/bin/seascape-wall"
 UNIT="$HOME/.config/systemd/user/seascape.service"
+HOOK="$HOME/.config/omarchy/hooks/theme-set.d/seascape"
+
+# Which theme the water belongs to, which is the directory Omarchy cloned this
+# into rather than anything written down here: `omarchy theme install` names a
+# theme after its repository, so a fork under another name is that fork's sea
+# and should stop when that fork is taken off. Run from anywhere else and it is
+# this one.
+THEME="$(basename "$HERE")"
+[[ $(basename "$(dirname "$HERE")") == themes ]] || THEME="codincod"
 
 command -v omarchy-shell >/dev/null || {
   echo "omarchy-shell is not on PATH; is this an Omarchy system?" >&2
@@ -56,6 +71,8 @@ install_plugin() {
   jq --arg id "$ID" '.id = $id' "$TARGET/manifest.json" >"$tmp"
   mv "$tmp" "$TARGET/manifest.json"
 
+  install_hook
+
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
 
   for _ in $(seq 40); do
@@ -73,26 +90,44 @@ install_plugin() {
   return 1
 }
 
-# Every wallpaper the shell would draw, off, so that the water is the only
-# thing on the background layer. Disabled rather than removed: the way back is
-# one command.
+# The QML sea off, since the native renderer draws the same water and two of
+# them is one too many. Disabled rather than removed: the way back is one
+# command.
 #
-# Both of them, and that is not belt and braces. This plugin is a clone of
-# `omarchy.background`, and disabling a clone hands the built-in back its job:
-# turn off only the sea and the shell paints the wallpaper image over it, on the
-# same layer, after it, which is to say on top of it.
+# Only that one. `omarchy.background` is the shell's own wallpaper and it is
+# left running, because the native water is on the layer above it rather than in
+# its place: the shell paints the picture the theme names and the sea is what is
+# over it. An earlier version of this installer switched that off, which is why
+# it is switched back on here, and why a desk that had been through it kept this
+# sea as its wallpaper under every theme it went on to wear.
 stop_plugin() {
   local off=0
 
-  for id in "$ID" omarchy.background; do
-    omarchy plugin list --json 2>/dev/null |
-      jq -e --arg id "$id" 'any(.[]; .id == $id and .enabled)' >/dev/null || continue
-    omarchy plugin disable "$id" >/dev/null
+  if omarchy plugin list --json 2>/dev/null |
+    jq -e --arg id "$ID" 'any(.[]; .id == $id and .enabled)' >/dev/null; then
+    omarchy plugin disable "$ID" >/dev/null
     off=1
-  done
+  fi
+
+  if omarchy plugin list --json 2>/dev/null |
+    jq -e 'any(.[]; .id == "omarchy.background" and (.enabled | not))' >/dev/null; then
+    omarchy plugin enable omarchy.background >/dev/null
+    off=1
+  fi
 
   ((off)) && restart_shell
   return 0
+}
+
+# The one thing that makes this a theme's background rather than the desk's.
+#
+# Omarchy runs everything in `theme-set.d` after a theme change and hands it the
+# new theme's slug, which is the only moment anybody finds out. Without it the
+# service is the session's and outlives the theme by the whole login.
+install_hook() {
+  mkdir -p "$(dirname "$HOOK")"
+  sed "s/@THEME@/$THEME/" "$HERE/hooks/theme-set.d/seascape" >"$HOOK"
+  chmod +x "$HOOK"
 }
 
 stop_wall() {
@@ -139,12 +174,27 @@ RestartSec=2
 WantedBy=graphical-session.target
 UNITFILE
 
+  install_hook
+
   systemctl --user daemon-reload
   systemctl --user enable seascape.service >/dev/null
-  # Restarted rather than started, since a second install with the same unit
-  # already running is the one that goes on drawing with the old binary.
-  systemctl --user restart seascape.service
-  echo "Installed. The desktop is water now, and the card is drawing it."
+
+  # Stopped, and then started by the hook or not at all.
+  #
+  # Stopped rather than restarted because a second install with the same unit
+  # already running is the one that goes on drawing with the old binary. Started
+  # by the hook because whether this theme is the one being worn is exactly the
+  # hook's question, and installing the water while wearing something else put
+  # water on that something else until the next theme change, which is the bug
+  # this whole file is here to stop making.
+  systemctl --user stop seascape.service
+  "$HOOK"
+
+  if systemctl --user is-active seascape.service >/dev/null 2>&1; then
+    echo "Installed. The desktop is water now, and the card is drawing it."
+  else
+    echo "Installed. Wear the $THEME theme and the card will draw it."
+  fi
 }
 
 case "${1:-}" in
