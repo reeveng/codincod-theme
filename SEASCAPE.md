@@ -253,7 +253,11 @@ the one thing that surface may not be.
 installs. The same simulations decide the same scene: the ornament is bundled
 into `js/scene.js` and hosted in V8, so what a fish is doing is settled by the
 same TypeScript the site runs and nothing about the animals is written twice.
-What is written twice is the drawing, and only the drawing.
+Neither is the drawing. `js/scene.ts` is a bridge and nothing else: it holds one
+`paint/sea.ts` from the CodinCod repository, over a block it allocated before
+the scene existed, and hands the host functions that take numbers and return
+numbers. Everything a thing looks like is read from over there, so an animal
+added to the site arrives here with a rebuild.
 
 Three things cross from the simulation to the renderer, and nothing else does.
 
@@ -265,7 +269,7 @@ hundred plants costs two numbers a plant a frame rather than a recut.
 
 **Everything else, every frame,** as drawings. A drawing is a shape, a colour to
 mix it from, how heavy it is, how it gives out and how far back it stands. There
-is no fish in the renderer and no moon either: `js/` says what a thing looks
+is no fish in the renderer and no moon either: `paint/` says what a thing looks
 like and the ornament stays the one place any of it is decided. They are cut
 with lyon and drawn in two passes, one sorted by depth for anything solid and
 one painted in order for anything the water is seen through, since two lights

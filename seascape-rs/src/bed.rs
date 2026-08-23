@@ -1,10 +1,10 @@
 //! The bed, cut into triangles once and bent on the card after that.
 //!
-//! The wire is `js/scene.ts`, and the shapes are the ones `Seascape.qml` draws:
-//! the ground at each distance, closed off under the box, and the plants
-//! standing on it. Nothing here decides a colour. Every vertex carries the two
-//! numbers the shader needs to work one out, which is what keeps the water's
-//! own gradient a gradient rather than eight stops.
+//! The wire is CodinCod's `paint/sea.ts`, and the shapes are the ones
+//! `Seascape.qml` draws: the ground at each distance, closed off under the box,
+//! and the plants standing on it. Nothing here decides a colour. Every vertex
+//! carries the two numbers the shader needs to work one out, which is what
+//! keeps the water's own gradient a gradient rather than eight stops.
 //!
 //! ## The bed is cut once
 //!

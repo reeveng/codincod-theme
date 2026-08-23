@@ -8,8 +8,8 @@
 //!
 //! What a drawing is, is deliberately small. A shape, a colour to mix it from,
 //! how heavy it is, how it gives out, and where it stands in the water. There
-//! is no fish in this file and no moon either. `js/scene.ts` knows what the
-//! things are and says only what they look like, which is what keeps the
+//! is no fish in this file and no moon either. CodinCod's `paint/` knows what
+//! the things are and says only what they look like, which is what keeps the
 //! ornament the one place any of it is decided.
 use lyon_tessellation::geom::point;
 use lyon_tessellation::path::math::Point;
