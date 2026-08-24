@@ -20,7 +20,11 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PLUGINS="$HOME/.config/omarchy/plugins"
-ID="${SEASCAPE_ID:-${USER:-$(id -un)}.background}"
+# The id in the manifest, so that installing the sea from here and installing
+# it from the plugin marketplace land on the same plugin rather than on two of
+# them drawing over each other.
+CANONICAL_ID="codincod.background"
+ID="${SEASCAPE_ID:-$CANONICAL_ID}"
 TARGET="$PLUGINS/$ID"
 BIN="$HOME/.local/bin/seascape-wall"
 UNIT="$HOME/.config/systemd/user/seascape.service"
@@ -50,11 +54,11 @@ install_plugin() {
   mkdir -p "$TARGET"
   cp -a "$HERE/seascape/." "$TARGET/"
 
-  # The manifest ships with a placeholder id so the repo does not carry one
-  # person's username. Whoever installs it gets their own.
-  tmp=$(mktemp)
-  jq --arg id "$ID" '.id = $id' "$TARGET/manifest.json" >"$tmp"
-  mv "$tmp" "$TARGET/manifest.json"
+  if [[ $ID != "$CANONICAL_ID" ]]; then
+    tmp=$(mktemp)
+    jq --arg id "$ID" '.id = $id' "$TARGET/manifest.json" >"$tmp"
+    mv "$tmp" "$TARGET/manifest.json"
+  fi
 
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
 
@@ -84,7 +88,7 @@ install_plugin() {
 stop_plugin() {
   local off=0
 
-  for id in "$ID" omarchy.background; do
+  for id in "$ID" "$CANONICAL_ID" omarchy.background; do
     omarchy plugin list --json 2>/dev/null |
       jq -e --arg id "$id" 'any(.[]; .id == $id and .enabled)' >/dev/null || continue
     omarchy plugin disable "$id" >/dev/null

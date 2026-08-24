@@ -68,6 +68,22 @@ on the background layer is a coin toss over which one you see. `systemctl --user
 disable --now seascape.service` and `omarchy plugin enable omarchy.background`
 is the way back to the wallpaper you had.
 
+**The plugin on its own.** The water is also a plugin the shell fetches by
+itself, which wants no cargo, no service and no theme:
+
+```bash
+omarchy plugin add https://github.com/reeveng/codincod-theme.git --enable
+omarchy plugin remove codincod.background          # and the way back
+```
+
+That is the QML renderer, the slower of the two. It takes its two colours from
+whichever theme you are on, the accent and the background, so it is water in
+your own colours before it is water in CodinCod's, and it re-colours itself as
+you switch. Omarchy's own background turns itself off as it goes on, because
+this is a clone of it and the shell hands the job over, and removing it hands
+the job back. The native renderer is the same water at
+a third of the cost, and `install.sh` above is the only way to it.
+
 **A different sea every day.** The calendar day decides where the seabed is,
 what grows on it, how much of it grew, whether there is a wreck down there and
 what happens to be lying on it. A screen takes the new day up the next time a
