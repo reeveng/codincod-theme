@@ -40,17 +40,24 @@ TARGET="$PLUGINS/$ID"
 BIN="$HOME/.local/bin/seascape-wall"
 UNIT="$HOME/.config/systemd/user/seascape.service"
 
-# Which theme the water belongs to, which is the directory Omarchy cloned this
-# into rather than anything written down here: `omarchy theme install` names a
-# theme after its repository, so a fork under another name is that fork's sea
-# and should stop when that fork is taken off. Run from anywhere else and it is
-# this one.
+# Which theme the water belongs to, if any, which is decided by where this is
+# sitting rather than by anything written down here.
 #
-# `SEASCAPE_THEME=` empty is water that belongs to no theme and draws under all
-# of them, which is what installing the plugin on its own gets and what somebody
-# working out of a clone usually wants.
-THEME="$(basename "$HERE")"
-[[ $(basename "$(dirname "$HERE")") == themes ]] || THEME="codincod"
+# Under `themes/` means Omarchy cloned it there as somebody's theme, and
+# `omarchy theme install` names a theme after its repository, so the water is
+# that theme's and stops when that theme comes off. A fork under another name is
+# that fork's sea for the same reason.
+#
+# Anywhere else, it belongs to no theme and draws under all of them. That is the
+# right default for a clone of this repository: the sea is not a theme and takes
+# its two colours off whichever one you are wearing.
+#
+# `SEASCAPE_THEME=codincod` ties it to a theme by hand, and `SEASCAPE_THEME=`
+# unties it again.
+THEME=""
+if [[ $(basename "$(dirname "$HERE")") == themes ]]; then
+  THEME="$(basename "$HERE")"
+fi
 THEME="${SEASCAPE_THEME-$THEME}"
 
 # What the desktop says it is wearing, which is the same short file both

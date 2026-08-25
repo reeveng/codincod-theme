@@ -9,3 +9,6 @@ seascape/.ornament-entry/
 
 # Written by `seascape` with no `out=`, which is how a still gets looked at.
 seascape-rs/bed.png
+
+# Written by seascape-rs/js/build.sh: where it found the ornament sources.
+seascape-rs/js/.ornament

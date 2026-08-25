@@ -16,8 +16,8 @@ import {
   opening,
   type Sea,
   today as todaysSeed,
-} from "../../../codincodv2/assets/js/ornament/paint/sea.ts"
-import type { Asked } from "../../../codincodv2/assets/js/ornament/paint/sky.ts"
+} from "./.ornament/paint/sea.ts"
+import type { Asked } from "./.ornament/paint/sky.ts"
 
 /**
  * The block every frame is written into.
