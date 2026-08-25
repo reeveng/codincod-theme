@@ -31,6 +31,10 @@ PLUGINS="$HOME/.config/omarchy/plugins"
 # it from the plugin marketplace land on the same plugin rather than on two of
 # them drawing over each other.
 CANONICAL_ID="codincod.background"
+# What this installer called it before that, which is a plugin still sitting
+# enabled on any desk that took the water early. Swept along with the rest of
+# them, or a second install leaves two seas drawing over each other.
+LEGACY_ID="${USER:-$(id -un)}.background"
 ID="${SEASCAPE_ID:-$CANONICAL_ID}"
 TARGET="$PLUGINS/$ID"
 BIN="$HOME/.local/bin/seascape-wall"
@@ -126,7 +130,7 @@ install_plugin() {
 stop_plugin() {
   local off=0
 
-  for id in "$ID" "$CANONICAL_ID"; do
+  for id in "$ID" "$CANONICAL_ID" "$LEGACY_ID"; do
     omarchy plugin list --json 2>/dev/null |
       jq -e --arg id "$id" 'any(.[]; .id == $id and .enabled)' >/dev/null || continue
     omarchy plugin disable "$id" >/dev/null
@@ -161,17 +165,21 @@ uninstall() {
   rm -f "$UNIT" "$BIN"
   systemctl --user daemon-reload
 
-  for id in "$ID" "$CANONICAL_ID"; do
+  for id in "$ID" "$CANONICAL_ID" "$LEGACY_ID"; do
     omarchy plugin list --json 2>/dev/null |
       jq -e --arg id "$id" 'any(.[]; .id == $id and .enabled)' >/dev/null || continue
     omarchy plugin disable "$id" >/dev/null
     off=1
   done
 
-  if [[ -d $TARGET && $TARGET == "$PLUGINS/"* ]]; then
-    rm -rf "$TARGET"
+  for id in "$ID" "$CANONICAL_ID" "$LEGACY_ID"; do
+    # Only a directory this installer would have written, and only one holding
+    # the water: `omarchy plugin add` puts the same id somewhere else, and a
+    # plugin somebody else wrote is nobody's to delete on the way past.
+    [[ -d $PLUGINS/$id && -f $PLUGINS/$id/Background.qml ]] || continue
+    rm -rf "${PLUGINS:?}/$id"
     off=1
-  fi
+  done
 
   if omarchy plugin list --json 2>/dev/null |
     jq -e 'any(.[]; .id == "omarchy.background" and (.enabled | not))' >/dev/null; then
