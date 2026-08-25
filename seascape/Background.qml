@@ -15,6 +15,45 @@ Item {
   readonly property string home: Quickshell.env("HOME")
   readonly property string stateHome: home + "/.local/state"
   readonly property string currentBackgroundLink: stateHome + "/omarchy/current/background"
+  readonly property string currentThemeName: stateHome + "/omarchy/current/theme.name"
+
+  /**
+   * Which theme the desktop is wearing, and whether it is the one this is.
+   *
+   * A background plugin is the desk's rather than a theme's: it is enabled once
+   * and it draws until somebody turns it off, and nothing about switching theme
+   * ever reaches it beyond a new set of colours. Left at that, the sea is what
+   * every theme after this one looks like, recoloured to each and still a sea,
+   * and the wallpaper the next theme came with is under water nobody asked for.
+   *
+   * So the water asks. `theme.name` is the slug Omarchy writes on its way
+   * through a theme change, before it hands the shell the new colours, which
+   * makes it the earliest the answer is knowable and early enough that the sea
+   * is already gone when the picture wipes across.
+   *
+   * `wearing` is empty until the file is first read. Empty is not this theme, so
+   * the opening frame of a desktop wearing something else has no sea on it.
+   */
+  property string wearing: ""
+  readonly property bool worn: wearing === root.mine
+
+  /**
+   * The theme this water belongs to, which is the directory Omarchy cloned it
+   * into: `omarchy theme install` names a theme after its repository, so a fork
+   * under another name is that fork's sea and stops when that fork is taken off.
+   */
+  readonly property string mine: "codincod"
+
+  FileView {
+    path: root.currentThemeName
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.wearing = String(text() || "").trim()
+    // `text()` is the old contents inside the change signal itself, so both
+    // paths go through a reload rather than one of them reading stale.
+    onFileChanged: reload()
+    onLoadFailed: root.wearing = ""
+  }
 
   property string currentBackground: ""
   property string displayedBackground: ""
@@ -391,8 +430,13 @@ Item {
       // Everything it draws is CodinCod's, taken as it stands; see
       // LOCAL-CHANGES.md. Nothing here names a colour, so a theme switch
       // recolours the whole sea.
+      //
+      // Only while this theme is the one being worn. Off, the images above are
+      // the whole of the background and this is the shell's own wallpaper with
+      // nothing added, which is what every other theme is owed.
       Seascape {
         anchors.fill: parent
+        visible: root.worn
         daylight: root.daylight
         dusk: root.dusk
         ink: Color.accent
@@ -402,7 +446,8 @@ Item {
         surface: Color.background
 
         /**
-         * Whether this screen is showing its desktop at all.
+         * Whether this screen is showing its desktop at all, and whether the
+         * desktop is wearing this theme in the first place.
          *
          * Gaps are zero here and no window is see-through, so a single window
          * anywhere on the active workspace means the whole wallpaper is covered
@@ -411,7 +456,7 @@ Item {
          * re-evaluates when a window opens, closes or changes workspace, and at
          * no other time. A sea nobody can see costs one idle timer.
          */
-        running: panel.visible && (function () {
+        running: root.worn && panel.visible && (function () {
           var monitor = Hyprland.monitorFor(panel.screen)
           if (!monitor) return false
 

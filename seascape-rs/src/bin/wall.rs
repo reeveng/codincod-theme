@@ -2,11 +2,13 @@
 //!
 //!   wall ink=#35c26d surface=#0e1712 seed=28
 //!
-//! A layer surface on the background layer, under every window, which is the
-//! one place a desktop's ornament may be. One per screen, since a wallpaper is
-//! something a screen has rather than something a desk has. What it draws is
-//! `seascape`'s bed; what it knows about is Wayland, and the two do not meet
-//! anywhere else.
+//! A layer surface on the bottom layer, over the desktop's own picture and
+//! under every window, which is the one place a desktop's ornament may be. The
+//! layer beneath this one is Omarchy's, and leaving it to Omarchy is what lets
+//! a theme the water does not belong to still have a wallpaper of its own. One
+//! per screen, since a wallpaper is something a screen has rather than
+//! something a desk has. What it draws is `seascape`'s bed; what it knows about
+//! is Wayland, and the two do not meet anywhere else.
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::ptr::NonNull;
@@ -376,7 +378,7 @@ impl Wall {
         let layer = self.shell.create_layer_surface(
             qh,
             wl,
-            Layer::Background,
+            Layer::Bottom,
             Some("seascape"),
             Some(&output),
         );
@@ -512,9 +514,11 @@ impl Wall {
     /// Put the desktop's own picture behind the water, on every screen.
     ///
     /// The one thing here that is nobody's but the machine's: `Background.qml`
-    /// has the wallpaper under the sea because the sea is not opaque, and a
-    /// renderer that owns the whole background layer has to carry the picture
-    /// itself or there is nothing under the water at all.
+    /// has the wallpaper under the sea because the sea is not opaque, and the
+    /// water carries the picture itself rather than trusting the layer below to
+    /// be holding one. Omarchy's own background is usually down there and this
+    /// draws the same file it does, but a desk that has switched it off is a
+    /// desk with nothing under the water at all.
     ///
     /// Read once and hung on each screen, which fits it to its own box: one
     /// picture cropped two ways rather than one crop stretched twice.
