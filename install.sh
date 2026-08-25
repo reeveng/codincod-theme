@@ -18,9 +18,9 @@
 #
 # Either way the water is this theme's and stops when the theme does. The native
 # renderer draws on the layer above Omarchy's own background rather than in
-# place of it, and a hook stops its service when you wear something else; the
-# QML one is the background plugin and puts the sea away itself. Switch theme
-# and you get that theme's wallpaper, which is the whole of what a theme is.
+# place of it, and both renderers ask the desktop what it is wearing and put the
+# sea away when the answer is not this. Switch theme and you get that theme's
+# wallpaper, which is the whole of what a theme is.
 
 set -euo pipefail
 
@@ -34,15 +34,25 @@ ID="${SEASCAPE_ID:-$CANONICAL_ID}"
 TARGET="$PLUGINS/$ID"
 BIN="$HOME/.local/bin/seascape-wall"
 UNIT="$HOME/.config/systemd/user/seascape.service"
-HOOK="$HOME/.config/omarchy/hooks/theme-set.d/seascape"
 
 # Which theme the water belongs to, which is the directory Omarchy cloned this
 # into rather than anything written down here: `omarchy theme install` names a
 # theme after its repository, so a fork under another name is that fork's sea
 # and should stop when that fork is taken off. Run from anywhere else and it is
 # this one.
+#
+# `SEASCAPE_THEME=` empty is water that belongs to no theme and draws under all
+# of them, which is what installing the plugin on its own gets and what somebody
+# working out of a clone usually wants.
 THEME="$(basename "$HERE")"
 [[ $(basename "$(dirname "$HERE")") == themes ]] || THEME="codincod"
+THEME="${SEASCAPE_THEME-$THEME}"
+
+# What the desktop says it is wearing, which is the same short file both
+# renderers read.
+worn() {
+  cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || true
+}
 
 command -v omarchy-shell >/dev/null || {
   echo "omarchy-shell is not on PATH; is this an Omarchy system?" >&2
@@ -74,8 +84,6 @@ install_plugin() {
     jq --arg id "$ID" '.id = $id' "$TARGET/manifest.json" >"$tmp"
     mv "$tmp" "$TARGET/manifest.json"
   fi
-
-  install_hook
 
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
 
@@ -124,17 +132,6 @@ stop_plugin() {
   return 0
 }
 
-# The one thing that makes this a theme's background rather than the desk's.
-#
-# Omarchy runs everything in `theme-set.d` after a theme change and hands it the
-# new theme's slug, which is the only moment anybody finds out. Without it the
-# service is the session's and outlives the theme by the whole login.
-install_hook() {
-  mkdir -p "$(dirname "$HOOK")"
-  sed "s/@THEME@/$THEME/" "$HERE/hooks/theme-set.d/seascape" >"$HOOK"
-  chmod +x "$HOOK"
-}
-
 stop_wall() {
   systemctl --user is-enabled seascape.service >/dev/null 2>&1 || return 0
   systemctl --user disable --now seascape.service >/dev/null 2>&1 || true
@@ -171,7 +168,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=$BIN$told
+ExecStart=$BIN$told${THEME:+ theme=$THEME}
 Restart=on-failure
 RestartSec=2
 
@@ -179,23 +176,18 @@ RestartSec=2
 WantedBy=graphical-session.target
 UNITFILE
 
-  install_hook
-
   systemctl --user daemon-reload
   systemctl --user enable seascape.service >/dev/null
+  # Restarted rather than started, since a second install with the same unit
+  # already running is the one that goes on drawing with the old binary.
+  systemctl --user restart seascape.service
 
-  # Stopped, and then started by the hook or not at all.
-  #
-  # Stopped rather than restarted because a second install with the same unit
-  # already running is the one that goes on drawing with the old binary. Started
-  # by the hook because whether this theme is the one being worn is exactly the
-  # hook's question, and installing the water while wearing something else put
-  # water on that something else until the next theme change, which is the bug
-  # this whole file is here to stop making.
-  systemctl --user stop seascape.service
-  "$HOOK"
-
-  if systemctl --user is-active seascape.service >/dev/null 2>&1; then
+  # Which is running either way. Whether there is anything on the screen is the
+  # service's own question, asked of the theme the desk is wearing, and the
+  # answer is worth saying out loud: installing the water while wearing
+  # something else used to put water on that something else, and now it puts
+  # nothing anywhere until you come back.
+  if [[ -z $THEME || $THEME == "$(worn)" ]]; then
     echo "Installed. The desktop is water now, and the card is drawing it."
   else
     echo "Installed. Wear the $THEME theme and the card will draw it."

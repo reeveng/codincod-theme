@@ -1,6 +1,6 @@
 //! The water, on the wallpaper layer where nobody has to open it.
 //!
-//!   wall ink=#35c26d surface=#0e1712 seed=28
+//!   wall ink=#35c26d surface=#0e1712 seed=28 theme=codincod
 //!
 //! A layer surface on the bottom layer, over the desktop's own picture and
 //! under every window, which is the one place a desktop's ornament may be. The
@@ -64,6 +64,11 @@ fn main() {
     // written down, so that a desktop that changes theme changes the water with
     // it, which is what the plugin gets for free by binding to the shell's.
     let told = (arg("ink", ""), arg("surface", ""));
+    // The theme this water came with, and nothing at all if it came with none.
+    // Named, the sea is that theme's and is off the screen while the desktop is
+    // wearing anything else. Unnamed, it is the desk's own and always draws,
+    // which is what somebody who installed the water on its own asked for.
+    let mine = arg("theme", "");
     let painted = paint_pot();
     let ink = hue(if told.0.is_empty() {
         &painted.0
@@ -94,6 +99,8 @@ fn main() {
         settle,
         tolerance,
         asked: None,
+        ours: ours(&mine, &worn()),
+        mine,
         wore: repainted(),
         hung: None,
         told,
@@ -105,8 +112,47 @@ fn main() {
     queue.roundtrip(&mut wall).unwrap();
 
     while !wall.gone {
+        // A sea that is not this desktop's to draw has no surfaces, and a
+        // process with no surfaces is sent no frames, so nothing would ever ask
+        // again whether the theme had come back. The desk is put the question
+        // on a clock instead, which is what a frame was doing anyway.
+        if wall.screens.is_empty() {
+            queue.roundtrip(&mut wall).unwrap();
+            wall.ask(&qh);
+            if wall.screens.is_empty() {
+                std::thread::sleep(std::time::Duration::from_secs_f64(ASK));
+            }
+            continue;
+        }
+
         queue.blocking_dispatch(&mut wall).unwrap();
     }
+}
+
+/// Whether this water is the one the desktop should be showing.
+///
+/// A wallpaper installed by a theme belongs to that theme and has no business
+/// on the next one: it is recoloured to whatever comes after and still
+/// unmistakably a sea, over a picture the new theme chose and nobody can see.
+/// So the water is told at install time which theme it arrived with, and asks
+/// the desktop what it is wearing.
+///
+/// Told nothing, it is the desk's rather than a theme's, which is the water
+/// installed as a plugin on its own. Then every theme is its theme.
+fn ours(mine: &str, worn: &str) -> bool {
+    mine.is_empty() || mine == worn
+}
+
+/// What the desktop says it is wearing, by the slug Omarchy names a theme with.
+///
+/// Written on the way through a theme change, before the shell is handed the
+/// new colours, so it is the earliest anybody finds out. Nothing when there is
+/// no file, which reads as no theme and leaves a sea that belongs to one off
+/// the screen.
+fn worn() -> String {
+    std::fs::read_to_string(kept().join("omarchy/current/theme.name"))
+        .map(|said| said.trim().to_string())
+        .unwrap_or_default()
 }
 
 /// The colours the desktop is wearing: its accent, and what it is written on.
@@ -252,8 +298,11 @@ struct Screen {
     /// therefore how a question about windows gets an answer about this screen.
     name: Option<String>,
     output: wl_output::WlOutput,
-    layer: LayerSurface,
+    /// The card's side of the surface, before the compositor's, because a
+    /// screen is dropped whole when the water is put away and a swapchain
+    /// outliving the surface it was made from is the driver's business.
     target: wgpu::Surface<'static>,
+    layer: LayerSurface,
     paint: Option<Paint>,
     scene: Option<Scene>,
     /// The size the water is drawn at, which is the screen's size in the units
@@ -360,6 +409,10 @@ struct Wall {
     tolerance: f64,
     /// When the compositor was last asked who can see the water.
     asked: Option<std::time::Instant>,
+    /// The theme this water arrived with, and whether the desktop is wearing
+    /// it. Empty is water that arrived with no theme, which is every theme's.
+    mine: String,
+    ours: bool,
     /// And when the desktop last changed what it is wearing.
     wore: Option<std::time::SystemTime>,
     /// The picture that is behind the water, so that a change of it is one
@@ -410,8 +463,8 @@ impl Wall {
         self.screens.push(Screen {
             name: told.and_then(|info| info.name),
             output,
-            layer,
             target,
+            layer,
             paint: None,
             scene: None,
             width: 0,
@@ -421,6 +474,25 @@ impl Wall {
             hidden: false,
             shown: false,
         });
+    }
+
+    /// The water on every screen, or off all of them, as the desktop changes
+    /// out of the theme it came with and back into it.
+    ///
+    /// Off is the surfaces destroyed rather than a transparent frame drawn over
+    /// and over: the layer under this one is Omarchy's own background, and what
+    /// a theme the sea does not belong to is owed is that picture with nothing
+    /// whatever in front of it.
+    fn dress(&mut self, qh: &QueueHandle<Self>) {
+        if !self.ours {
+            self.screens.clear();
+            self.hung = None;
+            return;
+        }
+
+        for output in self.outputs.outputs().collect::<Vec<_>>() {
+            self.spawn(output, qh);
+        }
     }
 
     /// Which screen a surface belongs to.
@@ -516,13 +588,18 @@ impl Wall {
     /// The one thing here that is nobody's but the machine's: `Background.qml`
     /// has the wallpaper under the sea because the sea is not opaque, and the
     /// water carries the picture itself rather than trusting the layer below to
-    /// be holding one. Omarchy's own background is usually down there and this
-    /// draws the same file it does, but a desk that has switched it off is a
-    /// desk with nothing under the water at all.
+    /// be holding one. Omarchy's own background is usually down there drawing
+    /// the same file, and this copy is what is actually seen; the one below
+    /// matters on the frames this sea is not on the screen for, and on a desk
+    /// that has switched the shell's wallpaper off for its own reasons.
     ///
     /// Read once and hung on each screen, which fits it to its own box: one
     /// picture cropped two ways rather than one crop stretched twice.
     fn hang(&mut self) {
+        if self.screens.is_empty() {
+            return;
+        }
+
         let Some(path) = hung() else {
             return;
         };
@@ -571,7 +648,7 @@ impl Wall {
     ///
     /// Asked for the whole desk rather than for one screen, since it is one
     /// theme and one compositor however many panels are plugged into it.
-    fn ask(&mut self) {
+    fn ask(&mut self, qh: &QueueHandle<Self>) {
         let now = std::time::Instant::now();
         let stale = self
             .asked
@@ -580,6 +657,19 @@ impl Wall {
             return;
         }
         self.asked = Some(now);
+
+        // Whether the desktop is still wearing the theme this water came with,
+        // which costs a look at one short file and takes the sea off every
+        // screen when it is not. Asked before the colours, since a sea nobody
+        // is going to see is not worth recolouring.
+        let ours = ours(&self.mine, &worn());
+        if ours != self.ours {
+            self.ours = ours;
+            self.dress(qh);
+        }
+        if !self.ours {
+            return;
+        }
 
         // Whether the desktop changed what it is wearing, which costs a look at
         // one file's date and recolours the whole sea when it did. Only if
@@ -623,7 +713,13 @@ impl Wall {
     }
 
     fn draw(&mut self, at: usize, qh: &QueueHandle<Self>) {
-        self.ask();
+        self.ask(qh);
+
+        // Asking may have put the water away, and a screen that has just been
+        // destroyed is not one to draw on.
+        if at >= self.screens.len() {
+            return;
+        }
 
         let (ink, surface_hue) = self.wearing.now();
         let screen = &mut self.screens[at];
@@ -759,7 +855,7 @@ impl LayerShellHandler for Wall {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, layer: &LayerSurface) {
         self.screens
             .retain(|screen| screen.layer.wl_surface() != layer.wl_surface());
-        self.gone = self.screens.is_empty();
+        self.gone = self.ours && self.screens.is_empty();
     }
 
     fn configure(
@@ -806,7 +902,9 @@ impl OutputHandler for Wall {
         qh: &QueueHandle<Self>,
         output: wl_output::WlOutput,
     ) {
-        self.spawn(output, qh);
+        if self.ours {
+            self.spawn(output, qh);
+        }
     }
 
     fn update_output(
@@ -840,7 +938,10 @@ impl OutputHandler for Wall {
         // going is the end of the run: a wallpaper with nothing to hang on is a
         // process with nothing to do.
         self.screens.retain(|screen| screen.output != output);
-        self.gone = self.screens.is_empty();
+        // Only while the water is this desktop's. A sea that is off the screen
+        // because another theme is being worn has no screens by design, and a
+        // monitor unplugged under it is not the end of the run.
+        self.gone = self.ours && self.screens.is_empty();
     }
 }
 
@@ -862,6 +963,24 @@ mod tests {
     const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
     const BLUE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
     const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+
+    #[test]
+    fn water_that_came_with_a_theme_is_that_theme_s() {
+        assert!(ours("codincod", "codincod"));
+        assert!(!ours("codincod", "tokyo-night"));
+
+        // And a desktop that says it is wearing nothing is wearing something
+        // else, which is the state a machine with no Omarchy on it is in.
+        assert!(!ours("codincod", ""));
+    }
+
+    #[test]
+    fn water_that_came_with_no_theme_is_the_desk_s() {
+        // The plugin installed on its own, which is not a theme's to take away.
+        assert!(ours("", "codincod"));
+        assert!(ours("", "tokyo-night"));
+        assert!(ours("", ""));
+    }
 
     #[test]
     fn a_theme_nobody_changed_is_the_theme_it_is() {
