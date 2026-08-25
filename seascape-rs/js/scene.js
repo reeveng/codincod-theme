@@ -2834,7 +2834,7 @@ var Sea = (() => {
       seatLeast: 0.38,
       seatSpan: 0.32,
       sees: false,
-      sink: 0.34,
+      sink: 0.14,
       thrust: 0.5,
       trail: 0,
       wideLeast: 0.7,
@@ -2949,6 +2949,7 @@ var Sea = (() => {
   var MARGIN3 = 1.6;
   var SMACK = 5;
   var SKY2 = 0.02;
+  var BELL_CLEAR = 0.35;
   var MIN_SPAN7 = 1;
   function squeezeAt(kind, beat) {
     const habit = HABITS[kind];
@@ -2996,7 +2997,7 @@ var Sea = (() => {
       const size = drawnAt(across, DRIFTING_OFF) * width * (1 - DEPTH_SIZE5 + DEPTH_SIZE5 * depth);
       const seat = height * (SKY2 + (habit.seatLeast + random() * habit.seatSpan) * (1 - SKY2));
       const x = from == null ? random() * width : from < 0 ? -size * MARGIN3 : width + size * MARGIN3;
-      const bed = (options.floor?.(x) ?? height) - size * 0.35;
+      const bed = (options.floor?.(x, depth) ?? height) - size * clearOf(habit);
       const seated = Math.min(seat, bed);
       const one = {
         alarm: 0,
@@ -3180,7 +3181,7 @@ var Sea = (() => {
             one.y = roof;
             one.vy = Math.max(one.vy, 0);
           }
-          const bed = (options.floor?.(one.x) ?? height) - one.size * 0.35;
+          const bed = (options.floor?.(one.x, one.depth) ?? height) - one.size * clearOf(habit);
           if (one.y > bed) {
             one.y = bed;
             one.vy = Math.min(one.vy, 0);
@@ -3193,6 +3194,7 @@ var Sea = (() => {
     };
   }
   var clamp2 = (value, low, high) => Math.min(Math.max(value, low), high);
+  var clearOf = (habit) => BELL_CLEAR + habit.armFall;
   var ease3 = (from, to, rate) => from + (to - from) * Math.min(1, Math.max(0, rate));
   var BELL_STEPS = 24;
   var HAIR_GIRTH = {
