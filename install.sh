@@ -4,8 +4,9 @@
 # The theme itself needs none of this: `omarchy theme install` on this repo is
 # the whole of the theme. What this adds is the sea.
 #
-#   ./install.sh          the native renderer, which is the one this draws with
-#   ./install.sh --qml    the shell plugin, which is the same water on the CPU
+#   ./install.sh             the native renderer, which is the one this draws with
+#   ./install.sh --qml       the shell plugin, which is the same water on the CPU
+#   ./install.sh --uninstall the water gone and the desk's own wallpaper back
 #
 # There are two renderers and one simulation. `seascape-rs/` draws on the card,
 # through a layer surface of its own, and runs as a service of your own session.
@@ -147,6 +148,46 @@ stop_wall() {
   systemctl --user disable --now seascape.service >/dev/null 2>&1 || true
 }
 
+# The way out, which until now was a paragraph in the README naming two
+# commands. That is the wrong shape for it: somebody looking for the way back is
+# somebody who has already stopped reading, and one of the two commands is only
+# there because an early version of this installer turned the shell's own
+# wallpaper off. A desk that had been through that and then took the sea away
+# had no wallpaper renderer at all.
+uninstall() {
+  local off=0 id
+
+  stop_wall
+  rm -f "$UNIT" "$BIN"
+  systemctl --user daemon-reload
+
+  for id in "$ID" "$CANONICAL_ID"; do
+    omarchy plugin list --json 2>/dev/null |
+      jq -e --arg id "$id" 'any(.[]; .id == $id and .enabled)' >/dev/null || continue
+    omarchy plugin disable "$id" >/dev/null
+    off=1
+  done
+
+  if [[ -d $TARGET && $TARGET == "$PLUGINS/"* ]]; then
+    rm -rf "$TARGET"
+    off=1
+  fi
+
+  if omarchy plugin list --json 2>/dev/null |
+    jq -e 'any(.[]; .id == "omarchy.background" and (.enabled | not))' >/dev/null; then
+    omarchy plugin enable omarchy.background >/dev/null
+    off=1
+  fi
+
+  if ((off)); then
+    omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+    restart_shell
+  fi
+
+  echo "The water is gone, and the wallpaper is the desktop's own again."
+  return 0
+}
+
 install_wall() {
   command -v cargo >/dev/null || {
     echo "The native renderer is built with cargo, which is not on PATH." >&2
@@ -213,8 +254,11 @@ case "${1:-}" in
     stop_plugin
     install_wall
     ;;
+  --uninstall)
+    uninstall
+    ;;
   *)
-    echo "usage: ./install.sh [--qml]" >&2
+    echo "usage: ./install.sh [--qml|--uninstall]" >&2
     exit 2
     ;;
 esac

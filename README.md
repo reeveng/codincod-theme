@@ -63,10 +63,21 @@ takes a few minutes. It says which of the two it did when it is done, and
 `systemctl --user status seascape.service` is where it says why it did not. The water is drawn in this theme's own two colours, which
 `SEASCAPE_INK=` and `SEASCAPE_SURFACE=` at install time will change.
 
-It turns off every wallpaper the shell would otherwise draw, since two of them
-on the background layer is a coin toss over which one you see. `systemctl --user
-disable --now seascape.service` and `omarchy plugin enable omarchy.background`
-is the way back to the wallpaper you had.
+**It is this theme's water.** The sea draws on the layer above Omarchy's own
+background rather than in place of it, so the shell goes on painting whichever
+picture a theme names and the water is what is over it. Wear something else and
+the water is off the screen inside a second and that theme's wallpaper is the
+whole of what you see; come back and it returns. Nothing needs uninstalling to
+change theme.
+
+```bash
+~/.config/omarchy/themes/codincod/install.sh --uninstall
+```
+
+That takes the service, its binary and the plugin away, and turns Omarchy's own
+wallpaper back on. Worth running once on a desk that installed the sea before
+August 2026: that installer switched the shell's wallpaper renderer off for
+good, which is why the water carried on under every theme after this one.
 
 **The plugin on its own.** The water is also a plugin the shell fetches by
 itself, which wants no cargo, no service and no theme:
@@ -79,7 +90,10 @@ omarchy plugin remove codincod.background          # and the way back
 That is the QML renderer, the slower of the two. It takes its two colours from
 whichever theme you are on, the accent and the background, so it is water in
 your own colours before it is water in CodinCod's, and it re-colours itself as
-you switch. Omarchy's own background turns itself off as it goes on, because
+you switch. That water belongs to no theme and so draws under all of them: it
+was asked for by somebody who wanted a sea rather than by a theme, which is the
+one thing installing it this way changes. Omarchy's own background turns itself
+off as it goes on, because
 this is a clone of it and the shell hands the job over, and removing it hands
 the job back. The native renderer is the same water at
 a third of the cost, and `install.sh` above is the only way to it.
