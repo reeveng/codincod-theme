@@ -566,9 +566,9 @@ var Sea = (() => {
     const scale = FIELD_CELLS / width;
     const nx = one.x * scale + drift * 0.3;
     const ny = one.y * scale + drift;
-    const pitched = one.lean + noise(nx + one.lane, ny + one.lane) * WOBBLE;
-    let x = one.facing * Math.cos(pitched);
-    let y = Math.sin(pitched);
+    const pitched2 = one.lean + noise(nx + one.lane, ny + one.lane) * WOBBLE;
+    let x = one.facing * Math.cos(pitched2);
+    let y = Math.sin(pitched2);
     const reach2 = height * EDGE_REACH;
     y += edge(one.y, reach2) - edge(height - one.y, reach2);
     if (one.mate) {
@@ -5324,6 +5324,9 @@ var Sea = (() => {
     turtle: { rise: -0.2, roll: 0.04, waves: 1.1 }
   };
   var FADE3 = 0.14;
+  var COURSE_SWING = 0.55;
+  var PACE_LEAST2 = 0.8;
+  var PACE_SPAN2 = 0.45;
   var OFFING3 = 0.22;
   var REST_LEAST2 = 360;
   var REST_SPAN2 = 540;
@@ -5376,6 +5379,15 @@ var Sea = (() => {
       }
       return drawn2[0] ?? "turtle";
     }
+    function taken(kind) {
+      const own2 = COURSES[kind];
+      const swung = (by, much) => by * (1 - much + random() * much * 2);
+      return {
+        rise: own2.rise,
+        roll: swung(own2.roll, COURSE_SWING),
+        waves: swung(own2.waves, COURSE_SWING / 2)
+      };
+    }
     function arrive() {
       const kind = parties++ === owed ? "mermaid" : which();
       const habit = HABITS3[kind];
@@ -5385,7 +5397,7 @@ var Sea = (() => {
       const count = habit.party + Math.floor(random() * (habit.partySpan + 1));
       const run = width * (1 + OFFING3 * 2);
       take = habit.takeLeast + random() * habit.takeSpan;
-      course = COURSES[kind];
+      course = taken(kind);
       seat = height * (habit.seatLeast + random() * habit.seatSpan);
       for (let made = 0; made < count; made++) {
         const side = made % 2 === 0 ? 1 : -1;
@@ -5397,6 +5409,7 @@ var Sea = (() => {
           facing,
           kind,
           lift: side * out * WING_SIDE * size,
+          pace: PACE_LEAST2 + random() * PACE_SPAN2,
           size: size * (1 - made * WING_SHRINK) * (1 - DEPTH_SIZE8 + DEPTH_SIZE8 * depth),
           stroke: (random() + made * WING_PHASE) % 1,
           tilt: 0,
@@ -5451,11 +5464,11 @@ var Sea = (() => {
             continue;
           }
           const where = courseAt(one);
-          one.stroke = (one.stroke + HABITS3[one.kind].beat * dt) % 1;
-          one.tilt = drawnTilt(where.heading, one.facing);
+          one.stroke = (one.stroke + HABITS3[one.kind].beat * paced(one) * dt) % 1;
+          one.tilt = drawnTilt(where.heading + pitched(one.kind, one.stroke), one.facing);
           one.weight = Math.max(0, Math.min(1, one.along / FADE3, (1 - one.along) / FADE3));
           one.x = where.x;
-          one.y = where.y;
+          one.y = where.y + heaved(one.kind, one.stroke) * one.size;
         }
         felt2 = null;
         for (const one of crossing) {
@@ -5641,46 +5654,77 @@ var Sea = (() => {
   }
   var sharkBody = (stroke) => swimmer("shark", SHARK, stroke * Math.PI * 2, sharkFins);
   var dolphinBody = (stroke) => swimmer("dolphin", DOLPHIN, stroke * Math.PI * 2, dolphinFins);
-  var TURTLE_SEAT = 0.35;
+  var TURTLE_SEAT = 0.7;
+  var TURTLE_SWING = 1.15;
   var TURTLE_PULL = 0.3;
   function turtleBeat(cycle) {
     const at = cycle - Math.floor(cycle);
     const ease4 = (part) => (1 - Math.cos(Math.PI * part)) / 2;
     if (at < TURTLE_PULL) {
       const through = at / TURTLE_PULL;
-      return { phase: Math.PI * ease4(through), thrust: Math.sin(Math.PI * through) };
+      return {
+        feather: 0,
+        phase: Math.PI * ease4(through),
+        thrust: Math.sin(Math.PI * through),
+        trail: turtleHeave(cycle)
+      };
     }
     const back = (at - TURTLE_PULL) / (1 - TURTLE_PULL);
-    return { phase: Math.PI + Math.PI * ease4(back), thrust: 0 };
+    return {
+      feather: Math.sin(Math.PI * back),
+      phase: Math.PI + Math.PI * ease4(back),
+      thrust: 0,
+      trail: turtleHeave(cycle)
+    };
   }
   var TURTLE_SURGE = 0.55;
+  var TURTLE_HELD = 2 * TURTLE_PULL / Math.PI;
   function driven(kind, cycle) {
     if (kind !== "turtle") return 1;
-    const held = 2 * TURTLE_PULL / Math.PI;
-    return 1 + TURTLE_SURGE * (turtleBeat(cycle).thrust - held);
+    return 1 + TURTLE_SURGE * (turtleBeat(cycle).thrust - TURTLE_HELD);
   }
-  var TURTLE_SWING = 1.2;
-  var TURTLE_REAR = 0.18;
+  function turtleHeave(cycle) {
+    const at = cycle - Math.floor(cycle);
+    const most = 2 * TURTLE_PULL * (1 - TURTLE_PULL) / Math.PI;
+    const raised = at < TURTLE_PULL ? TURTLE_PULL / Math.PI * (1 - Math.cos(Math.PI * at / TURTLE_PULL)) - TURTLE_HELD * at : most - TURTLE_HELD * (at - TURTLE_PULL);
+    return raised / most - 0.5;
+  }
+  var TURTLE_HEAVE = 0.1;
+  var TURTLE_PITCH = 0.12;
+  var TURTLE_BOUT = 0.55;
+  var TURTLE_BOUTS = 6;
+  function paced(one) {
+    if (one.kind !== "turtle") return one.pace;
+    return one.pace * (1 + TURTLE_BOUT * Math.sin(2 * Math.PI * (TURTLE_BOUTS * one.along + one.pace)));
+  }
+  function heaved(kind, cycle) {
+    return kind === "turtle" ? TURTLE_HEAVE * turtleHeave(cycle) : 0;
+  }
+  function pitched(kind, cycle) {
+    if (kind !== "turtle") return 0;
+    return -TURTLE_PITCH * (turtleBeat(cycle).thrust - TURTLE_HELD);
+  }
+  var TURTLE_REAR = 0.06;
+  var TURTLE_LAG = 0.06;
   var TURTLE_FEATHER = 0.22;
   function turtleBody(stroke) {
-    const near = turtleBeat(stroke).phase;
-    const far3 = turtleBeat(stroke + 0.5).phase;
-    const oar = (root, phase2, reach2, wide) => {
-      const feather = Math.cos(phase2);
-      const turned = 1 - TURTLE_FEATHER * feather;
+    const near = turtleBeat(stroke);
+    const far3 = turtleBeat(stroke - TURTLE_LAG);
+    const oar = (root, beat, reach2, wide) => {
+      const turned = 1 - TURTLE_FEATHER * beat.feather;
       return blade(
         root,
-        TURTLE_SEAT - TURTLE_SWING * Math.sin(phase2) * (0.62 + 0.38 * feather),
+        TURTLE_SEAT - TURTLE_SWING * Math.cos(beat.phase),
         reach2 * turned,
         wide * turned,
-        0.06 * (1 - feather * 0.6)
+        0.06 * (1 - 0.6 * beat.feather)
       );
     };
     return (
       // The far pair first, so the near pair is drawn over them. They are the
       // same limbs half a beat behind, which is the whole of what tells a reader
       // they are on the other side of the animal.
-      oar([0.3, 0.02], far3, 0.74, 0.09) + blade([-0.6, 0.06], 2.5 + TURTLE_REAR * Math.sin(far3), 0.26, 0.06, 0.02) + rounded([
+      oar([0.29, -0.01], far3, 0.7, 0.085) + blade([-0.6, 0.06], 2.5 + TURTLE_REAR * far3.trail, 0.26, 0.06, 0.02) + rounded([
         [0.45, -0.1],
         [0.2, -0.28],
         [-0.15, -0.32],
@@ -5699,7 +5743,7 @@ var Sea = (() => {
         [0.86, 0.12],
         [0.62, 0.12],
         [0.44, 0.1]
-      ]) + oar([0.38, 0.07], near, 0.84, 0.115) + blade([-0.62, 0.11], 2.5 + TURTLE_REAR * Math.sin(near), 0.3, 0.07, 0.02)
+      ]) + oar([0.38, 0.07], near, 0.84, 0.115) + blade([-0.62, 0.11], 2.5 + TURTLE_REAR * near.trail, 0.3, 0.07, 0.02)
     );
   }
   var MANTA_SPAN = 1.95;
