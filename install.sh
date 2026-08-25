@@ -85,6 +85,16 @@ install_plugin() {
     mv "$tmp" "$TARGET/manifest.json"
   fi
 
+  # Which theme the water belongs to, read by `Background.qml` from beside
+  # itself. Written here because here is the only place that knows: the same
+  # files fetched by `omarchy plugin add` arrive with no theme anywhere near
+  # them, and that water is the desk's and draws under every theme there is.
+  if [[ -n $THEME ]]; then
+    echo "$THEME" >"$TARGET/mine.theme"
+  else
+    rm -f "$TARGET/mine.theme"
+  fi
+
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
 
   for _ in $(seq 40); do

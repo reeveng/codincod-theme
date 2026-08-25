@@ -31,28 +31,62 @@ Item {
    * makes it the earliest the answer is knowable and early enough that the sea
    * is already gone when the picture wipes across.
    *
-   * `wearing` is empty until the file is first read. Empty is not this theme, so
-   * the opening frame of a desktop wearing something else has no sea on it.
+   * Both files are read asynchronously, so there is a moment at startup when
+   * neither question has an answer. Nothing is drawn across it: a sea that
+   * appears for two frames on a desktop wearing something else is the whole of
+   * the fault this is here to fix, in miniature.
    */
   property string wearing: ""
-  readonly property bool worn: wearing === root.mine
+  property bool told: false
+  readonly property bool worn: root.told && root.knows
+    && (root.mine === "" || root.mine === root.wearing)
 
   /**
-   * The theme this water belongs to, which is the directory Omarchy cloned it
-   * into: `omarchy theme install` names a theme after its repository, so a fork
-   * under another name is that fork's sea and stops when that fork is taken off.
+   * The theme this water belongs to, or nothing at all if it belongs to none.
+   *
+   * Written next to this file by the theme's `install.sh`, which knows the name
+   * because it is the directory Omarchy cloned the theme into: `omarchy theme
+   * install` names a theme after its repository, so a fork under another name
+   * is that fork's sea and stops when that fork is taken off.
+   *
+   * No file is the answer that matters most. The same water is a plugin the
+   * shell fetches on its own, with no theme anywhere near it, and that one is
+   * the desk's: it was asked for by somebody who wanted a sea rather than by a
+   * theme, and every theme is its theme. So the gate is closed by a file that
+   * has to be put there, not opened by one.
    */
-  readonly property string mine: "codincod"
+  property string mine: ""
+  property bool knows: false
+  readonly property string here: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")
 
   FileView {
     path: root.currentThemeName
     watchChanges: true
     printErrors: false
-    onLoaded: root.wearing = String(text() || "").trim()
+    onLoaded: {
+      root.wearing = String(text() || "").trim()
+      root.told = true
+    }
     // `text()` is the old contents inside the change signal itself, so both
     // paths go through a reload rather than one of them reading stale.
     onFileChanged: reload()
-    onLoadFailed: root.wearing = ""
+    onLoadFailed: {
+      root.wearing = ""
+      root.told = true
+    }
+  }
+
+  FileView {
+    path: root.here + "mine.theme"
+    printErrors: false
+    onLoaded: {
+      root.mine = String(text() || "").trim()
+      root.knows = true
+    }
+    onLoadFailed: {
+      root.mine = ""
+      root.knows = true
+    }
   }
 
   property string currentBackground: ""
